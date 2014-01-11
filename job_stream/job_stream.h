@@ -195,7 +195,7 @@ namespace job_stream {
             boost::function<job::JobBase* ()> allocator);
     void addReducer(const std::string& typeName, 
             boost::function<job::ReducerBase* ()> allocator);
-    void runProcessor(boost::mpi::communicator world, int argc, char** argv);
+    void runProcessor(int argc, char** argv);
 }
 
 #endif//JOB_STREAM_H_

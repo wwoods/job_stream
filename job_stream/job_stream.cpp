@@ -29,7 +29,10 @@ void addReducer(const std::string& typeName,
 }
 
 
-void runProcessor(mpi::communicator world, int argc, char** argv) {
+void runProcessor(int argc, char** argv) {
+    mpi::environment env(argc, argv);
+    mpi::communicator world;
+
     if (argc < 2) {
         std::ostringstream ss;
         ss << "Usage: " << argv[0] 

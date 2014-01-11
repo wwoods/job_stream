@@ -10,11 +10,25 @@ Requirements
 boost (mpi, serialization, thread)
 yaml-cpp
 
+Building
+--------
+
+Create a build/ folder, cd into it, and run:
+
+    cmake .. && make
+
+This will instruct you on how to configure the build environment, and then will
+build the library.
+
 
 Basics
 ------
 
+The following example is fully configured in the "example" subdirectory.
+
 Essentially, you code some jobs, and optionally a reducer for combining results:
+
+    #include <job_stream/job_stream.h>
 
     /** Add one to any integer we receive */
     class AddOneJob : public job_stream::Job<int> {
@@ -59,22 +73,17 @@ Essentially, you code some jobs, and optionally a reducer for combining results:
 
 Register them in your main, and call up a processor:
 
-    #include "job_stream/job_stream.h"
-    #include <boost/mpi.h>
     int main(int argc, char* argv []) {
-        boost::mpi::environment env(argc, argv);
-        boost::mpi::communicator world;
-
         job_stream::addJob("addOne", AddOneJob::make);
         job_stream::addJob("duplicate", DuplicateJob::make);
-        job_steram::addReducer("sum", SumReducer::make);
-        job_stream::runProcessor(world, argc, argv);
+        job_stream::addReducer("sum", SumReducer::make);
+        job_stream::runProcessor(argc, argv);
         return 0;
     }
 
 Define a pipeline / configuration:
 
-    # Example.yaml
+    # example1.yaml
     reducer: sum
     jobs:
         - type: addOne
@@ -92,7 +101,7 @@ And run it!
 
 Want to get a little more complicated?  You can embed modules:
 
-    # Example2.yaml
+    # example2.yaml
     jobs:
         - type: addOne
         # Not defining type (or setting it to "module") starts a new module

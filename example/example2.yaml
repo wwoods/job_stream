@@ -1,0 +1,8 @@
+# example2.yaml
+jobs:
+    - type: addOne
+    # Not defining type (or setting it to "module") starts a new module
+    # that can have its own reducer and job chain
+    -   reducer: sum
+        jobs:
+            - type: duplicate

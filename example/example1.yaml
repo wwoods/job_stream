@@ -1,0 +1,5 @@
+# example1.yaml
+reducer: sum
+jobs:
+    - type: addOne
+    - type: addOne
