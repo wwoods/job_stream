@@ -140,7 +140,7 @@ void Processor::run(const std::string& inputLine) {
 
 void Processor::startRingTest(uint64_t reduceTag, uint64_t parentTag, 
         job::ReducerBase* reducer) {
-    if (this->reduceInfoMap.count(reduceTag) != 0) {
+    if (reduceTag != 0 && this->reduceInfoMap.count(reduceTag) != 0) {
         std::ostringstream ss;
         ss << "Ring already existed? " << reduceTag;
         throw std::runtime_error(ss.str());
