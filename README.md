@@ -93,10 +93,11 @@ And run it!
 
     # This will compute 45 + 2 and 7 + 2 separately, then sum them, returning
     # one number (because of the reducer).
-    $ mpirun -np 4 ./job_stream_example Example.yaml <<!
+    $ mpirun -np 4 ./job_stream_example example1.yaml <<!
         45
-        7!
-    58
+        7
+        !
+    56
     $ 
 
 Want to get a little more complicated?  You can embed modules:
@@ -112,7 +113,7 @@ Want to get a little more complicated?  You can embed modules:
 
 That pipeline will, individually for each input row, add one and double it:
 
-    $ mpirun -np 4 ./job_stream_example Example2.yaml <<!
+    $ mpirun -np 4 ./job_stream_example example2.yaml <<!
         1
         2
         3
@@ -120,12 +121,65 @@ That pipeline will, individually for each input row, add one and double it:
     4
     6
     8
-    $ 
+    $
+
+Does your program have more complex flow?  The emit() function can take a second
+argument, which is the name of the target to route to.  For instance, if we add
+to main.cpp:
+
+    class GetToTenJob : public job_stream::Job<int> {
+    public:
+        static GetToTenJob* make() { return new GetToTenJob(); }
+
+        void handleWork(int& work) {
+            if (work < 10) {
+                this->emit(work, "keep_going");
+            }
+            else {
+                this->emit(work, "done");
+            }
+        }
+    };
+
+    //Remember to register it in main...
+
+And then you set up example3.yaml:
+
+    # example3.yaml
+    # Note that our module now has an "input" field - this determines the first
+    # job to receive work.  Our "jobs" field is now a map instead of a list, 
+    # with the key being the id of each job.  "to" determines where emitted
+    # work goes - if "to" is a mapping, the job uses "emit" with a second 
+    # argument to guide each emitted work.
+    input: checkValue
+    jobs:
+        addOne:
+            type: addOne
+            to: checkValue
+        checkValue:
+            type: getToTen
+            to:
+                keep_going: addOne
+                done: output
+
+Run it:
+
+    $ mpirun -np 4  ./job_stream_example example3.yaml <<!
+        1
+        8
+        12
+        !
+    12
+    10
+    10
+    $
+
+Note that the "12" is output first, since it got routed to output almost 
+immediately rather than having to pass through many AddOneJobs.
 
 Roadmap
 -------
 
-* Lists of unnamed jobs for a one-directional pipeline module.
 * Reductions should always happen locally; a dead ring should merge them.
 * Doxygen documentation
 * Tests

@@ -31,6 +31,8 @@ protected:
     /* Return a JobBase for the given job id */
     job::JobBase* getJob(const std::string& id);
 
+    virtual std::string parseAndSerialize(const std::string& line);
+
 private:
     /* Map of job ids to JobBase */
     std::map<std::string, job::JobBase*> jobMap;

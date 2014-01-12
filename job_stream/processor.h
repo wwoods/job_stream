@@ -141,7 +141,7 @@ private:
     std::map<uint64_t, ProcessorReduceInfo> reduceInfoMap;
     /* We have to keep track of how many 
     /* The root module defined by the main config file */
-    module::Module* root;
+    job::JobBase* root;
     /* Set when eof is reached on stdin (or input line, if using argv */
     bool shouldEndRing0;
     /* True until quit message is received (ring 0 is completely closed). */

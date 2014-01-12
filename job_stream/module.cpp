@@ -2,6 +2,8 @@
 #include "module.h"
 #include "processor.h"
 
+#include <boost/lexical_cast.hpp>
+
 namespace job_stream {
 namespace module {
 
@@ -25,9 +27,41 @@ Module::~Module() {
 
 void Module::postSetup() {
     if (!this->config["input"]) {
-        std::ostringstream ss;
-        ss << "Module " << this->getFullName() << " has no input defined";
-        throw std::runtime_error(ss.str());
+        if (this->config["jobs"].IsSequence()) {
+            //Pipeline!  Since all of the code relies on named jobs, as they
+            //are more flexible, we have to replace the jobs node with a named
+            //version.
+            YAML::Node newJobs;
+            this->config["input"] = "1";
+            int jobId = 1;
+            for (int i = 0, m = this->config["jobs"].size(); i < m; i++) {
+                YAML::Node n = this->config["jobs"][i];
+                if (n["to"]) {
+                    std::ostringstream ss;
+                    ss << "Job " << jobId << " under " << this->getFullName();
+                    ss << " cannot have a 'to' configured.  If you need to";
+                    ss << " use 'to', you'll need to use named jobs instead";
+                    ss << " of a list.";
+                    throw std::runtime_error(ss.str());
+                }
+
+                if (i < m - 1) {
+                    n["to"] = boost::lexical_cast<std::string>(jobId + 1);
+                }
+                else {
+                    n["to"] = "output";
+                }
+                newJobs[boost::lexical_cast<std::string>(jobId)] = n;
+                jobId += 1;
+            }
+
+            this->config["jobs"] = newJobs;
+        }
+        else {
+            std::ostringstream ss;
+            ss << "Module " << this->getFullName() << " has no input defined";
+            throw std::runtime_error(ss.str());
+        }
     }
 
     //Assign our level
@@ -160,6 +194,12 @@ job::JobBase* Module::getJob(const std::string& id) {
     job::JobBase* job = this->processor->allocateJob(this, id, config);
     this->jobMap[id] = job;
     return job;
+}
+
+
+std::string Module::parseAndSerialize(const std::string& line) {
+    return this->getJob(this->config["input"].as<std::string>())
+            ->parseAndSerialize(line);
 }
 
 } //module

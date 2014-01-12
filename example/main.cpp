@@ -24,6 +24,21 @@ public:
 };
 
 
+class GetToTenJob : public job_stream::Job<int> {
+public:
+    static GetToTenJob* make() { return new GetToTenJob(); }
+
+    void handleWork(int& work) {
+        if (work < 10) {
+            this->emit(work, "keep_going");
+        }
+        else {
+            this->emit(work, "done");
+        }
+    }
+};
+
+
 class SumReducer : public job_stream::Reducer<int> {
 public:
     static SumReducer* make() { return new SumReducer(); }
@@ -47,6 +62,7 @@ public:
 int main(int argc, char* argv []) {
     job_stream::addJob("addOne", AddOneJob::make);
     job_stream::addJob("duplicate", DuplicateJob::make);
+    job_stream::addJob("getToTen", GetToTenJob::make);
     job_stream::addReducer("sum", SumReducer::make);
     job_stream::runProcessor(argc, argv);
     return 0;

@@ -18,6 +18,9 @@ namespace job {
     /** Unspecialized, internal job base class.  All jobs should actually derive
       * from job_stream::Job<WorkType>. */
     class JobBase {
+        friend class module::Module;
+        friend class processor::Processor;
+
     public:
         JobBase();
         virtual ~JobBase();
@@ -33,7 +36,7 @@ namespace job {
         /* To make dispatching class types easier, the constructor does nothing.
            This function goes ahead and sets up the job so it can receive work.
            */
-        virtual void setup(processor::Processor* processor,
+        void setup(processor::Processor* processor,
                 module::Module* parent,
                 const std::string& id,
                 const YAML::Node& config, 
@@ -61,6 +64,11 @@ namespace job {
     
         /* The processor that we are running under */
         processor::Processor* processor;
+
+        /** Given a string (input from stdin or console), convert it to our
+            input type and serialize it back to a string that can be sent
+            as work. */
+        virtual std::string parseAndSerialize(const std::string& line) = 0;
 
         /* Put the given payload into module's output.  Called by reducers. */
         void sendModuleOutput(const std::string& payload);

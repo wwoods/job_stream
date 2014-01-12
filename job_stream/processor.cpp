@@ -200,9 +200,8 @@ void Processor::joinThreads() {
 void Processor::_enqueueInputWork(const std::string& line) {
     //All input goes straight to the root module by default...
     std::vector<std::string> inputDest;
-    int var = boost::lexical_cast<int>(line);
     this->workOutQueue.push(new message::WorkRecord(inputDest,
-            serialization::encode(var)));
+            this->root->parseAndSerialize(line)));
 }
 
 
@@ -262,7 +261,7 @@ job::JobBase* Processor::allocateJob(module::Module* parent,
     }
     job->setup(this, parent, id, config, *globalConfig);
     if (!this->root) {
-        this->root = (module::Module*)job;
+        this->root = job;
     }
     job->postSetup();
     return job;

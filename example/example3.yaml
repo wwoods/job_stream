@@ -1,0 +1,16 @@
+# example3.yaml
+# Note that our module now has an "input" field - this determines the first
+# job to receive work.  Our "jobs" field is now a map instead of a list, 
+# with the key being the id of each job.  "to" determines where emitted
+# work goes - if "to" is a mapping, the job uses "emit" with a second 
+# argument to guide each emitted work.
+input: checkValue
+jobs:
+    addOne:
+        type: addOne
+        to: checkValue
+    checkValue:
+        type: getToTen
+        to:
+            keep_going: addOne
+            done: output
