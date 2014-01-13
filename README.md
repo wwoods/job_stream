@@ -180,6 +180,8 @@ immediately rather than having to pass through many AddOneJobs.
 Roadmap
 -------
 
+* Replace make() with templated addJob, which calls new() (init still lazy).  Make templated versions return a unique\_ptr as well, so that memory management is a no brainer.
+* boost::function -> std::function
 * Reductions should always happen locally; a dead ring should merge them.
 * Doxygen documentation
 * Tests
