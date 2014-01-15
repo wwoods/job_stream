@@ -185,3 +185,4 @@ Roadmap
 * Reductions should always happen locally; a dead ring should merge them.
 * Doxygen documentation
 * Tests
+* Subproject - executable integrated with python, for compile-less / easier work
