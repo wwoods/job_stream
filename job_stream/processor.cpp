@@ -15,15 +15,15 @@ namespace mpi = boost::mpi;
 namespace job_stream {
 namespace processor {
 
-static std::map<std::string, boost::function<job::JobBase* ()> > jobTypeMap;
-static std::map<std::string, boost::function<job::ReducerBase* ()> > 
+static std::map<std::string, std::function<job::JobBase* ()> > jobTypeMap;
+static std::map<std::string, std::function<job::ReducerBase* ()> > 
         reducerTypeMap;
 
 extern const int JOB_STREAM_DEBUG = 0;
 
 /** STATICS **/
 void Processor::addJob(const std::string& typeName, 
-        boost::function<job::JobBase* ()> allocator) {
+        std::function<job::JobBase* ()> allocator) {
     if (jobTypeMap.count("module") == 0) {
         //initialize map with values
         jobTypeMap["module"] = module::Module::make;
@@ -40,7 +40,7 @@ void Processor::addJob(const std::string& typeName,
 
 
 void Processor::addReducer(const std::string& typeName, 
-        boost::function<job::ReducerBase* ()> allocator) {
+        std::function<job::ReducerBase* ()> allocator) {
     if (reducerTypeMap.count(typeName) != 0) {
         std::ostringstream ss;
         ss << "Reducer type already defined: " << typeName;
@@ -54,7 +54,7 @@ void Processor::addReducer(const std::string& typeName,
 
 
 Processor::Processor(mpi::communicator world, const YAML::Node& config)
-        : processInputThread(0), reduceTagCount(0), root(0), world(world) {
+        : processInputThread(0), reduceTagCount(0), world(world) {
     if (world.size() >= (1 << message::WorkRecord::TAG_ADDRESS_BITS)) {
         throw std::runtime_error("MPI world too large.  See TAG_ADDRESS_BITS "
                 "in message.h");
@@ -261,7 +261,7 @@ job::JobBase* Processor::allocateJob(module::Module* parent,
     }
     job->setup(this, parent, id, config, *globalConfig);
     if (!this->root) {
-        this->root = job;
+        this->root = std::unique_ptr<job::JobBase>(job);
     }
     job->postSetup();
     return job;

@@ -18,13 +18,13 @@ void func() {
 
 
 void addJob(const std::string& typeName,
-        boost::function<job::JobBase* ()> allocator) {
+        std::function<job::JobBase* ()> allocator) {
     processor::Processor::addJob(typeName, allocator);
 }
 
 
 void addReducer(const std::string& typeName,
-        boost::function<job::ReducerBase* ()> allocator) {
+        std::function<job::ReducerBase* ()> allocator) {
     processor::Processor::addReducer(typeName, allocator);
 }
 

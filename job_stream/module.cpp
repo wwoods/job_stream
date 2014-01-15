@@ -16,15 +16,6 @@ Module::Module() : level(0) {
 }
 
 
-Module::~Module() {
-    //Delete all of our jobs
-    for (auto iter = this->jobMap.begin(); iter != this->jobMap.end(); iter++) {
-        delete iter->second;
-    }
-    this->jobMap.clear();
-}
-
-
 void Module::postSetup() {
     if (!this->config["input"]) {
         if (this->config["jobs"].IsSequence()) {
@@ -76,11 +67,8 @@ void Module::postSetup() {
 
     //Set up reducer
     if (this->config["reducer"]) {
-        this->reducer = this->processor->allocateReducer(this, 
-                this->config["reducer"]);
-    }
-    else {
-        this->reducer = 0;
+        this->reducer.reset(this->processor->allocateReducer(this, 
+                this->config["reducer"]));
     }
 }
 
@@ -171,7 +159,7 @@ void Module::dispatchWork(message::WorkRecord& work) {
 job::JobBase* Module::getJob(const std::string& id) {
     auto jobIter = this->jobMap.find(id);
     if (jobIter != this->jobMap.end()) {
-        return jobIter->second;
+        return jobIter->second.get();
     }
 
     //Make the job
@@ -181,7 +169,7 @@ job::JobBase* Module::getJob(const std::string& id) {
             ss << "Module does not have a reducer: " << this->getFullName();
             throw std::runtime_error(ss.str());
         }
-        return this->reducer;
+        return this->reducer.get();
     }
     else if (!this->config["jobs"][id]) {
         std::ostringstream msg;
@@ -191,8 +179,9 @@ job::JobBase* Module::getJob(const std::string& id) {
     }
 
     const YAML::Node& config = this->config["jobs"][id];
-    job::JobBase* job = this->processor->allocateJob(this, id, config);
-    this->jobMap[id] = job;
+    job::JobBase* job = this->processor->allocateJob(this, id, 
+            config);
+    this->jobMap[id].reset(job);
     return job;
 }
 

@@ -4,6 +4,7 @@
 #include "message.h"
 #include "yaml.h"
 
+#include <memory>
 #include <string>
 
 namespace job_stream {
@@ -95,14 +96,10 @@ namespace job {
     template<class T_accum>
     struct ReduceAccumulator {
         /* Copy of the original WorkRecord that spawned this reduction */
-        message::WorkRecord* originalWork;
+        std::unique_ptr<message::WorkRecord> originalWork;
 
         /* The accumulator for this record */
         T_accum accumulator;
-
-        ~ReduceAccumulator() {
-            delete this->originalWork;
-        }
     };
 }
 }

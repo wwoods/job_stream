@@ -6,6 +6,7 @@
 #include "yaml.h"
 
 #include <map>
+#include <memory>
 
 namespace job_stream {
 namespace module {
@@ -16,7 +17,6 @@ public:
     static Module* make();
 
     Module();
-    virtual ~Module();
 
     /* Find the Job responsible for processing work and run it. */
     virtual void dispatchWork(message::WorkRecord& work);
@@ -35,14 +35,14 @@ protected:
 
 private:
     /* Map of job ids to JobBase */
-    std::map<std::string, job::JobBase*> jobMap;
+    std::map<std::string, std::unique_ptr<job::JobBase> > jobMap;
 
     /* This module's level (base-0; for indexing arrays).  Points to the child
        job of this module, more specifically. */
     int level;
 
     /* Our reducer, if any */
-    job::ReducerBase* reducer;
+    std::unique_ptr<job::ReducerBase> reducer;
 };
 
 }

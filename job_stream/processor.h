@@ -6,10 +6,11 @@
 #include "module.h"
 #include "yaml.h"
 
-#include <boost/function.hpp>
 #include <boost/mpi.hpp>
 #include <boost/thread/mutex.hpp>
 #include <boost/thread/thread.hpp>
+#include <functional>
+#include <memory>
 #include <queue>
 
 namespace job_stream {
@@ -100,9 +101,9 @@ public:
     };
 
     static void addJob(const std::string& typeName, 
-            boost::function<job::JobBase* ()> allocator);
+            std::function<job::JobBase* ()> allocator);
     static void addReducer(const std::string& typeName, 
-            boost::function<job::ReducerBase* ()> allocator);
+            std::function<job::ReducerBase* ()> allocator);
 
     Processor(boost::mpi::communicator world, const YAML::Node& config);
     ~Processor();
@@ -141,7 +142,7 @@ private:
     std::map<uint64_t, ProcessorReduceInfo> reduceInfoMap;
     /* We have to keep track of how many 
     /* The root module defined by the main config file */
-    job::JobBase* root;
+    std::unique_ptr<job::JobBase> root;
     /* Set when eof is reached on stdin (or input line, if using argv */
     bool shouldEndRing0;
     /* True until quit message is received (ring 0 is completely closed). */

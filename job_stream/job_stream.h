@@ -7,9 +7,9 @@
 #include "serialization.h"
 #include "yaml.h"
 
-#include <boost/function.hpp>
 #include <boost/lexical_cast.hpp>
 #include <boost/mpi.hpp>
+#include <functional>
 #include <string>
 
 namespace job_stream {
@@ -76,7 +76,7 @@ namespace job_stream {
 
         virtual bool dispatchDone(uint64_t reduceTag) {
             this->setCurrentReduce(reduceTag);
-            this->currentRecord = this->currentReduce->originalWork;
+            this->currentRecord = this->currentReduce->originalWork.get();
             this->hadRecurrence = false;
             this->handleDone(this->currentReduce->accumulator);
 
@@ -118,8 +118,8 @@ namespace job_stream {
 
             if (reallyInit) {
                 job::ReduceAccumulator<T_accum>& record = this->reduceMap[tag];
-                record.originalWork = new message::WorkRecord(
-                        work.serialized());
+                record.originalWork.reset(new message::WorkRecord(
+                        work.serialized()));
                 this->handleInit(record.accumulator);
 
                 //Track when this reduction is finished
@@ -201,9 +201,9 @@ namespace job_stream {
 
 
     void addJob(const std::string& typeName, 
-            boost::function<job::JobBase* ()> allocator);
+            std::function<job::JobBase* ()> allocator);
     void addReducer(const std::string& typeName, 
-            boost::function<job::ReducerBase* ()> allocator);
+            std::function<job::ReducerBase* ()> allocator);
     void runProcessor(int argc, char** argv);
 }
 
