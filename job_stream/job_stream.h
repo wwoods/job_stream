@@ -14,7 +14,7 @@
 
 namespace job_stream {
     /** Specialized Job base class. */
-    template<class T_input>
+    template<typename T_input>
     class Job : public job::JobBase {
     public:
         /* Pass work into handleWork and possibly emit new tuples.   */
@@ -62,7 +62,7 @@ namespace job_stream {
 
 
     /** Specialized reducer class */
-    template<class T_input, class T_accum = T_input>
+    template<typename T_input, typename T_accum = T_input>
     class Reducer : public job::ReducerBase {
     public:
         /** Handle initialization of accumulator.  Must be callable several 
