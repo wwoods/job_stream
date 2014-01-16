@@ -1,0 +1,26 @@
+
+# Hey!
+
+# TODO - tests should be stdin file (< file), number networks should be
+# config in here.
+tests:
+    - [ 0, 0, 0 ]
+    - [ 0, 1, 1 ]
+    - [ 1, 0, 1 ]
+    - [ 1, 1, 0 ]
+
+input: initNeuralNets
+reducer: 
+    type: checkErrorAndBreed
+    error: 0.5
+    recurTo: testNetworks
+jobs:
+    initNeuralNets:
+        type: makeNetworks
+        to: testNetworks
+        neurons: 3
+        numInputs: 2
+        numOutputs: 1
+    testNetworks:
+        type: evalNetwork
+        to: output

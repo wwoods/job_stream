@@ -138,11 +138,21 @@ void Module::dispatchWork(message::WorkRecord& work) {
         else {
             //When a reducer is active, output is just a JobBase that is the 
             //reducer.
+            if (processor::JOB_STREAM_DEBUG >= 2) {
+                std::ostringstream ss;
+                ss << "Passing to " << this->reducer->getFullName();
+                fprintf(stderr, "%s\n", ss.str().c_str());
+            }
             this->reducer->dispatchAdd(work);
         }
     }
     else {
         //Process the work under the appropriate job (or forward to next module)
+        if (processor::JOB_STREAM_DEBUG >= 2) {
+            std::ostringstream ss;
+            ss << "Passing to " << this->getJob(curTarget)->getFullName();
+            fprintf(stderr, "%s\n", ss.str().c_str());
+        }
         this->getJob(curTarget)->dispatchWork(work);
     }
 

@@ -29,3 +29,18 @@ target_link_libraries(job_stream_example ${YAML_LIB}/libyaml-cpp.a)
 
 # rt must be last
 target_link_libraries(job_stream_example rt)
+
+
+## Bonus neuron library for demo purposes...
+add_executable(job_stream_neuron
+        neuron.cpp)
+
+target_link_libraries(job_stream_neuron 
+        ${CMAKE_SOURCE_DIR}/../build/libjob_stream.a
+        ${BOOST_LIB}/libboost_system.a
+        ${BOOST_LIB}/libboost_thread.a
+        ${BOOST_LIB}/libboost_serialization.a
+        ${BOOST_LIB}/libboost_mpi.a
+        ${YAML_LIB}/libyaml-cpp.a
+        # rt must be last
+        rt)

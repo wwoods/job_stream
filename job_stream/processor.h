@@ -134,8 +134,15 @@ protected:
        from main thread) */
     void sendWork(const message::WorkRecord& work);
 
+    /* Try to receive the current request, or make a new one */
+    bool tryReceive();
+
 private:
     boost::thread* processInputThread;
+    /* The current message receiving buffer */
+    std::string recvBuffer;
+    /* THe current message receiving request */
+    boost::optional<boost::mpi::request> recvRequest;
     /* The current number of assigned tags for reductions */
     uint64_t reduceTagCount;
     std::map<uint64_t, ProcessorReduceInfo> reduceInfoMap;

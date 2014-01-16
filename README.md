@@ -271,6 +271,9 @@ early on.  So handleDone() gets called with 20, 62, and finally 188.
 Roadmap
 -------
 
+* Multiples isn't working with Neurontest?????
+* Sending too many messages... should irecv after every send just in case.  Or,
+  separate thread...
 * Reductions should always happen locally; a dead ring should merge them.  
     * Issue - would need a merge() function on the templated reducer base class.  Also, recurrence would have to re-initialize those rings.  Might be better to hold off on this one until it's a proven performance issue.
     * Unless, of course, T_accum == T_input always and I remove the second param.  Downsides include awkwardness if you want other components to feed into the reducer in a non-reduced format... but, you'd have to write a converter anyway (current handleMore).  So...

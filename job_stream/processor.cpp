@@ -74,15 +74,11 @@ void Processor::run(const std::string& inputLine) {
     this->shouldRun = true;
     this->workTarget = this->world.rank();
     if (this->world.rank() == 0) {
+        //The first work message MUST go to rank 0, so that ring 1 ends up there
+        this->workTarget = -1;
         this->processInputThread = new boost::thread(boost::bind(
                 &Processor::processInputThread_main, this, inputLine));
     }
-
-    //MPI::Send has its own buffering, so we rely on that to get our messages
-    //out
-    mpi::request recvReq;
-    std::string recvMsg;
-    recvReq = this->world.irecv(mpi::any_source, mpi::any_tag, recvMsg);
 
     int dest, tag;
     message::WorkRecord* work;
@@ -92,18 +88,7 @@ void Processor::run(const std::string& inputLine) {
     uint64_t totalMessages = 0;
     while (this->shouldRun) {
         //See if we have any messages; while we do, load them.
-        while (true) {
-            boost::optional<mpi::status> recv = recvReq.test();
-            if (!recv) {
-                break;
-            }
-            //NOTE - The way boost::mpi receives into strings corrupts the 
-            //string.  That's why we copy it here with a substr() call.
-            this->workInQueue.push(MpiMessage(recv->tag(), recvMsg.substr()));
-
-            //Start next request
-            recvReq = this->world.irecv(mpi::any_source, mpi::any_tag, recvMsg);
-        }
+        while (this->tryReceive()) {}
 
         //Distribute any outbound work
         while (this->workOutQueue.pop(work)) {
@@ -334,6 +319,10 @@ void Processor::process(const MpiMessage& message) {
         //First pass?
         bool passItOn = true;
 
+        if (JOB_STREAM_DEBUG >= 2) {
+            fprintf(stderr, "Dead ring check %lu\n", dm.reduceTag);
+        }
+
         if (this->reduceInfoMap[dm.reduceTag].childTagCount) {
             //We're holding onto this one.  Pay it forward... would be more 
             //efficient to hold onto it, but let's not do that for now.  It's 
@@ -412,6 +401,10 @@ void Processor::process(const MpiMessage& message) {
                     Processor::TAG_DEAD_RING_TEST,
                     dm.serialized());
         }
+
+        if (JOB_STREAM_DEBUG >= 2) {
+            fprintf(stderr, "Dead ring check %lu done\n", dm.reduceTag);
+        }
     }
     else if (tag == Processor::TAG_DEAD_RING_IS_DEAD) {
         message::DeadRingTestMessage dm(message.message);
@@ -439,7 +432,46 @@ void Processor::sendWork(const message::WorkRecord& work) {
     else {
         dest = this->_getNextWorker();
     }
-    this->world.send(dest, Processor::TAG_WORK, message);
+
+    //Send non-blocking (though we don't leave this function until our message
+    //is sent) so that we don't freeze the application waiting for the send
+    //buffer.
+    mpi::request sendReq = this->world.isend(dest, Processor::TAG_WORK, 
+            message);
+    while (!sendReq.test()) {
+        //Send isn't done, see if we can receive
+        this->tryReceive();
+    }
+}
+
+
+bool Processor::tryReceive() {
+    //First run filter
+    bool makeNew = true;
+    if (this->recvRequest) {
+        boost::optional<mpi::status> recv = this->recvRequest.get().test();
+        if (recv) {
+            //NOTE - The way boost::mpi receives into strings corrupts the 
+            //string.  That's why we copy it here with a substr() call.
+            if (JOB_STREAM_DEBUG >= 2) {
+                fprintf(stderr, "%i got message len %lu\n", this->getRank(),
+                        (unsigned long)this->recvBuffer.size());
+            }
+            this->workInQueue.push(MpiMessage(recv->tag(), 
+                    this->recvBuffer.substr()));
+        }
+        else {
+            makeNew = false;
+        }
+    }
+
+    if (makeNew) {
+        //Start next request
+        this->recvRequest = this->world.irecv(mpi::any_source, mpi::any_tag, 
+                this->recvBuffer);
+    }
+
+    return makeNew;
 }
 
 
