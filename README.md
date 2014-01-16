@@ -30,6 +30,7 @@ Essentially, you code some jobs, and optionally a reducer for combining results:
 
     #include <job_stream/job_stream.h>
 
+
     /** Add one to any integer we receive */
     class AddOneJob : public job_stream::Job<int> {
     public:
@@ -52,45 +53,90 @@ Essentially, you code some jobs, and optionally a reducer for combining results:
     };
 
 
+    class GetToTenJob : public job_stream::Job<int> {
+    public:
+        static GetToTenJob* make() { return new GetToTenJob(); }
+
+        void handleWork(int& work) {
+            if (work < 10) {
+                this->emit(work, "keep_going");
+            }
+            else {
+                this->emit(work, "done");
+            }
+        }
+    };
+
+
     class SumReducer : public job_stream::Reducer<int> {
     public:
         static SumReducer* make() { return new SumReducer(); }
 
+        /** Called to initialize the accumulator for this reduce.  May be called
+            several times on different hosts, whose results will later be merged
+            in handleJoin(). */
         void handleInit(int& current) {
-            //Must be callable multiple times.  That is, T_accum might be 
-            //instantiated on different hosts, and later merged via handleMore.
             current = 0;
         }
 
-        void handleMore(int& current, int& more) {
-            current += more;
+        /** Used to add a new output to this Reducer */
+        void handleAdd(int& current, int& work) {
+            current += work;
         }
 
+        /** Called to join this Reducer with the accumulator from another */
+        void handleJoin(int& current, int& other) {
+            current += other;
+        }
+
+        /** Called when the reduction is complete, or nearly - recur() may be used
+            to keep the reduction alive (inject new work into this reduction). */
         void handleDone(int& current) {
             this->emit(current);
         }
     };
 
 
-    class GetToTenReducer : public job_stream::Reducer<int> {
+    //Another way to write SumReducer, relying on defaults (operator+):
+    class Sum2Reducer : public job_stream::Reducer<int> {
+        static Sum2Reducer* make() { return new Sum2Reducer(); }
+
+        /** Init is needed just because int does not have an initializer.  User
+            classes should specify an initializer rather than overloading 
+            handleInit. */
+        void handleInit(int& current) { current = 0; }
+    };
+
+
+    class GetToValueReducer : public job_stream::Reducer<int> {
     public:
-        static GetToTenReducer* make() { return new GetToTenReducer(); }
+        static GetToValueReducer* make() { return new GetToValueReducer(); }
 
         void handleInit(int& current) {
             current = 0;
         }
 
-        void handleMore(int& current, int& more) {
-            current += more;
+        void handleAdd(int& current, int& work) {
+            //Everytime we get an output less than 2, we'll need to run it through
+            //the system again.
+            printf("Adding %i\n", work);
+            if (work < 3) {
+                this->recur(3);
+            }
+            current += work;
+        }
+
+        void handleJoin(int& current, int& other) {
+            current += other;
         }
 
         void handleDone(int& current) {
-            if (current >= 10) {
-                printf("EMITTING: %i\n", current);
+            printf("Maybe done at %i\n", current);
+            if (current >= this->config["value"].as<int>()) {
                 this->emit(current);
             }
             else {
-                printf("RECURRING: %i\n", current);
+                //Not really done, put work back in as our accumulated value.
                 this->recur(current);
             }
         }
@@ -101,8 +147,9 @@ Register them in your main, and call up a processor:
     int main(int argc, char* argv []) {
         job_stream::addJob("addOne", AddOneJob::make);
         job_stream::addJob("duplicate", DuplicateJob::make);
+        job_stream::addJob("getToTen", GetToTenJob::make);
         job_stream::addReducer("sum", SumReducer::make);
-        job_stream::addReducer("getToTen", GetToTenReducer::make);
+        job_stream::addReducer("getToValue", GetToValueReducer::make);
         job_stream::runProcessor(argc, argv);
         return 0;
     }
@@ -209,21 +256,26 @@ in the same reduction:
 
     # example4.yaml
     # Reducer recurrence
-    reducer: getToTen
+    reducer: 
+        type: getToValue
+        value: 100
     jobs:
         - type: duplicate
         - type: addOne
 
-Running this with 1 will yield 14 - the first pass will duplicate the 1 and add
-one to each, making 4.  The GetToTenReducer will see that 4 is less than ten,
-and calls the recur method with 4.  Repeating this process will add 10 to the
-final result, making 14.
+Running this with 1 will yield 188 - essentially, since handleAdd() calls recur
+for each value less than 3, two additional "3" works get added into the system
+early on.  So handleDone() gets called with 20, 62, and finally 188.
 
 
 Roadmap
 -------
 
-* Reductions should always happen locally; a dead ring should merge them.  Issue - would need a merge() function on the templated reducer base class.  Also, recurrence would have to re-initialize those rings.  Might be better to hold off on this one until it's a proven performance issue.
+* Reductions should always happen locally; a dead ring should merge them.  
+    * Issue - would need a merge() function on the templated reducer base class.  Also, recurrence would have to re-initialize those rings.  Might be better to hold off on this one until it's a proven performance issue.
+    * Unless, of course, T_accum == T_input always and I remove the second param.  Downsides include awkwardness if you want other components to feed into the reducer in a non-reduced format... but, you'd have to write a converter anyway (current handleMore).  So...
+    * Though, if T_accum == T_input, it's much more awkward to make generic, modular components.  For instance, suppose you have a vector calculation.  Sometimes you just want to print the vectors, or route them to a splicer or whatever.  If you have to form them as reductions, that's pretty forced...
+    * Note - decided to go with handleJoin(), which isn't used currently, but will be soon (I think this will become a small issue)
 * Doxygen documentation
 * Tests
 * Subproject - executable integrated with python, for compile-less / easier work

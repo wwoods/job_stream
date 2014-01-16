@@ -61,19 +61,35 @@ namespace job_stream {
 
 
 
-    /** Specialized reducer class */
-    template<typename T_input, typename T_accum = T_input>
+    /** Specialized reducer class.  Default implementation relies on operator+,
+        so have it defined (into T_accum from both T_accum and T_input)  */
+    template<typename T_accum, typename T_input = T_accum>
     class Reducer : public job::ReducerBase {
     public:
-        /** Handle initialization of accumulator.  Must be callable several 
-            times, and the results must be mergable via handleMore. */
-        virtual void handleInit(T_accum& current) = 0;
-        virtual void handleMore(T_accum& current, T_input& more) = 0;
+        /** Called to initialize the accumulator for this reduce.  May be called
+            several times on different hosts, whose results will later be merged
+            in handleJoin(). */
+        virtual void handleInit(T_accum& current) {}
+
+        /** Used to add a new output to this accumulator */
+        virtual void handleAdd(T_accum& current, T_input& work) {
+            current += work;
+        }
+
+        /** Called to join this Reducer with the accumulator from another */
+        virtual void handleJoin(T_accum& current, T_accum& other) {
+            current += other;
+        }
+
+        /** Called when the reduction is complete, or nearly - recur() may be 
+            used to keep the reduction alive (inject new work into this 
+            reduction). */
         virtual void handleDone(T_accum& current) {
             this->emit(current);
         }
 
 
+        /** Called by system to call handleDone() with proper setup */
         virtual bool dispatchDone(uint64_t reduceTag) {
             this->setCurrentReduce(reduceTag);
             this->currentRecord = this->currentReduce->originalWork.get();
@@ -91,6 +107,8 @@ namespace job_stream {
         }
 
 
+        /** Called by system to call handleInit() with proper setup.  Also gets
+            the reduce ring started and sets up calculation done checks. */
         virtual void dispatchInit(message::WorkRecord& work) {
             uint64_t tag = 1;
             int homeRank = 0;
@@ -132,12 +150,25 @@ namespace job_stream {
         }
 
 
-        virtual void dispatchWork(message::WorkRecord& work) {
+        /** Called by system to call handleAdd() with proper setup */
+        virtual void dispatchAdd(message::WorkRecord& work) {
             this->currentRecord = &work;
             work.putWorkInto(this->currentWork);
             this->setCurrentReduce(work.getReduceTag());
-            this->handleMore(this->currentReduce->accumulator, 
+            this->handleAdd(this->currentReduce->accumulator, 
                     this->currentWork);
+            this->currentReduce = 0;
+            this->currentRecord = 0;
+        }
+
+
+        /** Called by system to call handleJoin() with proper setup */
+        virtual void dispatchJoin(message::WorkRecord& work) {
+            this->currentRecord = &work;
+            work.putWorkInto(this->currentJoin);
+            this->setCurrentReduce(work.getReduceTag());
+            this->handleJoin(this->currentReduce->accumulator, 
+                    this->currentJoin);
             this->currentReduce = 0;
             this->currentRecord = 0;
         }
@@ -193,13 +224,14 @@ namespace job_stream {
         uint64_t currentReduceTag;
         job::ReduceAccumulator<T_accum>* currentReduce;
         T_input currentWork;
+        T_accum currentJoin;
         /** Used in dispatchDone() to see if we had recurrence.  If we did not,
             the reduction is finished. */
         bool hadRecurrence;
         std::map<uint64_t, job::ReduceAccumulator<T_accum> > reduceMap;
 
         virtual std::string parseAndSerialize(const std::string& line) {
-            return serialization::encode(boost::lexical_cast<T_input>(line));
+            return serialization::encode(boost::lexical_cast<T_accum>(line));
         }
 
     private:

@@ -10,15 +10,15 @@
 namespace job_stream {
 namespace job {
 
-JobBase::JobBase() {
+SharedBase::SharedBase() {
 }
 
 
-JobBase::~JobBase() {
+SharedBase::~SharedBase() {
 }
 
 
-std::string JobBase::getFullName() const {
+std::string SharedBase::getFullName() const {
     if (this->parent) {
         return this->parent->getFullName() + "::" + this->id;
     }
@@ -26,7 +26,7 @@ std::string JobBase::getFullName() const {
 }
 
 
-void JobBase::setup(processor::Processor* processor, module::Module* parent,
+void SharedBase::setup(processor::Processor* processor, module::Module* parent,
         const std::string& id, const YAML::Node& config, 
         const YAML::Node& globalConfig) {
     this->processor = processor;
@@ -37,7 +37,7 @@ void JobBase::setup(processor::Processor* processor, module::Module* parent,
 }
 
 
-void JobBase::sendModuleOutput(const std::string& payload) {
+void SharedBase::sendModuleOutput(const std::string& payload) {
     std::vector<std::string> target = this->currentRecord->getTarget();
     //sendModuleOutput() is called in the context of a Reducer, meaning
     //target was the original record - that is, it points to our module.
@@ -61,7 +61,8 @@ void JobBase::sendModuleOutput(const std::string& payload) {
 }
 
 
-void JobBase::sendTo(const YAML::Node& targetList, const std::string& payload) {
+void SharedBase::sendTo(const YAML::Node& targetList, 
+        const std::string& payload) {
     std::vector<std::string> target = this->currentRecord->getTarget();
     auto targetAsList = targetList.as<YAML::NodeList>();
     for (int i = 0, m = targetAsList.size(); i < m; i++) {

@@ -138,7 +138,7 @@ void Module::dispatchWork(message::WorkRecord& work) {
         else {
             //When a reducer is active, output is just a JobBase that is the 
             //reducer.
-            this->reducer->dispatchWork(work);
+            this->reducer->dispatchAdd(work);
         }
     }
     else {
@@ -164,12 +164,9 @@ job::JobBase* Module::getJob(const std::string& id) {
 
     //Make the job
     if (id == "output") {
-        if (!this->reducer) {
-            std::ostringstream ss;
-            ss << "Module does not have a reducer: " << this->getFullName();
-            throw std::runtime_error(ss.str());
-        }
-        return this->reducer.get();
+        std::ostringstream ss;
+        ss << "getJob() called for output? " << this->getFullName();
+        throw std::runtime_error(ss.str());
     }
     else if (!this->config["jobs"][id]) {
         std::ostringstream msg;

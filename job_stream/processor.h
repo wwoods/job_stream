@@ -89,8 +89,7 @@ struct ProcessorReduceInfo {
 
 /** Handles communication and job dispatch, as well as input streaming */
 class Processor {
-    friend class job::JobBase;
-    friend class job::ReducerBase;
+    friend class job::SharedBase;
     friend class module::Module;
 
 public:

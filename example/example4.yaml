@@ -1,6 +1,8 @@
 # example4.yaml
 # Reducer recurrence
-reducer: getToTen
+reducer: 
+    type: getToValue
+    value: 100
 jobs:
     - type: duplicate
     - type: addOne

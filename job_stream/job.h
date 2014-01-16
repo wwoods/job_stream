@@ -16,15 +16,16 @@ namespace processor {
 }
 
 namespace job {
-    /** Unspecialized, internal job base class.  All jobs should actually derive
-      * from job_stream::Job<WorkType>. */
-    class JobBase {
+    /** Unspecialized, internal job / reducer base class.  All jobs should 
+        actually derive from job_stream::Job<WorkType>, and all reducers from
+        job_stream::Reducer<AccumulatorType[, WorkType]>. */
+    class SharedBase {
         friend class module::Module;
         friend class processor::Processor;
 
     public:
-        JobBase();
-        virtual ~JobBase();
+        SharedBase();
+        virtual ~SharedBase();
 
         /* Can override to check config / do something at setup() time. */
         virtual void postSetup() {}
@@ -42,9 +43,6 @@ namespace job {
                 const std::string& id,
                 const YAML::Node& config, 
                 const YAML::Node& globalConfig);
-
-        /* Pass work to handleWork() function in templated override. */
-        virtual void dispatchWork(message::WorkRecord& work) = 0;
 
     protected:
         /* Our job's specific config, including "to", "id", and "type". */
@@ -80,16 +78,30 @@ namespace job {
     };
 
 
+    /** Base class for Jobs */
+    class JobBase : public SharedBase {
+    public:
+        /* Pass work to handleWork() function in templated override. */
+        virtual void dispatchWork(message::WorkRecord& work) = 0;
+    };
+
+
     /** Base class for Reducers, which take multiple outputs and combine them. 
         */
-    class ReducerBase : public JobBase {
+    class ReducerBase : public SharedBase {
     public:
+        /** Dispatch to templated init */
+        virtual void dispatchInit(message::WorkRecord& work) = 0;
+
+        /** Dispatch to templated add T_init to T_accum */
+        virtual void dispatchAdd(message::WorkRecord& work) = 0;
+
+        /** Dispatch to templated join T_accum with T_accum */
+        virtual void dispatchJoin(message::WorkRecord& work) = 0;
+
         /** Dispatch to templated done.  Returns true if no recurrence occurred,
             and the ring is fully dead. */
         virtual bool dispatchDone(uint64_t reduceTag) = 0;
-
-        /** Dispatch to templated init */
-        virtual void dispatchInit(message::WorkRecord& work) = 0;
     };
 
 
