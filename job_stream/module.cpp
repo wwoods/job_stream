@@ -118,16 +118,7 @@ void Module::dispatchWork(message::WorkRecord& work) {
                 }
                 else {
                     //Print as str to stdout for root module by default
-                    std::string workAsString;
-                    try {
-                        workAsString = work.getWorkAsString();
-                    }
-                    catch (const boost::archive::archive_exception& e) {
-                        fprintf(stderr, "Work reached output and wasn't "
-                                "string\n");
-                        throw;
-                    }
-                    printf("%s\n", workAsString.c_str());
+                    printf("%s\n", work.getWorkAsString().c_str());
                 }
             }
             else {

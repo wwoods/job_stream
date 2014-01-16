@@ -16,6 +16,11 @@ float getRandom() {
 class NeuralLayer {
 public:
     NeuralLayer() {}
+    NeuralLayer(const NeuralLayer& other) {
+        this->inputs = other.inputs;
+        this->neurons = other.neurons;
+        this->weights = other.weights;
+    }
     NeuralLayer(int inputs, int neurons) : inputs(inputs), neurons(neurons) {
         for (int i = 0; i < neurons * inputs; i++) {
             this->weights.push_back(getRandom());
@@ -87,6 +92,13 @@ public:
         layer.reset(new NeuralLayer(neurons, outputs));
         this->layers.push_back(std::move(layer));
     }
+    NeuralNet(const NeuralNet& other) {
+        std::unique_ptr<NeuralLayer> layer;
+        for (int i = 0, m = other.layers.size(); i < m; i++) {
+            layer.reset(new NeuralLayer(other.layers[i]));
+            this->layers.push_back(std::move(layer));
+        }
+    }
     NeuralNet(NeuralNet& a, NeuralNet& b) {
         //Cross a and b
         std::unique_ptr<NeuralLayer> layer;
@@ -154,10 +166,7 @@ public:
     }
 
     NetworkPopulace& operator+=(NeuralNet& network) {
-        std::unique_ptr<NeuralNet> ptr(new NeuralNet());
-        //Ghetto object copy
-        job_stream::serialization::decode(
-                job_stream::serialization::encode(network), *ptr);
+        std::unique_ptr<NeuralNet> ptr(new NeuralNet(network));
         this->networks.push_back(std::move(ptr));
     }
 
@@ -273,7 +282,7 @@ private:
 };
 
 //TODO / FIXME!!! I don't want these specified...lexical_cast might not work.
-//Could force it as per output... though.. hm.
+//Could pidgeonhole it as per output... though.. hm.
 std::istream &operator>>(std::istream &source, NeuralNet const &h) {
     return source;
 }

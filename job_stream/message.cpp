@@ -67,6 +67,10 @@ std::string WorkRecord::getWorkAsString() const {
     TRY_TYPE(float);
     TRY_TYPE(double);
 
+    std::ostringstream ss;
+    ss << "Unrecognized work type for string output: " << this->work;
+    throw std::runtime_error(ss.str());
+
 #undef TRY_TYPE
 }
 

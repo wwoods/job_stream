@@ -268,12 +268,18 @@ for each value less than 3, two additional "3" works get added into the system
 early on.  So handleDone() gets called with 20, 62, and finally 188.
 
 
+Words of Warning
+----------------
+
+Reducers get a non-const reference to an object.  This object is still 
+temporary!  If you are adding it to a collection, you must copy the object.  Do
+not store a pointer to that object.
+
+
 Roadmap
 -------
 
-* Multiples isn't working with Neurontest?????
-* Sending too many messages... should irecv after every send just in case.  Or,
-  separate thread...
+* Multiples is sometimes crashing with input stream error in Neurontest?????
 * Reductions should always happen locally; a dead ring should merge them.  
     * Issue - would need a merge() function on the templated reducer base class.  Also, recurrence would have to re-initialize those rings.  Might be better to hold off on this one until it's a proven performance issue.
     * Unless, of course, T_accum == T_input always and I remove the second param.  Downsides include awkwardness if you want other components to feed into the reducer in a non-reduced format... but, you'd have to write a converter anyway (current handleMore).  So...

@@ -53,6 +53,7 @@ void SharedBase::sendModuleOutput(const std::string& payload) {
         return;
     }
 
+    //Final output (that is, this is the top module, and we are final output).
     target.push_back("output");
     target.push_back("reduced");
     message::WorkRecord wr(target, payload);
