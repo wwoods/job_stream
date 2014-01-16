@@ -59,11 +59,35 @@ public:
 };
 
 
+class GetToTenReducer : public job_stream::Reducer<int> {
+public:
+    static GetToTenReducer* make() { return new GetToTenReducer(); }
+
+    void handleInit(int& current) {
+        current = 0;
+    }
+
+    void handleMore(int& current, int& more) {
+        current += more;
+    }
+
+    void handleDone(int& current) {
+        if (current >= 10) {
+            this->emit(current);
+        }
+        else {
+            this->recur(current);
+        }
+    }
+};
+
+
 int main(int argc, char* argv []) {
     job_stream::addJob("addOne", AddOneJob::make);
     job_stream::addJob("duplicate", DuplicateJob::make);
     job_stream::addJob("getToTen", GetToTenJob::make);
     job_stream::addReducer("sum", SumReducer::make);
+    job_stream::addReducer("getToTen", GetToTenReducer::make);
     job_stream::runProcessor(argc, argv);
     return 0;
 }

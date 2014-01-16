@@ -68,7 +68,10 @@ void JobBase::sendTo(const YAML::Node& targetList, const std::string& payload) {
         //On our first send, target includes the job (it already did).  But, we
         //want to redirect to targetList based on the module level.  So we 
         //always pop the last part of target.
-        target.pop_back();
+        //...unless it's the root module (recur on top-level reducer)
+        if (target.size() != 0) {
+            target.pop_back();
+        }
         target.push_back(targetAsList[i].as<std::string>());
         message::WorkRecord wr(target, payload);
         wr.chainFrom(*this->currentRecord);

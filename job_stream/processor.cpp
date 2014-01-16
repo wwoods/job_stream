@@ -289,7 +289,8 @@ job::ReducerBase* Processor::allocateReducer(module::Module* parent,
     }
 
     auto reducer = allocatorIter->second();
-    reducer->setup(this, parent, "output", config, this->root->getConfig());
+    reducer->setup(this, parent, "output", *realConfig, 
+            this->root->getConfig());
     reducer->postSetup();
     return reducer;
 }
@@ -345,8 +346,9 @@ void Processor::process(const MpiMessage& message) {
                 fprintf(stderr, "Dead ring %lu pass %i - %lu / %lu\n", 
                         dm.reduceTag, dm.pass, dm.passWork, dm.allWork);
             }
+
             if (dm.pass > 2 && dm.allWork == dm.passWork) {
-                //Now we'll remove it... 
+                //Now we might remove it, if there is no recurrence
                 bool tellEveryone = false;
                 if (dm.reduceTag == 0) {
                     //Global
@@ -363,6 +365,14 @@ void Processor::process(const MpiMessage& message) {
                         this->reduceInfoMap.erase(it);
                         tellEveryone = true;
                     }
+                    else {
+                        //There was recurrence; setting the pass to 0 is needed
+                        //so that we won't re-sample the workCount down below
+                        //(in this method), and see that they're the same the
+                        //next time we get the ring test and exit the ring
+                        //early.
+                        dm.pass = 0;
+                    }
                 }
 
                 if (tellEveryone) {
@@ -374,19 +384,21 @@ void Processor::process(const MpiMessage& message) {
                         this->world.send(i, Processor::TAG_DEAD_RING_IS_DEAD, 
                                 dm.serialized());
                     }
-                }
 
-                if (JOB_STREAM_DEBUG) {
-                    fprintf(stderr, "Dead ring %lu took %lu ms\n", dm.reduceTag,
-                            message::Location::getCurrentTimeMs() 
-                                - dm.tsTestStarted);
-                }
+                    if (JOB_STREAM_DEBUG) {
+                        fprintf(stderr, "Dead ring %lu took %lu ms\n", 
+                                dm.reduceTag,
+                                message::Location::getCurrentTimeMs() 
+                                    - dm.tsTestStarted);
+                    }
 
-                //Ring is dead and we sent the messages, don't keep passing the
-                //test around.
-                passItOn = false;
+                    //Ring is dead and we sent the messages, don't keep passing
+                    //the test around.
+                    passItOn = false;
+                }
             }
-            else {
+            
+            if (passItOn) {
                 dm.allWork = dm.passWork;
                 dm.passWork = this->reduceInfoMap[dm.reduceTag].workCount;
             }

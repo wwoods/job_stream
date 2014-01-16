@@ -160,18 +160,37 @@ namespace job_stream {
         template<class T_output> void recur(const T_output& output, 
                 const std::string& target) {
             std::string payload = serialization::encode(output);
+
+            //Make sure the chain takes... bit of a hack, but we need the 
+            //currentRecord (tuple that caused our reduce) to maintain its
+            //original reduce tag and information in case it itself is part of
+            //a reduce.
+            int oldRank = this->currentRecord->getReduceHomeRank();
+            uint64_t oldTag = this->currentRecord->getReduceTag();
+            this->currentRecord->setReduce(this->processor->getRank(),
+                    this->currentReduceTag);
+
             if (target.empty()) {
-                this->sendTo(this->config["recurTo"], payload);
+                if (!this->config["recurTo"]) {
+                    this->sendTo(this->parent->getConfig()["input"], payload);
+                }
+                else {
+                    this->sendTo(this->config["recurTo"], payload);
+                }
             }
             else {
                 this->sendTo(this->config["recurTo"][target], payload);
             }
 
+            //Restore old reduce information and set hadRecurrence so that our
+            //reduction ring isn't marked dead
+            this->currentRecord->setReduce(oldRank, oldTag);
             this->hadRecurrence = true;
         }
 
 
     protected:
+        uint64_t currentReduceTag;
         job::ReduceAccumulator<T_accum>* currentReduce;
         T_input currentWork;
         /** Used in dispatchDone() to see if we had recurrence.  If we did not,
@@ -194,6 +213,7 @@ namespace job_stream {
                 throw std::runtime_error(ss.str());
             }
 
+            this->currentReduceTag = reduceTag;
             this->currentReduce = &iter->second;
         }
     };

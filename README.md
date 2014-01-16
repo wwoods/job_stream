@@ -71,12 +71,38 @@ Essentially, you code some jobs, and optionally a reducer for combining results:
         }
     };
 
+
+    class GetToTenReducer : public job_stream::Reducer<int> {
+    public:
+        static GetToTenReducer* make() { return new GetToTenReducer(); }
+
+        void handleInit(int& current) {
+            current = 0;
+        }
+
+        void handleMore(int& current, int& more) {
+            current += more;
+        }
+
+        void handleDone(int& current) {
+            if (current >= 10) {
+                printf("EMITTING: %i\n", current);
+                this->emit(current);
+            }
+            else {
+                printf("RECURRING: %i\n", current);
+                this->recur(current);
+            }
+        }
+    };
+
 Register them in your main, and call up a processor:
 
     int main(int argc, char* argv []) {
         job_stream::addJob("addOne", AddOneJob::make);
         job_stream::addJob("duplicate", DuplicateJob::make);
         job_stream::addReducer("sum", SumReducer::make);
+        job_stream::addReducer("getToTen", GetToTenReducer::make);
         job_stream::runProcessor(argc, argv);
         return 0;
     }
@@ -177,12 +203,27 @@ Run it:
 Note that the "12" is output first, since it got routed to output almost 
 immediately rather than having to pass through many AddOneJobs.
 
+You can also have recurrence in your reducers - that is, if a reduction finishes
+but the results do not match a criteria yet, you can put more tuples through
+in the same reduction:
+
+    # example4.yaml
+    # Reducer recurrence
+    reducer: getToTen
+    jobs:
+        - type: duplicate
+        - type: addOne
+
+Running this with 1 will yield 14 - the first pass will duplicate the 1 and add
+one to each, making 4.  The GetToTenReducer will see that 4 is less than ten,
+and calls the recur method with 4.  Repeating this process will add 10 to the
+final result, making 14.
+
+
 Roadmap
 -------
 
-* Replace make() with templated addJob, which calls new() (init still lazy).  Make templated versions return a unique\_ptr as well, so that memory management is a no brainer.
-* boost::function -> std::function
-* Reductions should always happen locally; a dead ring should merge them.
+* Reductions should always happen locally; a dead ring should merge them.  Issue - would need a merge() function on the templated reducer base class.  Also, recurrence would have to re-initialize those rings.  Might be better to hold off on this one until it's a proven performance issue.
 * Doxygen documentation
 * Tests
 * Subproject - executable integrated with python, for compile-less / easier work
