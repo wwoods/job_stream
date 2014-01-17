@@ -275,11 +275,15 @@ Reducers get a non-const reference to an object.  This object is still
 temporary!  If you are adding it to a collection, you must copy the object.  Do
 not store a pointer to that object.
 
+Sometimes, passing -bind-to-core to mpirun can have a profoundly positive impact
+on performance.
+
 
 Roadmap
 -------
 
 * Multiples is sometimes crashing with input stream error in Neurontest?????
+    * Shows up more with high #s of networks...
 * Reductions should always happen locally; a dead ring should merge them.  
     * Issue - would need a merge() function on the templated reducer base class.  Also, recurrence would have to re-initialize those rings.  Might be better to hold off on this one until it's a proven performance issue.
     * Unless, of course, T_accum == T_input always and I remove the second param.  Downsides include awkwardness if you want other components to feed into the reducer in a non-reduced format... but, you'd have to write a converter anyway (current handleMore).  So...

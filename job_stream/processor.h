@@ -12,6 +12,7 @@
 #include <deque>
 #include <functional>
 #include <memory>
+#include <queue>
 
 namespace job_stream {
 namespace processor {
@@ -123,11 +124,35 @@ class Processor {
     friend class module::Module;
 
 public:
+    /* MPI message tags */
     enum ProcessorSendTag {
         TAG_WORK = 0,
         TAG_DEAD_RING_TEST = 1,
         TAG_DEAD_RING_IS_DEAD = 2,
         TAG_STEAL = 3,
+    };
+
+    /*  Profiler categories.  User time is the most important distinction; 
+        others are internal. */
+    enum ProcessorTimeType {
+        TIME_USER,
+        TIME_SYSTEM,
+        //Placeholder for number of types
+        TIME_COUNT,
+    };
+
+    /** Used to keep track of time spent not working (vs working). */
+    class WorkTimer {
+    public:
+        WorkTimer(Processor* p, ProcessorTimeType timeType) : processor(p) {
+            this->processor->_pushWorkTimer(timeType);
+        }
+        ~WorkTimer() {
+            this->processor->_popWorkTimer();
+        }
+
+    private:
+        Processor* processor;
     };
 
     static void addJob(const std::string& typeName, 
@@ -171,8 +196,23 @@ protected:
     bool tryReceive();
 
 private:
+    struct _WorkTimerRecord {
+        uint64_t tsStart;
+        uint64_t timeChild;
+        uint64_t clkStart;
+        uint64_t clksChild;
+        int timeType;
+
+        _WorkTimerRecord(uint64_t start, uint64_t clock, int type) 
+                : tsStart(start), clkStart(clock), timeChild(0), clksChild(0),
+                    timeType(type) {}
+    };
+
     /* Prevent steal message spam */
     bool canSteal;
+    /** Array containing how many cpu clocks were spent in each type of 
+        operation.  Indexed by ProcessorTimeType */
+    std::unique_ptr<uint64_t[]> clksByType;
     /* The stdin management thread; only runs on node 0 */
     boost::thread* processInputThread;
     /* The current message receiving buffer */
@@ -185,25 +225,24 @@ private:
     /* We have to keep track of how many 
     /* The root module defined by the main config file */
     std::unique_ptr<job::JobBase> root;
-    /* Set when eof is reached on stdin (or input line, if using argv */
-    bool shouldEndRing0;
+    /* Set when eof is reached on stdin (or input line), or if our index is not
+       zero. */
+    bool sawEof;
+    /* Set when we send ring test for 0 */
+    bool sentEndRing0;
     /* True until quit message is received (ring 0 is completely closed). */
     bool shouldRun;
-    //Time spent sending messages during work (sendWork()).  Incremented whether
-    //in work or not, but zeroed before each work so that only time counted
-    //during work affects efficiency %.
-    uint64_t timeCurrentSend;
-    //Time spent blocking for a message to send, while working
-    uint64_t timeSendingInWork;
-    //Time spent working (or reducing)
-    uint64_t timeWorking;
+    /** Array containing how much time was spent in each type of operation.
+        Indexed by ProcessorTimeType */
+    std::unique_ptr<uint64_t[]> timesByType;
     //Any work waiting to be done on this Processor.
-    ThreadSafeQueue<MpiMessage> workInQueue;
+    std::queue<MpiMessage> workInQueue;
     /* workOutQueue gets redistributed to all workers; MPI is not implicitly
        thread-safe, that is why this queue exists.  Used for input only at
        the moment. */
     ThreadSafeQueue<message::WorkRecord*> workOutQueue;
     int workTarget;
+    std::vector<_WorkTimerRecord> workTimers;
     boost::mpi::communicator world;
 
     /* Enqueue a line of input (stdin or argv) to system */
@@ -215,6 +254,10 @@ private:
     /** Send in a non-blocking manner (asynchronously, receiving all the while)
         */
     void _nonBlockingSend(int dest, int tag, const std::string& message);
+    /** Push down a new timer section */
+    void _pushWorkTimer(ProcessorTimeType userWork);
+    /** Pop the last timer section */
+    void _popWorkTimer();
 };
 
 }//processor

@@ -15,6 +15,11 @@ set(CMAKE_CXX_COMPILER mpicxx)
 # Enable c++11
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
 
+# Enable gprof
+#add_definitions(-g)
+#add_definitions(-pg)
+#SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -pg")
+
 # Set up paths
 SET(BOOST_INC "${CMAKE_SOURCE_DIR}/include/boost")
 SET(BOOST_LIB "${CMAKE_SOURCE_DIR}/lib/boost")

@@ -21,14 +21,14 @@ namespace job_stream {
         virtual void dispatchWork(message::WorkRecord& input) {
             this->currentRecord = &input;
             input.putWorkInto(this->currentWork);
-            try {
+
+            { //timer scope
+                processor::Processor::WorkTimer timer(this->processor, 
+                        processor::Processor::TIME_USER);
                 this->handleWork(this->currentWork);
-                this->currentRecord = 0;
             }
-            catch (const std::exception& e) {
-                this->currentRecord = 0;
-                throw;
-            }
+
+            this->currentRecord = 0;
         }
 
 
@@ -42,6 +42,8 @@ namespace job_stream {
 
         template<class T_output> void emit(const T_output& output, 
                 const std::string& target) {
+            processor::Processor::WorkTimer timer(this->processor, 
+                    processor::Processor::TIME_SYSTEM);
             std::string payload = serialization::encode(output);
             if (!target.empty()) {
                 this->sendTo(this->config["to"][target], payload);
@@ -94,7 +96,12 @@ namespace job_stream {
             this->setCurrentReduce(reduceTag);
             this->currentRecord = this->currentReduce->originalWork.get();
             this->hadRecurrence = false;
-            this->handleDone(this->currentReduce->accumulator);
+
+            { //timer scope
+                processor::Processor::WorkTimer timer(this->processor, 
+                        processor::Processor::TIME_USER);
+                this->handleDone(this->currentReduce->accumulator);
+            }
 
             this->currentRecord = 0;
             this->currentReduce = 0;
@@ -138,7 +145,12 @@ namespace job_stream {
                 job::ReduceAccumulator<T_accum>& record = this->reduceMap[tag];
                 record.originalWork.reset(new message::WorkRecord(
                         work.serialized()));
-                this->handleInit(record.accumulator);
+
+                { //timer scope
+                    processor::Processor::WorkTimer timer(this->processor, 
+                            processor::Processor::TIME_USER);
+                    this->handleInit(record.accumulator);
+                }
 
                 //Track when this reduction is finished
                 this->processor->startRingTest(tag, work.getReduceTag(), this);
@@ -155,8 +167,14 @@ namespace job_stream {
             this->currentRecord = &work;
             work.putWorkInto(this->currentWork);
             this->setCurrentReduce(work.getReduceTag());
-            this->handleAdd(this->currentReduce->accumulator, 
-                    this->currentWork);
+
+            { //timer scope
+                processor::Processor::WorkTimer timer(this->processor, 
+                        processor::Processor::TIME_USER);
+                this->handleAdd(this->currentReduce->accumulator, 
+                        this->currentWork);
+            }
+
             this->currentReduce = 0;
             this->currentRecord = 0;
         }
@@ -167,8 +185,14 @@ namespace job_stream {
             this->currentRecord = &work;
             work.putWorkInto(this->currentJoin);
             this->setCurrentReduce(work.getReduceTag());
-            this->handleJoin(this->currentReduce->accumulator, 
-                    this->currentJoin);
+
+            { //timer scope
+                processor::Processor::WorkTimer timer(this->processor, 
+                        processor::Processor::TIME_USER);
+                this->handleJoin(this->currentReduce->accumulator, 
+                        this->currentJoin);
+            }
+
             this->currentReduce = 0;
             this->currentRecord = 0;
         }
@@ -176,6 +200,8 @@ namespace job_stream {
 
         /** Output some work from this module */
         template<class T_output> void emit(const T_output& output) {
+            processor::Processor::WorkTimer timer(this->processor, 
+                    processor::Processor::TIME_SYSTEM);
             this->sendModuleOutput(serialization::encode(output));
         }
 
@@ -190,6 +216,8 @@ namespace job_stream {
             recurTo.target */
         template<class T_output> void recur(const T_output& output, 
                 const std::string& target) {
+            processor::Processor::WorkTimer timer(this->processor, 
+                    processor::Processor::TIME_SYSTEM);
             std::string payload = serialization::encode(output);
 
             //Make sure the chain takes... bit of a hack, but we need the 

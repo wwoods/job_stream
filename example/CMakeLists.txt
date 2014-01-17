@@ -10,6 +10,11 @@ set(CMAKE_CXX_COMPILER mpicxx)
 # Enable c++11
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
 
+# Enable gprof
+#add_definitions(-g)
+#add_definitions(-pg)
+#SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -pg")
+
 add_executable(job_stream_example
         main.cpp)
 

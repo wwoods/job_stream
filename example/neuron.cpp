@@ -68,7 +68,7 @@ public:
 
 private:
     std::vector<float> weights;
-    std::unique_ptr<float> lastResults;
+    std::unique_ptr<float[]> lastResults;
 
     friend class boost::serialization::access;
     template<class Archive>
@@ -113,9 +113,9 @@ public:
     float score;
 
     float getError(YAML::Node& array) {
-        std::unique_ptr<float> inputs(new float[array.size()]);
+        std::unique_ptr<float[]> inputs(new float[array.size()]);
         for (int i = 0, m = array.size(); i < m; i++) {
-            inputs.get()[i] = array[i].as<float>();
+            inputs[i] = array[i].as<float>();
         }
 
         float* layerInput = inputs.get();
@@ -127,8 +127,8 @@ public:
         float score = 0;
         for (int base = this->layers[0]->inputs, i = 0, 
                 m = array.size() - base; i < m; i++) {
-            score += (layerInput[i] - inputs.get()[base + i]) 
-                    * (layerInput[i] - inputs.get()[base + i]);
+            score += (layerInput[i] - inputs[base + i]) 
+                    * (layerInput[i] - inputs[base + i]);
         }
         return score;
     }
