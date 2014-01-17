@@ -82,6 +82,10 @@ void Processor::run(const std::string& inputLine) {
         this->clksByType[i] = 0;
         this->timesByType[i] = 0;
     }
+    this->msgsByTag.reset(new uint64_t[Processor::TAG_COUNT]);
+    for (int i = 0; i < Processor::TAG_COUNT; i++) {
+        this->msgsByTag[i] = 0;
+    }
     this->workTarget = this->world.rank();
     if (this->world.rank() == 0) {
         //The first work message MUST go to rank 0, so that ring 1 ends up there
@@ -100,7 +104,6 @@ void Processor::run(const std::string& inputLine) {
     //Begin tallying time spent in system vs user functionality.
     std::unique_ptr<WorkTimer> outerTimer(new WorkTimer(this, 
             Processor::TIME_SYSTEM));
-    uint64_t totalMessages = 0;
     uint64_t nextSteal = 0;
     while (this->shouldRun) {
         //See if we have any messages; while we do, load them.
@@ -124,7 +127,7 @@ void Processor::run(const std::string& inputLine) {
         bool hadWork = false;
         while (!this->workInQueue.empty()) {
             msg = this->workInQueue.front();
-            totalMessages += 1;
+
             this->process(msg);
             this->workInQueue.pop();
 
@@ -151,12 +154,17 @@ void Processor::run(const std::string& inputLine) {
         clksTotal += this->clksByType[i];
         timesTotal += this->timesByType[i];
     }
+    uint64_t msgsTotal = 0;
+    for (int i = 0; i < Processor::TAG_COUNT; i++) {
+        msgsTotal += this->msgsByTag[i];
+    }
     fprintf(stderr, 
-            "%i %i%% user time, %i%% user cpu, %lu messages\n", 
+            "%i %i%% user time, %i%% user cpu, %lu messages (%i%% user)\n", 
             this->world.rank(),
             (int)(100 * this->timesByType[Processor::TIME_USER] / timesTotal),
             (int)(100 * this->clksByType[Processor::TIME_USER] / clksTotal),
-            totalMessages);
+            msgsTotal,
+            (int)(100 * this->msgsByTag[Processor::TAG_WORK] / msgsTotal));
 
     //Stop all threads
     this->joinThreads();
@@ -523,6 +531,9 @@ bool Processor::tryReceive() {
                 fprintf(stderr, "%i got message len %lu\n", this->getRank(),
                         (unsigned long)this->recvBuffer.size());
             }
+
+            this->msgsByTag[recv->tag()] += 1;
+
             //Steal requests happen out of sync with everything else; they can
             //even be serviced in the middle of work!
             if (recv->tag() == Processor::TAG_STEAL) {

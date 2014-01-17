@@ -126,10 +126,12 @@ class Processor {
 public:
     /* MPI message tags */
     enum ProcessorSendTag {
-        TAG_WORK = 0,
-        TAG_DEAD_RING_TEST = 1,
-        TAG_DEAD_RING_IS_DEAD = 2,
-        TAG_STEAL = 3,
+        TAG_WORK,
+        TAG_DEAD_RING_TEST,
+        TAG_DEAD_RING_IS_DEAD,
+        TAG_STEAL,
+        //Placeholder for number of tags
+        TAG_COUNT,
     };
 
     /*  Profiler categories.  User time is the most important distinction; 
@@ -213,6 +215,8 @@ private:
     /** Array containing how many cpu clocks were spent in each type of 
         operation.  Indexed by ProcessorTimeType */
     std::unique_ptr<uint64_t[]> clksByType;
+    /** Running count of messages by tag */
+    std::unique_ptr<uint64_t[]> msgsByTag;
     /* The stdin management thread; only runs on node 0 */
     boost::thread* processInputThread;
     /* The current message receiving buffer */
