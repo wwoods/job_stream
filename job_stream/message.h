@@ -169,6 +169,34 @@ namespace message {
             ar & this->tsTestStarted;
         }
     };
+
+
+
+    class StealRequest {
+    public:
+        int rank;
+
+        StealRequest(const std::string& buffer) {
+            serialization::decode(buffer, *this);
+        }
+
+
+        StealRequest(int rank) {
+            this->rank = rank;
+        }
+
+
+        std::string serialized() {
+            return serialization::encode(*this);
+        }
+
+    private:
+        friend class boost::serialization::access;
+        template<class Archive>
+        void serialize(Archive& ar, const unsigned int version) {
+            ar & this->rank;
+        }
+    };
 }
 }
 

@@ -70,8 +70,11 @@ Processor::~Processor() {
 
 
 void Processor::run(const std::string& inputLine) {
+    this->canSteal = false;
     this->shouldEndRing0 = false;
     this->shouldRun = true;
+    this->timeSendingInWork = 0;
+    this->timeWorking = 0;
     this->workTarget = this->world.rank();
     if (this->world.rank() == 0) {
         //The first work message MUST go to rank 0, so that ring 1 ends up there
@@ -84,8 +87,8 @@ void Processor::run(const std::string& inputLine) {
     message::WorkRecord* work;
     MpiMessage msg;
     uint64_t start = message::Location::getCurrentTimeMs();
-    uint64_t totalProcessing = 0;
     uint64_t totalMessages = 0;
+    uint64_t nextSteal = 0;
     while (this->shouldRun) {
         //See if we have any messages; while we do, load them.
         while (this->tryReceive()) {}
@@ -97,25 +100,40 @@ void Processor::run(const std::string& inputLine) {
         }
 
         //Process a piece of work
-        if (this->workInQueue.pop(msg)) {
+        bool hadWork = false;
+        while (this->workInQueue.pop(msg)) {
             totalMessages += 1;
-            uint64_t procStart = message::Location::getCurrentTimeMs();
             this->process(msg);
-            totalProcessing += message::Location::getCurrentTimeMs() 
-                    - procStart;
+
+            if (msg.tag == Processor::TAG_WORK) {
+                hadWork = true;
+                break;
+            }
         }
-        else if (this->shouldEndRing0) {
-            //Nothing in queue, and there was when we got the first request to
-            //quit (or this is a brand new quit request).  So start a ring test
-            //on the global reduceTag.
-            this->startRingTest(0, 0, 0);
-            this->shouldEndRing0 = false;
+
+        if (!hadWork) {
+            if (this->shouldEndRing0) {
+                //Input is no longer flowing.  So start a 
+                //ring test on the global reduceTag.
+                this->startRingTest(0, 0, 0);
+                this->shouldEndRing0 = false;
+            }
+            if (this->canSteal
+                    && message::Location::getCurrentTimeMs() >= nextSteal) {
+                this->world.send(this->_getNextRank(), Processor::TAG_STEAL,
+                        message::StealRequest(this->getRank()).serialized());
+                this->canSteal = false;
+                nextSteal = message::Location::getCurrentTimeMs() + 2;
+            }
         }
     }
     uint64_t totalTime = message::Location::getCurrentTimeMs() - start;
     fprintf(stderr, 
-            "%i work %%, messages: %i, %lu\n", 
-            this->world.rank(), (int)(100 * totalProcessing / totalTime), 
+            "%i %i%% worked, %i%% blocking sends, %lu messages\n", 
+            this->world.rank(), 
+            (int)(100 * (this->timeWorking - this->timeSendingInWork) 
+                / totalTime),
+            (int)(100 * this->timeSendingInWork / totalTime),
             totalMessages);
 
     //Stop all threads
@@ -179,6 +197,40 @@ void Processor::joinThreads() {
         delete this->processInputThread;
         this->processInputThread = 0;
     }
+}
+
+
+bool isWorkMessage(const MpiMessage& m) {
+    if (m.tag == Processor::TAG_WORK) {
+        message::WorkRecord wr(m.message);
+        auto t = wr.getTarget();
+        if (t.size() > 0 && t[t.size() - 1] != "output") {
+            return true;
+        }
+    }
+    return false;
+}
+
+
+void Processor::maybeAllowSteal(const std::string& messageBuffer) {
+    message::StealRequest sr(messageBuffer);
+    if (sr.rank == this->getRank()) {
+        //Do nothing, our steal message completed its circuit.  Either we got
+        //more work or we didn't.
+        this->canSteal = true;
+        return;
+    }
+
+    //Can they steal?
+    MpiMessage msg;
+    if (this->workInQueue.steal(isWorkMessage, 2, msg)) {
+        //Send it to the thief
+        this->world.send(sr.rank, msg.tag, msg.message);
+    }
+
+    //Forward it!
+    this->world.send(this->_getNextRank(), Processor::TAG_STEAL,
+            messageBuffer);
 }
 
 
@@ -282,6 +334,7 @@ job::ReducerBase* Processor::allocateReducer(module::Module* parent,
 
 
 void Processor::process(const MpiMessage& message) {
+    uint64_t now = message::Location::getCurrentTimeMs();
     int tag = message.tag;
     if (tag == Processor::TAG_WORK) {
         if (JOB_STREAM_DEBUG) {
@@ -297,6 +350,10 @@ void Processor::process(const MpiMessage& message) {
             fprintf(stderr, "REDUCE %lu UP TO %lu\n", wr.getReduceTag(), 
                     this->reduceInfoMap[wr.getReduceTag()].workCount);
         }
+
+        uint64_t workStart = message::Location::getCurrentTimeMs();
+        this->timeCurrentSend = 0;
+
         try {
             this->root->dispatchWork(wr);
         }
@@ -313,6 +370,9 @@ void Processor::process(const MpiMessage& message) {
             fprintf(stderr, "%s\n", ss.str().c_str());
             throw;
         }
+
+        this->timeSendingInWork += this->timeCurrentSend;
+        this->timeWorking += message::Location::getCurrentTimeMs() - workStart;
     }
     else if (tag == Processor::TAG_DEAD_RING_TEST) {
         message::DeadRingTestMessage dm(message.message);
@@ -347,7 +407,18 @@ void Processor::process(const MpiMessage& message) {
                 else {
                     //We're the sentry, we MUST have a reducer.
                     auto it = this->reduceInfoMap.find(dm.reduceTag);
-                    if (it->second.reducer->dispatchDone(dm.reduceTag)) {
+
+                    uint64_t workStart = message::Location::getCurrentTimeMs();
+                    this->timeCurrentSend = 0;
+
+                    bool reallyDone = it->second.reducer->dispatchDone(
+                            dm.reduceTag);
+
+                    this->timeSendingInWork += this->timeCurrentSend;
+                    this->timeWorking += message::Location::getCurrentTimeMs()
+                            - workStart;
+
+                    if (reallyDone) {
                         uint64_t parentTag = it->second.parentTag;
                         this->reduceInfoMap[parentTag].childTagCount -= 1;
 
@@ -423,6 +494,8 @@ void Processor::process(const MpiMessage& message) {
 
 
 void Processor::sendWork(const message::WorkRecord& work) {
+    uint64_t start = message::Location::getCurrentTimeMs();
+
     int dest;
     std::string message = work.serialized();
     const std::vector<std::string>& target = work.getTarget();
@@ -433,15 +506,9 @@ void Processor::sendWork(const message::WorkRecord& work) {
         dest = this->_getNextWorker();
     }
 
-    //Send non-blocking (though we don't leave this function until our message
-    //is sent) so that we don't freeze the application waiting for the send
-    //buffer.
-    mpi::request sendReq = this->world.isend(dest, Processor::TAG_WORK, 
-            message);
-    while (!sendReq.test()) {
-        //Send isn't done, see if we can receive
-        this->tryReceive();
-    }
+    this->_nonBlockingSend(dest, Processor::TAG_WORK, message);
+
+    this->timeCurrentSend += message::Location::getCurrentTimeMs() - start;
 }
 
 
@@ -457,8 +524,15 @@ bool Processor::tryReceive() {
                 fprintf(stderr, "%i got message len %lu\n", this->getRank(),
                         (unsigned long)this->recvBuffer.size());
             }
-            this->workInQueue.push(MpiMessage(recv->tag(), 
-                    this->recvBuffer.substr()));
+            //Steal requests happen out of sync with everything else; they can
+            //even be serviced in the middle of work!
+            if (recv->tag() == Processor::TAG_STEAL) {
+                this->maybeAllowSteal(this->recvBuffer);
+            }
+            else {
+                this->workInQueue.push(MpiMessage(recv->tag(), 
+                        this->recvBuffer.substr()));
+            }
         }
         else {
             makeNew = false;
@@ -484,6 +558,19 @@ int Processor::_getNextWorker() {
     int size = (int)this->world.size();
     this->workTarget = (int)((this->workTarget + 1) % size);
     return this->workTarget;
+}
+
+
+void Processor::_nonBlockingSend(int dest, int tag, 
+        const std::string& message) {
+    //Send non-blocking (though we don't leave this function until our message
+    //is sent) so that we don't freeze the application waiting for the send
+    //buffer.
+    mpi::request sendReq = this->world.isend(dest, tag, message);
+    while (!sendReq.test()) {
+        //Send isn't done, see if we can receive
+        this->tryReceive();
+    }
 }
 
 } //processor

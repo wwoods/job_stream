@@ -95,9 +95,10 @@ public:
     NeuralNet(const NeuralNet& other) {
         std::unique_ptr<NeuralLayer> layer;
         for (int i = 0, m = other.layers.size(); i < m; i++) {
-            layer.reset(new NeuralLayer(other.layers[i]));
+            layer.reset(new NeuralLayer(*other.layers[i]));
             this->layers.push_back(std::move(layer));
         }
+        this->score = other.score;
     }
     NeuralNet(NeuralNet& a, NeuralNet& b) {
         //Cross a and b

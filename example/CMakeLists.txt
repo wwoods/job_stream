@@ -21,15 +21,14 @@ target_link_libraries(job_stream_example
 SET(BOOST_LIB "${CMAKE_SOURCE_DIR}/../lib/boost")
 SET(YAML_LIB "${CMAKE_SOURCE_DIR}/../lib/yaml-cpp")
 
-target_link_libraries(job_stream_example ${BOOST_LIB}/libboost_system.a)
-target_link_libraries(job_stream_example ${BOOST_LIB}/libboost_thread.a)
-target_link_libraries(job_stream_example ${BOOST_LIB}/libboost_serialization.a)
-target_link_libraries(job_stream_example ${BOOST_LIB}/libboost_mpi.a)
-target_link_libraries(job_stream_example ${YAML_LIB}/libyaml-cpp.a)
-
-# rt must be last
-target_link_libraries(job_stream_example rt)
-
+target_link_libraries(job_stream_example 
+        ${BOOST_LIB}/libboost_system.a
+        ${BOOST_LIB}/libboost_thread.a
+        ${BOOST_LIB}/libboost_serialization.a
+        ${BOOST_LIB}/libboost_mpi.a
+        ${YAML_LIB}/libyaml-cpp.a
+        # rt must be last
+        rt)
 
 ## Bonus neuron library for demo purposes...
 add_executable(job_stream_neuron

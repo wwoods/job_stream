@@ -9,9 +9,9 @@
 #include <boost/mpi.hpp>
 #include <boost/thread/mutex.hpp>
 #include <boost/thread/thread.hpp>
+#include <deque>
 #include <functional>
 #include <memory>
-#include <queue>
 
 namespace job_stream {
 namespace processor {
@@ -28,7 +28,7 @@ class ThreadSafeQueue {
 public:
     void push(const T& value) {
         boost::mutex::scoped_lock lock(this->mutex);
-        this->queue.push(value);
+        this->queue.push_back(value);
     }
 
     bool pop(T& value) {
@@ -37,7 +37,7 @@ public:
             return false;
         }
         value = this->queue.front();
-        this->queue.pop();
+        this->queue.pop_front();
         return true;
     }
 
@@ -46,8 +46,38 @@ public:
         return this->queue.size();
     }
 
+    /** Walk through queue calling canSteal() on each element; if canSteal
+        returns true for any element, put that element in value, and remove
+        it from our queue.  Returns true if something was stolen, false 
+        otherwise.
+
+        minCount - At least this many messages must be found in queue to
+                remove first.
+        */
+    bool steal(bool (*canSteal)(const T& value), int minCount, T& value) {
+        boost::mutex::scoped_lock lock(this->mutex);
+
+        int firstEl = -1;
+        int count = 0;
+        for (int i = 0, m = this->queue.size(); i < m; i++) {
+            if (canSteal(this->queue[i])) {
+                count += 1;
+                if (count == 1) {
+                    firstEl = i;
+                }
+                if (count >= minCount) {
+                    value = this->queue[firstEl];
+                    this->queue.erase(this->queue.begin() + firstEl);
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
 private:
-    std::queue<T> queue;
+    std::deque<T> queue;
     boost::mutex mutex;
 };
 
@@ -97,6 +127,7 @@ public:
         TAG_WORK = 0,
         TAG_DEAD_RING_TEST = 1,
         TAG_DEAD_RING_IS_DEAD = 2,
+        TAG_STEAL = 3,
     };
 
     static void addJob(const std::string& typeName, 
@@ -125,6 +156,8 @@ protected:
             const YAML::Node& config);
     /* If we have an input thread, join it */
     void joinThreads();
+    /* We got a steal message; decode it and maybe give them work. */
+    void maybeAllowSteal(const std::string& messageBuffer);
     /* Listen for input events and put them on workOutQueue.  When this thread 
        is finished, it emits a TAG_DEAD_RING_TEST message for 0. */
     void processInputThread_main(const std::string& inputLine);
@@ -138,6 +171,9 @@ protected:
     bool tryReceive();
 
 private:
+    /* Prevent steal message spam */
+    bool canSteal;
+    /* The stdin management thread; only runs on node 0 */
     boost::thread* processInputThread;
     /* The current message receiving buffer */
     std::string recvBuffer;
@@ -153,6 +189,14 @@ private:
     bool shouldEndRing0;
     /* True until quit message is received (ring 0 is completely closed). */
     bool shouldRun;
+    //Time spent sending messages during work (sendWork()).  Incremented whether
+    //in work or not, but zeroed before each work so that only time counted
+    //during work affects efficiency %.
+    uint64_t timeCurrentSend;
+    //Time spent blocking for a message to send, while working
+    uint64_t timeSendingInWork;
+    //Time spent working (or reducing)
+    uint64_t timeWorking;
     //Any work waiting to be done on this Processor.
     ThreadSafeQueue<MpiMessage> workInQueue;
     /* workOutQueue gets redistributed to all workers; MPI is not implicitly
@@ -168,6 +212,9 @@ private:
     int _getNextRank();
     /* Increment and wrap workTarget, return new value */
     int _getNextWorker();
+    /** Send in a non-blocking manner (asynchronously, receiving all the while)
+        */
+    void _nonBlockingSend(int dest, int tag, const std::string& message);
 };
 
 }//processor
