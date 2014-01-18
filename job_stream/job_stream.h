@@ -17,7 +17,7 @@ namespace job_stream {
     template<typename T_input>
     class Job : public job::JobBase {
     public:
-        /* Pass work into handleWork and possibly emit new tuples.   */
+        /** Pass work into handleWork and possibly emit new tuples.   */
         virtual void dispatchWork(message::WorkRecord& input) {
             this->currentRecord = &input;
             input.putWorkInto(this->currentWork);
