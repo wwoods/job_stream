@@ -21,7 +21,7 @@ namespace serialization {
 template<class T>
 void decode(const std::string& message, T& dest) {
     std::istringstream ss(message);
-    boost::archive::text_iarchive ia(ss);
+    boost::archive::binary_iarchive ia(ss, boost::archive::no_header);
     std::string typeName;
     ia >> typeName;
     std::string tName = typeid(T).name();
@@ -38,7 +38,7 @@ void decode(const std::string& message, T& dest) {
 template<class T>
 std::string encode(const T& src) {
     std::ostringstream ss;
-    boost::archive::text_oarchive oa(ss);
+    boost::archive::binary_oarchive oa(ss, boost::archive::no_header);
     std::string typeName = typeid(T).name();
     oa << typeName;
     oa << src;
