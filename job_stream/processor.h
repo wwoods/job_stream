@@ -139,6 +139,7 @@ public:
     enum ProcessorTimeType {
         TIME_USER,
         TIME_SYSTEM,
+        TIME_COMM,
         //Placeholder for number of types
         TIME_COUNT,
     };
