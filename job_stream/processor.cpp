@@ -613,8 +613,8 @@ void Processor::_popWorkTimer() {
     clksSpent -= record.clkStart;
     timeSpent -= record.tsStart;
 
-    this->clksByType[record.timeType] += clksSpent;
-    this->timesByType[record.timeType] += timeSpent;
+    this->clksByType[record.timeType] += clksSpent - record.clksChild;
+    this->timesByType[record.timeType] += timeSpent - record.timeChild;
     this->workTimers.pop_back();
 
     int m = this->workTimers.size() - 1;
