@@ -259,7 +259,7 @@ namespace job_stream {
         std::map<uint64_t, job::ReduceAccumulator<T_accum> > reduceMap;
 
         virtual std::string parseAndSerialize(const std::string& line) {
-            return serialization::encode(boost::lexical_cast<T_accum>(line));
+            return serialization::encode(boost::lexical_cast<T_input>(line));
         }
 
     private:
