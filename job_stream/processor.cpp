@@ -55,6 +55,40 @@ void Processor::addReducer(const std::string& typeName,
 
 
 
+MpiMessage::MpiMessage(int tag, void* data) : tag(tag), data(data) {}
+
+
+MpiMessage::MpiMessage(int tag, const std::string& message) : tag(tag) {
+    if (tag == Processor::TAG_WORK) {
+        this->data = new message::WorkRecord(message);
+    }
+    else if (tag == Processor::TAG_DEAD_RING_TEST
+            || tag == Processor::TAG_DEAD_RING_IS_DEAD) {
+        this->data = new message::DeadRingTestMessage(message);
+    }
+    else {
+        std::ostringstream ss;
+        ss << "Unrecognized tag for MpiMessage(): " << tag;
+        throw std::runtime_error(ss.str());
+    }
+}
+
+
+MpiMessage::~MpiMessage() {
+    if (tag == Processor::TAG_WORK) {
+        delete (message::WorkRecord*)this->data;
+    }
+    else if (tag == Processor::TAG_DEAD_RING_TEST
+            || tag == Processor::TAG_DEAD_RING_IS_DEAD) {
+        delete (message::DeadRingTestMessage*)this->data;
+    }
+    else {
+        throw std::runtime_error("~MpiMessage() didn't find tag?");
+    }
+}
+
+
+
 Processor::Processor(mpi::communicator world, const YAML::Node& config)
         : processInputThread(0), reduceTagCount(0), world(world) {
     if (world.size() >= (1 << message::WorkRecord::TAG_ADDRESS_BITS)) {
@@ -100,7 +134,7 @@ void Processor::run(const std::string& inputLine) {
 
     int dest, tag;
     message::WorkRecord* work;
-    MpiMessage msg;
+    MpiMessage* msg;
     //Begin tallying time spent in system vs user functionality.
     std::unique_ptr<WorkTimer> outerTimer(new WorkTimer(this, 
             Processor::TIME_SYSTEM));
@@ -118,23 +152,21 @@ void Processor::run(const std::string& inputLine) {
 
             //Distribute any outbound work
             while (this->workOutQueue.pop(work)) {
-                this->sendWork(*work);
-                delete work;
+                this->addWork(work);
             }
         }
 
         //Process a piece of work
         bool hadWork = false;
-        while (!this->workInQueue.empty()) {
-            msg = this->workInQueue.front();
+        while (!this->workInQueue.empty() && !hadWork) {
+            msg = &this->workInQueue.front();
 
-            this->process(msg);
-            this->workInQueue.pop();
-
-            if (msg.tag == Processor::TAG_WORK) {
+            if (msg->tag == Processor::TAG_WORK) {
                 hadWork = true;
-                break;
             }
+
+            this->process(*msg);
+            this->workInQueue.pop();
         }
 
         if (!hadWork && this->canSteal) {
@@ -171,6 +203,29 @@ void Processor::run(const std::string& inputLine) {
 
     //Stop all threads
     this->joinThreads();
+}
+
+
+void Processor::addWork(message::WorkRecord* wr) {
+    int dest;
+    const std::vector<std::string>& target = wr->getTarget();
+    if (target.size() > 0 && target[target.size() - 1] == "output") {
+        dest = wr->getReduceHomeRank();
+    }
+    else {
+        dest = -1;
+    }
+
+    if (false) {
+        if (dest < 0) {
+            dest = this->_getNextRank();
+        }
+        this->_nonBlockingSend(dest, Processor::TAG_WORK, wr->serialized());
+        delete wr;
+    }
+    else {
+        this->workInQueue.emplace(Processor::TAG_WORK, wr);
+    }
 }
 
 
@@ -236,7 +291,7 @@ void Processor::joinThreads() {
 
 bool isWorkMessage(const MpiMessage& m) {
     if (m.tag == Processor::TAG_WORK) {
-        message::WorkRecord wr(m.message);
+        message::WorkRecord& wr = *((message::WorkRecord*)m.data);
         auto t = wr.getTarget();
         if (t.size() > 0 && t[t.size() - 1] != "output") {
             return true;
@@ -247,6 +302,9 @@ bool isWorkMessage(const MpiMessage& m) {
 
 
 void Processor::maybeAllowSteal(const std::string& messageBuffer) {
+    throw std::runtime_error("Stealing disabled; fix code");
+
+#if 0
     message::StealRequest sr(messageBuffer);
     if (sr.rank == this->getRank()) {
         //Do nothing, our steal message completed its circuit.  Either we got
@@ -257,7 +315,6 @@ void Processor::maybeAllowSteal(const std::string& messageBuffer) {
 
     //Can they steal?
     MpiMessage msg;
-    throw std::runtime_error("Stealing disabled; fix code");
     if (false) {//this->workInQueue.steal(isWorkMessage, 2, msg)) {
         //Send it to the thief
         WorkTimer sendTimer(this, Processor::TIME_COMM);
@@ -268,6 +325,7 @@ void Processor::maybeAllowSteal(const std::string& messageBuffer) {
     WorkTimer sendTimer(this, Processor::TIME_COMM);
     this->world.send(this->_getNextRank(), Processor::TAG_STEAL,
             messageBuffer);
+#endif
 }
 
 
@@ -373,11 +431,7 @@ job::ReducerBase* Processor::allocateReducer(module::Module* parent,
 void Processor::process(const MpiMessage& message) {
     int tag = message.tag;
     if (tag == Processor::TAG_WORK) {
-        if (JOB_STREAM_DEBUG) {
-            fprintf(stderr, "GOT MESSAGE ON %i: %i\n", (int)this->world.rank(), 
-                (int)message.message.length());
-        }
-        message::WorkRecord wr(message.message);
+        auto& wr = *message.getTypedData<message::WorkRecord>();
         wr.markStarted();
         //workCount stops the system from settling while there are still pending
         //messages.
@@ -405,7 +459,7 @@ void Processor::process(const MpiMessage& message) {
         }
     }
     else if (tag == Processor::TAG_DEAD_RING_TEST) {
-        message::DeadRingTestMessage dm(message.message);
+        auto& dm = *message.getTypedData<message::DeadRingTestMessage>();
         //First pass?
         bool passItOn = true;
 
@@ -502,7 +556,7 @@ void Processor::process(const MpiMessage& message) {
         }
     }
     else if (tag == Processor::TAG_DEAD_RING_IS_DEAD) {
-        message::DeadRingTestMessage dm(message.message);
+        auto& dm = *message.getTypedData<message::DeadRingTestMessage>();
         this->reduceInfoMap.erase(dm.reduceTag);
 
         if (dm.reduceTag == 0) {
@@ -516,7 +570,9 @@ void Processor::process(const MpiMessage& message) {
     }
 }
 
-
+/*
+//TODO - addWork() should have this same routing (_getNextWorker replaced with 
+//self)
 void Processor::sendWork(const message::WorkRecord& work) {
     int dest;
     std::string message = work.serialized();
@@ -530,7 +586,7 @@ void Processor::sendWork(const message::WorkRecord& work) {
 
     this->_nonBlockingSend(dest, Processor::TAG_WORK, message);
 }
-
+*/
 
 bool Processor::tryReceive() {
     //First run filter
@@ -556,8 +612,8 @@ bool Processor::tryReceive() {
                 this->maybeAllowSteal(this->recvBuffer);
             }
             else {
-                this->workInQueue.push(MpiMessage(recv->tag(), 
-                        this->recvBuffer.substr()));
+                this->workInQueue.emplace(recv->tag(), 
+                        this->recvBuffer.substr());
             }
         }
         else {

@@ -139,11 +139,6 @@ private:
     friend class boost::serialization::access;
     template<class Archive>
     void serialize(Archive& ar, const unsigned int version) {
-        //TODO / fix - since same object is deserialized into several
-        //times, we have to pop...
-        if (Archive::is_loading::value) {
-            this->layers.clear();
-        }
         ar & this->score;
         int m = this->layers.size();
         ar & m;
@@ -164,6 +159,12 @@ private:
 class NetworkPopulace { 
 public:
     NetworkPopulace() {
+    }
+
+    NetworkPopulace(const NetworkPopulace& other) {
+        for (size_t i = 0, m = other.networks.size(); i < m; i++) {
+            *this += *other.networks[i];
+        }
     }
 
     NetworkPopulace& operator+=(NeuralNet& network) {

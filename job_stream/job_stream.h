@@ -25,9 +25,10 @@ namespace job_stream {
             { //timer scope
                 processor::Processor::WorkTimer timer(this->processor, 
                         processor::Processor::TIME_USER);
-                this->handleWork(this->currentWork);
+                this->handleWork(*this->currentWork);
             }
 
+            this->currentWork.reset(0);
             this->currentRecord = 0;
         }
 
@@ -44,17 +45,24 @@ namespace job_stream {
                 const std::string& target) {
             processor::Processor::WorkTimer timer(this->processor, 
                     processor::Processor::TIME_SYSTEM);
-            std::string payload = serialization::encode(output);
-            if (!target.empty()) {
-                this->sendTo(this->config["to"][target], payload);
+
+            std::string nextTarget;
+            if (target.empty()) {
+                nextTarget = this->config["to"].template as<std::string>();
             }
             else {
-                this->sendTo(this->config["to"], payload);
+                nextTarget = this->config["to"][target]
+                        .template as<std::string>();
             }
+
+            message::WorkRecord* wr = new message::TypedWorkRecord<T_output>(
+                    this->getTargetForJob(nextTarget), new T_output(output));
+            wr->chainFrom(*this->currentRecord);
+            this->processor->addWork(wr);
         }
 
     protected:
-        T_input currentWork;
+        std::unique_ptr<T_input> currentWork;
 
         virtual std::string parseAndSerialize(const std::string& line) {
             return serialization::encode(boost::lexical_cast<T_input>(line));
@@ -100,7 +108,7 @@ namespace job_stream {
             { //timer scope
                 processor::Processor::WorkTimer timer(this->processor, 
                         processor::Processor::TIME_USER);
-                this->handleDone(this->currentReduce->accumulator);
+                this->handleDone(*this->currentReduce->accumulator);
             }
 
             this->currentRecord = 0;
@@ -145,11 +153,12 @@ namespace job_stream {
                 job::ReduceAccumulator<T_accum>& record = this->reduceMap[tag];
                 record.originalWork.reset(new message::WorkRecord(
                         work.serialized()));
+                record.accumulator.reset(new T_accum());
 
                 { //timer scope
                     processor::Processor::WorkTimer timer(this->processor, 
                             processor::Processor::TIME_USER);
-                    this->handleInit(record.accumulator);
+                    this->handleInit(*record.accumulator);
                 }
 
                 //Track when this reduction is finished
@@ -165,16 +174,17 @@ namespace job_stream {
         /** Called by system to call handleAdd() with proper setup */
         virtual void dispatchAdd(message::WorkRecord& work) {
             this->currentRecord = &work;
-            work.putWorkInto(this->currentWork);
             this->setCurrentReduce(work.getReduceTag());
+            work.putWorkInto(this->currentWork);
 
             { //timer scope
                 processor::Processor::WorkTimer timer(this->processor, 
                         processor::Processor::TIME_USER);
-                this->handleAdd(this->currentReduce->accumulator, 
-                        this->currentWork);
+                this->handleAdd(*this->currentReduce->accumulator, 
+                        *this->currentWork);
             }
 
+            this->currentWork.reset();
             this->currentReduce = 0;
             this->currentRecord = 0;
         }
@@ -183,16 +193,17 @@ namespace job_stream {
         /** Called by system to call handleJoin() with proper setup */
         virtual void dispatchJoin(message::WorkRecord& work) {
             this->currentRecord = &work;
-            work.putWorkInto(this->currentJoin);
             this->setCurrentReduce(work.getReduceTag());
+            work.putWorkInto(this->currentJoin);
 
             { //timer scope
                 processor::Processor::WorkTimer timer(this->processor, 
                         processor::Processor::TIME_USER);
-                this->handleJoin(this->currentReduce->accumulator, 
-                        this->currentJoin);
+                this->handleJoin(*this->currentReduce->accumulator, 
+                        *this->currentJoin);
             }
 
+            this->currentJoin.reset();
             this->currentReduce = 0;
             this->currentRecord = 0;
         }
@@ -202,7 +213,11 @@ namespace job_stream {
         template<class T_output> void emit(const T_output& output) {
             processor::Processor::WorkTimer timer(this->processor, 
                     processor::Processor::TIME_SYSTEM);
-            this->sendModuleOutput(serialization::encode(output));
+
+            message::WorkRecord* wr = new message::TypedWorkRecord<T_output>(
+                    this->getTargetForReducer(), new T_output(output));
+            wr->chainFrom(*this->currentRecord);
+            this->processor->addWork(wr);
         }
 
 
@@ -218,7 +233,6 @@ namespace job_stream {
                 const std::string& target) {
             processor::Processor::WorkTimer timer(this->processor, 
                     processor::Processor::TIME_SYSTEM);
-            std::string payload = serialization::encode(output);
 
             //Make sure the chain takes... bit of a hack, but we need the 
             //currentRecord (tuple that caused our reduce) to maintain its
@@ -229,17 +243,27 @@ namespace job_stream {
             this->currentRecord->setReduce(this->processor->getRank(),
                     this->currentReduceTag);
 
+            std::vector<std::string> ntarget;
             if (target.empty()) {
                 if (!this->config["recurTo"]) {
-                    this->sendTo(this->parent->getConfig()["input"], payload);
+                    ntarget = this->getTargetForJob(
+                            this->parent->getConfig()["input"]
+                                .template as<std::string>());
                 }
                 else {
-                    this->sendTo(this->config["recurTo"], payload);
+                    ntarget = this->getTargetForJob(
+                            this->config["recurTo"].template as<std::string>());
                 }
             }
             else {
-                this->sendTo(this->config["recurTo"][target], payload);
+                ntarget = this->getTargetForJob(this->config["recurTo"][target]
+                        .template as<std::string>());
             }
+
+            message::WorkRecord* wr = new message::TypedWorkRecord<T_output>(
+                    ntarget, new T_output(output));
+            wr->chainFrom(*this->currentRecord);
+            this->processor->addWork(wr);
 
             //Restore old reduce information and set hadRecurrence so that our
             //reduction ring isn't marked dead
@@ -251,8 +275,8 @@ namespace job_stream {
     protected:
         uint64_t currentReduceTag;
         job::ReduceAccumulator<T_accum>* currentReduce;
-        T_input currentWork;
-        T_accum currentJoin;
+        std::unique_ptr<T_input> currentWork;
+        std::unique_ptr<T_accum> currentJoin;
         /** Used in dispatchDone() to see if we had recurrence.  If we did not,
             the reduction is finished. */
         bool hadRecurrence;

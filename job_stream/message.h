@@ -65,6 +65,10 @@ namespace message {
         /** Instantiates a new _WorkRecord with source of localhost. */
         WorkRecord(const std::vector<std::string>& target, 
                 const std::string& work);
+        WorkRecord(const std::vector<std::string>& target,
+                void* work);
+
+        virtual ~WorkRecord() {}
 
         /* Fill in this WorkRecord as though it is a continuation of wr */
         void chainFrom(const WorkRecord& wr);
@@ -73,7 +77,6 @@ namespace message {
         uint64_t getReduceTag() const { return this->reduceTag; }
         const std::vector<std::string>& getTarget() const { 
                 return this->source.target; }
-        const std::string& getWork() const { return this->work; }
 
         /** Get work as a printable string; used for output. */
         std::string getWorkAsString() const;
@@ -100,8 +103,16 @@ namespace message {
         }
 
 
-        template<class T> void putWorkInto(T& dest) const {
-            serialization::decode(this->work, dest);
+        /** Steal our work away into an appropriately typed unique_ptr. */
+        template<class T> void putWorkInto(std::unique_ptr<T>& dest) {
+            if (this->isTyped()) {
+                dest.reset((T*)this->getTypedWork());
+            }
+            else {
+                T* value = new T();
+                serialization::decode(this->work, *value);
+                dest.reset(value);
+            }
         }
 
 
@@ -116,7 +127,24 @@ namespace message {
         /** The tag assigned to this WorkRecord's current reduction */
         uint64_t reduceTag;
 
-        std::string work;
+        mutable std::string work;
+
+
+        /** Returns true if this WorkRecord is Typed (meaning it has its own
+            allocated version of our work, no string necessary). */
+        virtual bool isTyped() {
+            return false;
+        }
+
+
+        virtual void* getTypedWork() {
+            throw std::runtime_error("Default impl has no typed work");
+        }
+
+        
+        virtual void serializeTypedWork() const {
+            //Default impl has work string already encoded and ready to go
+        }
 
     private:
         friend class boost::serialization::access;
@@ -126,8 +154,41 @@ namespace message {
             ar & this->reduceHomeRank;
             ar & this->reduceTag;
             ar & this->route;
+
+            if (Archive::is_saving::value) {
+                //We're being saved out, so sync up work with our work
+                this->serializeTypedWork();
+            }
             ar & this->work;
         }
+    };
+
+
+
+    template<typename T>
+    class TypedWorkRecord : public WorkRecord {
+    public:
+        TypedWorkRecord(const std::vector<std::string>& target, T* work)
+                : WorkRecord(target, work), typedWork(work) {}
+        virtual ~TypedWorkRecord() {}
+
+    protected:
+        virtual bool isTyped() {
+            return true;
+        }
+
+
+        virtual void* getTypedWork() {
+            return (void*)this->typedWork.release();
+        }
+
+
+        virtual void serializeTypedWork() const {
+            this->work = serialization::encode(*this->typedWork);
+        }
+
+    private:
+        std::unique_ptr<T> typedWork;
     };
 
 
