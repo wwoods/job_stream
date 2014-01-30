@@ -70,6 +70,7 @@ std::string WorkRecord::getWorkAsString() const {
     TRY_TYPE(std::string);
     TRY_TYPE(uint64_t);
     TRY_TYPE(int64_t);
+    TRY_TYPE(unsigned int);
     TRY_TYPE(int);
     TRY_TYPE(unsigned short);
     TRY_TYPE(short);
