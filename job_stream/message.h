@@ -8,6 +8,53 @@
 
 namespace job_stream {
 namespace message {
+    /** A group of serialized messages */
+    class GroupMessage {
+    public:
+        GroupMessage() {}
+
+        void add(int tag, std::string&& message) {
+            this->messageTags.emplace_back(tag);
+            this->messages.emplace_back(message);
+        }
+
+
+        std::string serialized() {
+            return serialization::encode(*this);
+        }
+
+
+        std::vector<int> messageTags;
+        std::vector<std::string> messages;
+    private:
+        friend class boost::serialization::access;
+        template<class Archive>
+        void serialize(Archive& ar, const unsigned int version) {
+            int m = messageTags.size();
+            ar & m;
+            if (Archive::is_saving::value) {
+                for (int i = 0; i < m; i++) {
+                    ar & this->messageTags[i];
+                    ar & this->messages[i];
+                }
+            }
+            else {
+                for (int i = 0; i < m; i++) {
+                    int tag;
+                    std::string msg;
+
+                    ar & tag;
+                    ar & msg;
+
+                    this->messageTags.emplace_back(tag);
+                    this->messages.emplace_back(std::move(msg));
+                }
+            }
+        }
+    };
+
+
+
     /** Record of location
         Work flow:  generation -> tsSent -> tsReceived -> tsWorkStart
       */
@@ -179,11 +226,17 @@ namespace message {
 
 
         virtual void* getTypedWork() {
+            if (this->typedWork.get() == 0) {
+                throw std::runtime_error("Work already cast?");
+            }
             return (void*)this->typedWork.release();
         }
 
 
         virtual void serializeTypedWork() const {
+            if (this->typedWork.get() == 0) {
+                throw std::runtime_error("Work already cast?");
+            }
             this->work = serialization::encode(*this->typedWork);
         }
 

@@ -12,7 +12,7 @@
 #include <deque>
 #include <functional>
 #include <memory>
-#include <queue>
+#include <list>
 
 namespace job_stream {
 namespace processor {
@@ -90,22 +90,37 @@ struct MpiMessage {
     /** The MPI message tag that this message belongs to */
     int tag;
 
-    /** An owned version of the data in this message - deleted manually in
-        destructor.  We would use unique_ptr, but we don't know the type of our 
-        data! */
-    void* data;
-
     MpiMessage(int tag, void* data);
 
     /** Kind of a factory method - depending on tag, deserialize message into
         the desired message class, and put it in data. */
     MpiMessage(int tag, const std::string& message);
+
+    MpiMessage(MpiMessage&& other) : tag(other.tag), data(0) {
+        std::swap(this->data, other.data);
+    }
+
     ~MpiMessage();
+
+    std::string serialized() const;
 
     template<typename T>
     T* getTypedData() const {
+        this->_ensureDecoded();
         return (T*)this->data;
     }
+
+private:
+    /** An owned version of the data in this message - deleted manually in
+        destructor.  We would use unique_ptr, but we don't know the type of our 
+        data! */
+    mutable void* data;
+
+    /** The string representing this message, serialized. */
+    mutable std::string encodedMessage;
+
+    /** If data == 0, populate it by deserializing encodedMessage. */
+    void _ensureDecoded() const;
 };
 
 
@@ -143,7 +158,9 @@ public:
         TAG_DEAD_RING_TEST,
         TAG_DEAD_RING_IS_DEAD,
         TAG_STEAL,
-        //Placeholder for number of tags
+        /** A group of messages - tag, body, tag, body, etc. */
+        TAG_GROUP,
+        /** Placeholder for number of tags */
         TAG_COUNT,
     };
 
@@ -199,16 +216,17 @@ protected:
             const YAML::Node& config);
     job::ReducerBase* allocateReducer(module::Module* parent, 
             const YAML::Node& config);
-    /* If we have an input thread, join it */
+    /** If we have an input thread, join it */
     void joinThreads();
-    /* We got a steal message; decode it and maybe give them work. */
+    /** We got a steal message; decode it and maybe give them work. */
     void maybeAllowSteal(const std::string& messageBuffer);
-    /* Listen for input events and put them on workOutQueue.  When this thread 
-       is finished, it emits a TAG_DEAD_RING_TEST message for 0. */
+    /** Listen for input events and put them on workOutQueue.  When this thread 
+        is finished, it emits a TAG_DEAD_RING_TEST message for 0. */
     void processInputThread_main(const std::string& inputLine);
-    /* Process a previously received mpi message */
-    void process(const MpiMessage& message);
-    /* Try to receive the current request, or make a new one */
+    /** Process a previously received mpi message.  Passed non-const so that it
+        can be steal-constructored (rvalue) */
+    void process(MpiMessage& message);
+    /** Try to receive the current request, or make a new one */
     bool tryReceive();
 
 private:
@@ -254,7 +272,7 @@ private:
         Indexed by ProcessorTimeType */
     std::unique_ptr<uint64_t[]> timesByType;
     //Any work waiting to be done on this Processor.
-    std::queue<MpiMessage> workInQueue;
+    std::list<MpiMessage> workInQueue;
     /* workOutQueue gets redistributed to all workers; MPI is not implicitly
        thread-safe, that is why this queue exists.  Used for input only at
        the moment. */

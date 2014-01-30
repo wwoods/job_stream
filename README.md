@@ -288,9 +288,6 @@ Roadmap
   1/N of it to people who ask, enabling batch behavior).  See how this changes
   efficiency for N==1 system first.  Right now, with neuron test of 8 nets,
   I'm seeing around 15% and 5% user time for -np 2 -bind-to-core
-    * TODO on this:
-    * MpiMessage() shouldn't construct objects immediately, but on request
-    * Implement stealing (and fix addWork())
 * Multiples is sometimes crashing with input stream error in Neurontest?????
     * Shows up more with high #s of networks...
     * This might not be happening anymore?
