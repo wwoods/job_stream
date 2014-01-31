@@ -155,6 +155,7 @@ public:
     /* MPI message tags */
     enum ProcessorSendTag {
         TAG_WORK,
+        TAG_REDUCE_WORK,
         TAG_DEAD_RING_TEST,
         TAG_DEAD_RING_IS_DEAD,
         TAG_STEAL,

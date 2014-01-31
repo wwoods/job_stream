@@ -67,7 +67,7 @@ MpiMessage::~MpiMessage() {
     if (!this->data) {
         //ok, never allocated
     }
-    else if (tag == Processor::TAG_WORK) {
+    else if (tag == Processor::TAG_WORK || tag == Processor::TAG_REDUCE_WORK) {
         delete (message::WorkRecord*)this->data;
     }
     else if (tag == Processor::TAG_DEAD_RING_TEST
@@ -86,7 +86,7 @@ std::string MpiMessage::serialized() const {
         return this->encodedMessage;
     }
 
-    if (tag == Processor::TAG_WORK) {
+    if (tag == Processor::TAG_WORK || tag == Processor::TAG_REDUCE_WORK) {
         return ((message::WorkRecord*)this->data)->serialized();
     }
     else if (tag == Processor::TAG_DEAD_RING_TEST
@@ -105,7 +105,7 @@ void MpiMessage::_ensureDecoded() const {
     }
 
     std::string&& message = std::move(this->encodedMessage);
-    if (this->tag == Processor::TAG_WORK) {
+    if (this->tag == Processor::TAG_WORK || tag == Processor::TAG_REDUCE_WORK) {
         this->data = new message::WorkRecord(message);
     }
     else if (this->tag == Processor::TAG_DEAD_RING_TEST
@@ -193,7 +193,8 @@ void Processor::run(const std::string& inputLine) {
         if (!this->workInQueue.empty()) {
             msg = &this->workInQueue.front();
             this->process(*msg);
-            if (msg->tag == Processor::TAG_WORK) {
+            if (msg->tag == Processor::TAG_WORK 
+                    || msg->tag == Processor::TAG_REDUCE_WORK) {
                 lastWork = message::Location::getCurrentTimeMs();
             }
             this->workInQueue.pop_front();
@@ -238,20 +239,22 @@ void Processor::run(const std::string& inputLine) {
 
 void Processor::addWork(message::WorkRecord* wr) {
     int dest, rank = this->getRank();
+    int tag = Processor::TAG_WORK;
     const std::vector<std::string>& target = wr->getTarget();
     if (target.size() > 0 && target[target.size() - 1] == "output") {
         dest = wr->getReduceHomeRank();
+        tag = Processor::TAG_REDUCE_WORK;
     }
     else {
         dest = rank;
     }
 
     if (dest != rank) {
-        this->_nonBlockingSend(dest, Processor::TAG_WORK, wr->serialized());
+        this->_nonBlockingSend(dest, tag, wr->serialized());
         delete wr;
     }
     else {
-        this->workInQueue.emplace_back(Processor::TAG_WORK, wr);
+        this->workInQueue.emplace_back(tag, wr);
     }
 }
 
@@ -318,11 +321,7 @@ void Processor::joinThreads() {
 
 bool isWorkMessage(const MpiMessage& m) {
     if (m.tag == Processor::TAG_WORK) {
-        message::WorkRecord& wr = *m.getTypedData<message::WorkRecord>();
-        auto t = wr.getTarget();
-        if (t.size() == 0 || t[t.size() - 1] != "output") {
-            return true;
-        }
+        return true;
     }
     return false;
 }
@@ -350,7 +349,7 @@ void Processor::maybeAllowSteal(const std::string& messageBuffer) {
         if (isWorkMessage(*iter)) {
             stealable.push_back(iter);
         }
-        else if (iter->tag == Processor::TAG_WORK) {
+        else if (iter->tag == Processor::TAG_REDUCE_WORK) {
             unstealableWork += 1;
         }
     }
@@ -490,7 +489,7 @@ job::ReducerBase* Processor::allocateReducer(module::Module* parent,
 
 void Processor::process(MpiMessage& message) {
     int tag = message.tag;
-    if (tag == Processor::TAG_WORK) {
+    if (tag == Processor::TAG_WORK || tag == Processor::TAG_REDUCE_WORK) {
         auto& wr = *message.getTypedData<message::WorkRecord>();
         wr.markStarted();
         //workCount stops the system from settling while there are still pending
@@ -534,7 +533,11 @@ void Processor::process(MpiMessage& message) {
             //We're holding onto this one.  Pay it forward... would be more 
             //efficient to hold onto it, but let's not do that for now.  It's 
             //late.
-            dm.pass = 0;
+            //Note that we use -1 instead of zero because, if it's NOT held up
+            //by a child the next time this ring test comes around, we still
+            //don't want to use that "passWork" value, since that pass was
+            //compromised.
+            dm.pass = -1;
             requeue = true;
         }
         else if (dm.sentryRank == this->world.rank()) {
@@ -544,7 +547,7 @@ void Processor::process(MpiMessage& message) {
                         dm.reduceTag, dm.pass, dm.passWork, dm.allWork);
             }
 
-            if (dm.pass >= 2 && dm.allWork == dm.passWork) {
+            if (dm.pass > 2 && dm.allWork == dm.passWork) {
                 //Now we might remove it, if there is no recurrence
                 bool tellEveryone = false;
                 if (dm.reduceTag == 0) {
@@ -637,23 +640,6 @@ void Processor::process(MpiMessage& message) {
     }
 }
 
-/*
-//TODO - addWork() should have this same routing (_getNextWorker replaced with 
-//self)
-void Processor::sendWork(const message::WorkRecord& work) {
-    int dest;
-    std::string message = work.serialized();
-    const std::vector<std::string>& target = work.getTarget();
-    if (target.size() > 0 && target[target.size() - 1] == "output") {
-        dest = work.getReduceHomeRank();
-    }
-    else {
-        dest = this->_getNextWorker();
-    }
-
-    this->_nonBlockingSend(dest, Processor::TAG_WORK, message);
-}
-*/
 
 bool Processor::tryReceive() {
     //First run filter
