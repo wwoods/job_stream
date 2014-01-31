@@ -58,7 +58,7 @@ void Processor::addReducer(const std::string& typeName,
 MpiMessage::MpiMessage(int tag, void* data) : tag(tag), data(data) {}
 
 
-MpiMessage::MpiMessage(int tag, const std::string& message) : tag(tag),
+MpiMessage::MpiMessage(int tag, std::string&& message) : tag(tag),
         data(0), encodedMessage(message) {
 }
 
@@ -219,8 +219,13 @@ void Processor::run(const std::string& inputLine) {
         timesTotal += this->timesByType[i];
     }
     uint64_t msgsTotal = 0;
+    uint64_t msgsUser = 0;
     for (int i = 0; i < Processor::TAG_COUNT; i++) {
         msgsTotal += this->msgsByTag[i];
+        if (i == Processor::TAG_WORK || i == Processor::TAG_REDUCE_WORK
+                || i == Processor::TAG_GROUP) {
+            msgsUser += this->msgsByTag[i];
+        }
     }
     fprintf(stderr, 
             "%i %i%% user time (%i%% mpi), %i%% user cpu, "
@@ -229,8 +234,7 @@ void Processor::run(const std::string& inputLine) {
             (int)(100 * this->timesByType[Processor::TIME_USER] / timesTotal),
             (int)(100 * this->timesByType[Processor::TIME_COMM] / timesTotal),
             (int)(100 * this->clksByType[Processor::TIME_USER] / clksTotal),
-            msgsTotal,
-            (int)(100 * this->msgsByTag[Processor::TAG_WORK] / msgsTotal));
+            msgsTotal, (int)(100 * msgsUser / msgsTotal));
 
     //Stop all threads
     this->joinThreads();
@@ -284,10 +288,8 @@ void Processor::startRingTest(uint64_t reduceTag, uint64_t parentTag,
     auto m = message::DeadRingTestMessage(this->world.rank(),
             reduceTag, pri.workCount);
     WorkTimer sendTimer(this, Processor::TIME_COMM);
-    this->world.send(this->_getNextRank(),
-            Processor::TAG_DEAD_RING_TEST,
-            message::DeadRingTestMessage(this->world.rank(),
-                reduceTag, pri.workCount).serialized());
+    this->world.send(this->_getNextRank(), Processor::TAG_DEAD_RING_TEST,
+            m.serialized());
 }
 
 
@@ -360,6 +362,7 @@ void Processor::maybeAllowSteal(const std::string& messageBuffer) {
     if (stealBottom < 0) {
         stealBottom = 0;
     }
+    //SERIALIZATION
     for (int i = stealBottom, m = stealable.size(); i < m; i++) {
         const MpiMessage& msg = *stealable[i];
         msgOut.add(msg.tag, msg.serialized());
@@ -373,14 +376,11 @@ void Processor::maybeAllowSteal(const std::string& messageBuffer) {
     //Since _nonblockingSend might itself call tryReceive, which can call 
     //maybeAllowSteal
 
-    { //scope for MPI timer
-        WorkTimer sendTimer(this, Processor::TIME_COMM);
-        this->_nonBlockingSend(sr.rank, Processor::TAG_GROUP, 
-                msgOut.serialized());
-        //Forward the steal message!
-        this->_nonBlockingSend(this->_getNextRank(), Processor::TAG_STEAL,
-                sr.serialized());
-    }
+    this->_nonBlockingSend(sr.rank, Processor::TAG_GROUP, 
+            msgOut.serialized());
+    //Forward the steal message!
+    this->_nonBlockingSend(this->_getNextRank(), Processor::TAG_STEAL,
+            sr.serialized());
 
     if (JOB_STREAM_DEBUG >= 2) {
         printf("%i done with steal\n", this->getRank());
@@ -547,7 +547,7 @@ void Processor::process(MpiMessage& message) {
                         dm.reduceTag, dm.pass, dm.passWork, dm.allWork);
             }
 
-            if (dm.pass > 2 && dm.allWork == dm.passWork) {
+            if (dm.pass >= 2 && dm.allWork == dm.passWork) {
                 //Now we might remove it, if there is no recurrence
                 bool tellEveryone = false;
                 if (dm.reduceTag == 0) {
@@ -608,7 +608,12 @@ void Processor::process(MpiMessage& message) {
             }
         }
         else {
-            dm.passWork += this->reduceInfoMap[dm.reduceTag].workCount;
+            uint64_t workCount = this->reduceInfoMap[dm.reduceTag].workCount;
+            dm.passWork += workCount;
+            if (JOB_STREAM_DEBUG >= 2) {
+                fprintf(stderr, "Dead ring %lu added %lu from %i\n",
+                        dm.reduceTag, workCount, this->getRank());
+            }
         }
 
         if (requeue) {
@@ -669,7 +674,7 @@ bool Processor::tryReceive() {
                 //it uses _nonBlockingSend, we have to start the next request
                 //before processing.
                 wasSteal = true;
-                stealBuffer = std::move(this->recvBuffer);
+                std::swap(stealBuffer, this->recvBuffer);
             }
             else if (recv->tag() == Processor::TAG_GROUP) {
                 message::GroupMessage group;
@@ -680,8 +685,8 @@ bool Processor::tryReceive() {
                 }
             }
             else {
-                //Note that 
-                this->workInQueue.emplace_back(recv->tag(), this->recvBuffer);
+                this->workInQueue.emplace_back(recv->tag(), 
+                        std::move(this->recvBuffer));
             }
         }
         else {
@@ -690,11 +695,15 @@ bool Processor::tryReceive() {
         }
     }
 
-    //Start next request
+    //Start next request.  clear() is necessary since 
+    //mpi::boost::communicator::irecv has weird behavior with std::move'd string
+    //buffers, and might end up overwriting the old data anyway somehow.
+    this->recvBuffer.clear();
     this->recvRequest = this->world.irecv(mpi::any_source, mpi::any_tag, 
             this->recvBuffer);
 
     if (wasSteal) {
+        WorkTimer stealTimer(this, Processor::TIME_SYSTEM);
         this->maybeAllowSteal(stealBuffer);
     }
 

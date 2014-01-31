@@ -94,10 +94,11 @@ struct MpiMessage {
 
     /** Kind of a factory method - depending on tag, deserialize message into
         the desired message class, and put it in data. */
-    MpiMessage(int tag, const std::string& message);
+    MpiMessage(int tag, std::string&& message);
 
     MpiMessage(MpiMessage&& other) : tag(other.tag), data(0) {
         std::swap(this->data, other.data);
+        std::swap(this->encodedMessage, other.encodedMessage);
     }
 
     ~MpiMessage();
