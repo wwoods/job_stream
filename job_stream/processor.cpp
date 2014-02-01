@@ -347,31 +347,40 @@ void Processor::maybeAllowSteal(const std::string& messageBuffer) {
             }
         }
 
-        int stealSlice = stealable.size() / (1 + needWork);
-        int stealBottom = stealSlice;
-        for (int i = 0; i < wsize; i++) {
-            if (i == rank) continue;
-            if (!sr.needsWork[i]) continue;
-
-            //Give work to this rank!
-            sr.needsWork[i] = false;
-
-            message::GroupMessage msgOut;
-            int stealTop = std::min((int)stealable.size(), 
-                    stealBottom + stealSlice);
-            for (int j = stealBottom; j < stealTop; j++) {
-                const MpiMessage& msg = *stealable[j];
-                msgOut.add(msg.tag, msg.serialized());
-                this->workInQueue.erase(stealable[j]);
+        if (needWork > 0) {
+            int stealTop = stealable.size();
+            int stealSlice = stealTop / needWork;
+            if (unstealableWork < stealSlice) {
+                stealSlice = (stealTop + unstealableWork) / (needWork + 1);
             }
-            stealBottom = stealTop;
+            int stealBottom = std::max(0, stealTop - stealSlice * needWork);
+            for (int i = 0; i < wsize; i++) {
+                if (i == rank) continue;
+                if (!sr.needsWork[i]) continue;
 
-            //IMPORTANT - Once we start sending work, tryReceive() may get 
-            //called within _nonblockingSend, which might call 
-            //maybeAllowSteal again.  So we can only use our local 
-            //variables.
-            this->_nonBlockingSend(i, Processor::TAG_GROUP, 
-                    msgOut.serialized());
+                //Give work to this rank!
+                sr.needsWork[i] = false;
+
+                message::GroupMessage msgOut;
+                int stealNext = std::min(stealTop, stealBottom + stealSlice);
+                for (int j = stealBottom; j < stealNext; j++) {
+                    const MpiMessage& msg = *stealable[j];
+                    msgOut.add(msg.tag, msg.serialized());
+                    this->workInQueue.erase(stealable[j]);
+                }
+                stealBottom = stealNext;
+
+                //IMPORTANT - Once we start sending work, tryReceive() may get 
+                //called within _nonblockingSend, which might call 
+                //maybeAllowSteal again.  So we can only use our local 
+                //variables.
+                this->_nonBlockingSend(i, Processor::TAG_GROUP, 
+                        msgOut.serialized());
+
+                if (stealBottom == stealTop) {
+                    break;
+                }
+            }
         }
     }
 
