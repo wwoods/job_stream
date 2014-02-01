@@ -220,7 +220,7 @@ protected:
             const YAML::Node& config);
     /** If we have an input thread, join it */
     void joinThreads();
-    /** We got a steal message; decode it and maybe give them work. */
+    /** We got a steal message; decode it and maybe give someone work. */
     void maybeAllowSteal(const std::string& messageBuffer);
     /** Listen for input events and put them on workOutQueue.  When this thread 
         is finished, it emits a TAG_DEAD_RING_TEST message for 0. */
@@ -244,8 +244,6 @@ private:
                     timeType(type) {}
     };
 
-    /* Prevent steal message spam */
-    bool canSteal;
     /** Array containing how many cpu clocks were spent in each type of 
         operation.  Indexed by ProcessorTimeType */
     std::unique_ptr<uint64_t[]> clksByType;

@@ -286,17 +286,22 @@ namespace message {
 
 
 
-    class StealRequest {
+    /** A special message that gets passed around.  Each processor will update
+        its state in the ring, and possibly send some of its work to nodes that
+        have no work. */
+    class StealRing {
     public:
-        int rank;
+        std::vector<bool> needsWork;
 
-        StealRequest(const std::string& buffer) {
+        StealRing(const std::string& buffer) {
             serialization::decode(buffer, *this);
         }
 
 
-        StealRequest(int rank) {
-            this->rank = rank;
+        StealRing(int worldCount) : needsWork(worldCount) {
+            for (int i = 0; i < worldCount; i++) {
+                this->needsWork[i] = false;
+            }
         }
 
 
@@ -308,7 +313,7 @@ namespace message {
         friend class boost::serialization::access;
         template<class Archive>
         void serialize(Archive& ar, const unsigned int version) {
-            ar & this->rank;
+            ar & this->needsWork;
         }
     };
 }

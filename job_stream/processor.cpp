@@ -138,7 +138,6 @@ Processor::~Processor() {
 
 
 void Processor::run(const std::string& inputLine) {
-    this->canSteal = true;
     this->sawEof = false;
     this->sentEndRing0 = false;
     this->shouldRun = true;
@@ -158,6 +157,10 @@ void Processor::run(const std::string& inputLine) {
         this->workTarget = -1;
         this->processInputThread = new boost::thread(boost::bind(
                 &Processor::processInputThread_main, this, inputLine));
+
+        //The first processor also starts the steal ring
+        this->world.send(this->_getNextRank(), Processor::TAG_STEAL,
+                message::StealRing(this->world.size()).serialized());
     }
     else {
         this->sawEof = true;
@@ -170,7 +173,6 @@ void Processor::run(const std::string& inputLine) {
     //Begin tallying time spent in system vs user functionality.
     std::unique_ptr<WorkTimer> outerTimer(new WorkTimer(this, 
             Processor::TIME_SYSTEM));
-    uint64_t lastWork = 0;
     while (this->shouldRun) {
         //See if we have any messages; while we do, load them.
         this->tryReceive();
@@ -193,21 +195,7 @@ void Processor::run(const std::string& inputLine) {
         if (!this->workInQueue.empty()) {
             msg = &this->workInQueue.front();
             this->process(*msg);
-            if (msg->tag == Processor::TAG_WORK 
-                    || msg->tag == Processor::TAG_REDUCE_WORK) {
-                lastWork = message::Location::getCurrentTimeMs();
-            }
             this->workInQueue.pop_front();
-        }
-
-        if (this->canSteal) {
-            if (message::Location::getCurrentTimeMs() > lastWork + 1) {
-                WorkTimer stealTimer(this, Processor::TIME_COMM);
-                this->world.send(this->_getNextRank(), Processor::TAG_STEAL,
-                        message::StealRequest(this->getRank()).serialized());
-                this->canSteal = false;
-                lastWork = message::Location::getCurrentTimeMs();
-            }
         }
     }
     //Stop timer, report on user vs not
@@ -321,34 +309,18 @@ void Processor::joinThreads() {
 }
 
 
-bool isWorkMessage(const MpiMessage& m) {
-    if (m.tag == Processor::TAG_WORK) {
-        return true;
-    }
-    return false;
-}
-
-
 void Processor::maybeAllowSteal(const std::string& messageBuffer) {
-    message::StealRequest sr(messageBuffer);
-    if (sr.rank == this->getRank()) {
-        //Do nothing, our steal message completed its circuit.  Either we got
-        //more work or we didn't.
-        this->canSteal = true;
-        return;
-    }
-
+    message::StealRing sr(messageBuffer);
     if (JOB_STREAM_DEBUG >= 2) {
-        printf("%i checking steal from %i...\n", this->getRank(), sr.rank);
+        printf("%i checking steal ring...\n", this->getRank());
     }
 
-    //Can they steal?
+    //Go through our queue and see if we need work or can donate work.
     std::vector<std::list<MpiMessage>::iterator> stealable;
-    int myWorkCount = 0;
     int unstealableWork = 0;
     for (auto iter = this->workInQueue.begin(); iter != this->workInQueue.end();
             iter++) {
-        if (isWorkMessage(*iter)) {
+        if (iter->tag == Processor::TAG_WORK) {
             stealable.push_back(iter);
         }
         else if (iter->tag == Processor::TAG_REDUCE_WORK) {
@@ -356,34 +328,60 @@ void Processor::maybeAllowSteal(const std::string& messageBuffer) {
         }
     }
 
-    message::GroupMessage msgOut;
-    int stealBottom = stealable.size() / 2 + 1;
-    stealBottom -= unstealableWork;
-    if (stealBottom < 0) {
-        stealBottom = 0;
+    //Can we donate work?
+    bool iNeedWork = false;
+    if (stealable.size() == 0) {
+        if (unstealableWork == 0) {
+            iNeedWork = true;
+        }
     }
-    //SERIALIZATION
-    for (int i = stealBottom, m = stealable.size(); i < m; i++) {
-        const MpiMessage& msg = *stealable[i];
-        msgOut.add(msg.tag, msg.serialized());
-        this->workInQueue.erase(stealable[i]);
+    else {
+        //Does anyone else need work?
+        int wsize = this->world.size();
+        int rank = this->getRank();
+        int needWork = 0;
+        for (int i = 0; i < wsize; i++) {
+            if (i == rank) continue;
+            if (sr.needsWork[i]) {
+                needWork += 1;
+            }
+        }
+
+        int stealSlice = stealable.size() / (1 + needWork);
+        int stealBottom = stealSlice;
+        for (int i = 0; i < wsize; i++) {
+            if (i == rank) continue;
+            if (!sr.needsWork[i]) continue;
+
+            //Give work to this rank!
+            sr.needsWork[i] = false;
+
+            message::GroupMessage msgOut;
+            int stealTop = std::min((int)stealable.size(), 
+                    stealBottom + stealSlice);
+            for (int j = stealBottom; j < stealTop; j++) {
+                const MpiMessage& msg = *stealable[j];
+                msgOut.add(msg.tag, msg.serialized());
+                this->workInQueue.erase(stealable[j]);
+            }
+            stealBottom = stealTop;
+
+            //IMPORTANT - Once we start sending work, tryReceive() may get 
+            //called within _nonblockingSend, which might call 
+            //maybeAllowSteal again.  So we can only use our local 
+            //variables.
+            this->_nonBlockingSend(i, Processor::TAG_GROUP, 
+                    msgOut.serialized());
+        }
     }
 
-    //printf("%i allowed %i stolen\n", this->getRank(), 
-    //        stealable.size() - stealBottom);
-
-    //IMPORTANT - Once we start sending, our members may change.
-    //Since _nonblockingSend might itself call tryReceive, which can call 
-    //maybeAllowSteal
-
-    this->_nonBlockingSend(sr.rank, Processor::TAG_GROUP, 
-            msgOut.serialized());
-    //Forward the steal message!
+    //Forward the steal ring!
+    sr.needsWork[this->getRank()] = iNeedWork;
     this->_nonBlockingSend(this->_getNextRank(), Processor::TAG_STEAL,
             sr.serialized());
 
     if (JOB_STREAM_DEBUG >= 2) {
-        printf("%i done with steal\n", this->getRank());
+        printf("%i done with steal ring\n", this->getRank());
     }
 }
 
