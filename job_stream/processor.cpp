@@ -129,7 +129,7 @@ Processor::Processor(mpi::communicator world, const YAML::Node& config)
     }
 
     //Assigns this->root
-    (module::Module*)this->allocateJob(NULL, "root", config);
+    this->allocateJob(NULL, "root", config);
 }
 
 
