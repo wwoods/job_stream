@@ -238,7 +238,7 @@ void Processor::addWork(message::WorkRecord* wr) {
         tag = Processor::TAG_REDUCE_WORK;
     }
     else {
-        dest = rank;
+        dest = this->_getNextWorker();
     }
 
     if (dest != rank) {

@@ -282,15 +282,7 @@ on performance.
 Roadmap
 -------
 
-* In order to reduce protocol overhead, try always pushing work locally, and
-  compare efficiency.  This would make the system rely on steal requests, which
-  might work out wonderfully (we can generate a bunch of work, and distribute
-  1/N of it to people who ask, enabling batch behavior).  See how this changes
-  efficiency for N==1 system first.  Right now, with neuron test of 8 nets,
-  I'm seeing around 15% and 5% user time for -np 2 -bind-to-core
-* Multiples is sometimes crashing with input stream error in Neurontest?????
-    * Shows up more with high #s of networks...
-    * This might not be happening anymore?
+* Note - reduce += should use steal (rvalue) arg with std::move
 * Reductions should always happen locally; a dead ring should merge them.  
     * Issue - would need a merge() function on the templated reducer base class.  Also, recurrence would have to re-initialize those rings.  Might be better to hold off on this one until it's a proven performance issue.
     * Unless, of course, T_accum == T_input always and I remove the second param.  Downsides include awkwardness if you want other components to feed into the reducer in a non-reduced format... but, you'd have to write a converter anyway (current handleMore).  So...

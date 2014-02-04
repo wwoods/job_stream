@@ -182,7 +182,7 @@ public:
     NeuralNet& bestNetwork() {
         float best = this->bestScore();
         for (int i = 0, m = this->networks.size(); i < m; i++) {
-            auto net = this->networks[i].get();
+            auto* net = this->networks[i].get();
             if (net->score == best) {
                 return *net;
             }
@@ -193,7 +193,7 @@ public:
     float bestScore() {
         float min = 1e35f;
         for (int i = 0, m = this->networks.size(); i < m; i++) {
-            auto net = this->networks[i].get();
+            auto* net = this->networks[i].get();
             if (net->score < min) {
                 min = net->score;
             }
