@@ -17,6 +17,10 @@ namespace job_stream {
     template<typename T_input>
     class Job : public job::JobBase {
     public:
+        /** Function to override that actually processes work */
+        virtual void handleWork(std::unique_ptr<T_input> work) = 0;
+
+
         /** Pass work into handleWork and possibly emit new tuples.   */
         virtual void dispatchWork(message::WorkRecord& input) {
             this->currentRecord = &input;
@@ -25,15 +29,11 @@ namespace job_stream {
             { //timer scope
                 processor::Processor::WorkTimer timer(this->processor, 
                         processor::Processor::TIME_USER);
-                this->handleWork(*this->currentWork);
+                this->handleWork(std::move(this->currentWork));
             }
 
-            this->currentWork.reset(0);
             this->currentRecord = 0;
         }
-
-
-        virtual void handleWork(T_input& work) = 0;
 
 
         template<class T_output> void emit(const T_output& output) {
@@ -82,21 +82,17 @@ namespace job_stream {
         virtual void handleInit(T_accum& current) {}
 
         /** Used to add a new output to this accumulator */
-        virtual void handleAdd(T_accum& current, T_input& work) {
-            current += work;
-        }
+        virtual void handleAdd(T_accum& current, 
+                std::unique_ptr<T_input> work) = 0;
 
         /** Called to join this Reducer with the accumulator from another */
-        virtual void handleJoin(T_accum& current, T_accum& other) {
-            current += other;
-        }
+        virtual void handleJoin(T_accum& current, 
+                std::unique_ptr<T_accum> other) = 0;
 
         /** Called when the reduction is complete, or nearly - recur() may be 
             used to keep the reduction alive (inject new work into this 
             reduction). */
-        virtual void handleDone(T_accum& current) {
-            this->emit(current);
-        }
+        virtual void handleDone(T_accum& current) = 0;
 
 
         /** Called by system to call handleDone() with proper setup */
@@ -181,10 +177,9 @@ namespace job_stream {
                 processor::Processor::WorkTimer timer(this->processor, 
                         processor::Processor::TIME_USER);
                 this->handleAdd(*this->currentReduce->accumulator, 
-                        *this->currentWork);
+                        std::move(this->currentWork));
             }
 
-            this->currentWork.reset();
             this->currentReduce = 0;
             this->currentRecord = 0;
         }
@@ -200,10 +195,9 @@ namespace job_stream {
                 processor::Processor::WorkTimer timer(this->processor, 
                         processor::Processor::TIME_USER);
                 this->handleJoin(*this->currentReduce->accumulator, 
-                        *this->currentJoin);
+                        std::move(this->currentJoin));
             }
 
-            this->currentJoin.reset();
             this->currentReduce = 0;
             this->currentRecord = 0;
         }

@@ -7,6 +7,8 @@
 #include <memory>
 #include <random>
 
+using std::unique_ptr;
+
 std::mt19937 rngEngine;
 std::uniform_real_distribution<float> rng(-1, 1);
 float getRandom() {
@@ -68,7 +70,7 @@ public:
 
 private:
     std::vector<float> weights;
-    std::unique_ptr<float[]> lastResults;
+    unique_ptr<float[]> lastResults;
 
     friend class boost::serialization::access;
     template<class Archive>
@@ -84,7 +86,7 @@ class NeuralNet {
 public:
     NeuralNet() {}
     NeuralNet(int neurons, int inputs, int outputs) {
-        std::unique_ptr<NeuralLayer> layer;
+        unique_ptr<NeuralLayer> layer;
         layer.reset(new NeuralLayer(inputs, neurons));
         this->layers.push_back(std::move(layer));
         layer.reset(new NeuralLayer(neurons, neurons));
@@ -93,7 +95,7 @@ public:
         this->layers.push_back(std::move(layer));
     }
     NeuralNet(const NeuralNet& other) {
-        std::unique_ptr<NeuralLayer> layer;
+        unique_ptr<NeuralLayer> layer;
         for (int i = 0, m = other.layers.size(); i < m; i++) {
             layer.reset(new NeuralLayer(*other.layers[i]));
             this->layers.push_back(std::move(layer));
@@ -102,7 +104,7 @@ public:
     }
     NeuralNet(NeuralNet& a, NeuralNet& b) {
         //Cross a and b
-        std::unique_ptr<NeuralLayer> layer;
+        unique_ptr<NeuralLayer> layer;
         for (int i = 0, m = a.layers.size(); i < m; i++) {
             layer.reset(new NeuralLayer());
             layer->initFrom(a.layers[i].get(), b.layers[i].get());
@@ -113,7 +115,7 @@ public:
     float score;
 
     float getError(YAML::Node& array) {
-        std::unique_ptr<float[]> inputs(new float[array.size()]);
+        unique_ptr<float[]> inputs(new float[array.size()]);
         for (int i = 0, m = array.size(); i < m; i++) {
             inputs[i] = array[i].as<float>();
         }
@@ -134,7 +136,7 @@ public:
     }
 
 private:
-    std::vector<std::unique_ptr<NeuralLayer>> layers;
+    std::vector<unique_ptr<NeuralLayer>> layers;
 
     friend class boost::serialization::access;
     template<class Archive>
@@ -144,7 +146,7 @@ private:
         ar & m;
         for (int i = 0; i < m; i++) {
             if (Archive::is_loading::value) {
-                std::unique_ptr<NeuralLayer> ptr(new NeuralLayer());
+                unique_ptr<NeuralLayer> ptr(new NeuralLayer());
                 ar & *ptr;
                 this->layers.push_back(std::move(ptr));
             }
@@ -163,19 +165,18 @@ public:
 
     NetworkPopulace(const NetworkPopulace& other) {
         for (size_t i = 0, m = other.networks.size(); i < m; i++) {
-            *this += *other.networks[i];
+            this->networks.push_back(unique_ptr<NeuralNet>(
+                    new NeuralNet(*other.networks[i])));
         }
     }
 
-    NetworkPopulace& operator+=(NeuralNet& network) {
-        std::unique_ptr<NeuralNet> ptr(new NeuralNet(network));
-        this->networks.push_back(std::move(ptr));
+    void addNetwork(unique_ptr<NeuralNet> network) {
+        this->networks.push_back(std::move(network));
     }
 
-    NetworkPopulace& operator+=(NetworkPopulace& other) {
-        for (int i = 0, m = other.networks.size(); i < m; i++) {
-            this->networks.push_back(std::move(other.networks.back()));
-            other.networks.pop_back();
+    void joinNetwork(unique_ptr<NetworkPopulace> other) {
+        for (auto& mem : other->networks) {
+            this->networks.push_back(std::move(mem));
         }
     }
 
@@ -221,7 +222,7 @@ public:
         }
         this->networks.clear();
         for (int i = 0, m = newNets.size(); i < m; i++) {
-            std::unique_ptr<NeuralNet> ptr(newNets[i]);
+            unique_ptr<NeuralNet> ptr(newNets[i]);
             this->networks.push_back(std::move(ptr));
         }
     }
@@ -263,7 +264,7 @@ public:
     }
 
 private:
-    std::vector<std::unique_ptr<NeuralNet>> networks;
+    std::vector<unique_ptr<NeuralNet>> networks;
 
     friend class boost::serialization::access;
     template<class Archive>
@@ -272,7 +273,7 @@ private:
         ar & m;
         for (int i = 0; i < m; i++) {
             if (Archive::is_loading::value) {
-                std::unique_ptr<NeuralNet> ptr(new NeuralNet());
+                unique_ptr<NeuralNet> ptr(new NeuralNet());
                 ar & *ptr;
                 this->networks.push_back(std::move(ptr));
             }
@@ -296,9 +297,9 @@ std::istream &operator>>(std::istream &source, NetworkPopulace const &h) {
 class MakeNetworks : public job_stream::Job<int> {
 public:
     static MakeNetworks* make() { return new MakeNetworks(); }
-    void handleWork(int& networkCount) {
+    void handleWork(unique_ptr<int> networkCount) {
         //Initialize networkCount networks
-        for (int i = 0; i < networkCount; i++) {
+        for (int i = 0; i < *networkCount; i++) {
             this->emit(NeuralNet(this->config["neurons"].as<int>(),
                     this->config["numInputs"].as<int>(),
                     this->config["numOutputs"].as<int>()));
@@ -310,14 +311,14 @@ public:
 class EvalNetwork : public job_stream::Job<NeuralNet> {
 public:
     static EvalNetwork* make() { return new EvalNetwork(); }
-    void handleWork(NeuralNet& network) {
+    void handleWork(unique_ptr<NeuralNet> network) {
         float score = 0.0;
         auto tests = this->globalConfig["tests"].as<std::vector<YAML::Node> >();
         for (int i = 0, m = tests.size(); i < m; i++) {
-            score += network.getError(tests[i]);
+            score += network->getError(tests[i]);
         }
-        network.score = score;
-        this->emit(network);
+        network->score = score;
+        this->emit(*network);
     }
 };
 
@@ -326,6 +327,15 @@ class CheckErrorAndBreed : public job_stream::Reducer<NetworkPopulace,
         NeuralNet> {
 public:
     static CheckErrorAndBreed* make() { return new CheckErrorAndBreed(); }
+
+    void handleAdd(NetworkPopulace& current, unique_ptr<NeuralNet> work) {
+        current.addNetwork(std::move(work));
+    }
+
+    void handleJoin(NetworkPopulace& current, 
+            unique_ptr<NetworkPopulace> other) {
+        current.joinNetwork(std::move(other));
+    }
 
     void handleDone(NetworkPopulace& current) {
         float bestScore = current.bestScore();

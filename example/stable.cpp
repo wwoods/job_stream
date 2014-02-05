@@ -7,19 +7,21 @@
 #include <memory>
 #include <random>
 
+using std::unique_ptr;
+
 class SystemCheck {
 public:
     SystemCheck() : iteration(0) {
     }
 
-    SystemCheck& operator+=(int& work) {
+    SystemCheck& operator+=(int work) {
         this->works.push_back(work);
     }
 
-    SystemCheck& operator+=(SystemCheck& other) {
-        this->iteration += other.iteration;
-        for (int i = 0, m = other.works.size(); i < m; i++) {
-            this->works.push_back(other.works[i]);
+    SystemCheck& operator+=(unique_ptr<SystemCheck> other) {
+        this->iteration += other->iteration;
+        for (int i = 0, m = other->works.size(); i < m; i++) {
+            this->works.push_back(other->works[i]);
         }
     }
 
@@ -43,8 +45,8 @@ std::istream& operator>>(std::istream& source, SystemCheck const& h) {
 class MakeSystems : public job_stream::Job<int> {
 public:
     static MakeSystems* make() { return new MakeSystems(); }
-    void handleWork(int& networkCount) {
-        for (int i = 0; i < networkCount; i++) {
+    void handleWork(unique_ptr<int> networkCount) {
+        for (int i = 0; i < *networkCount; i++) {
             this->emit(this->globalConfig["sleepTime"].as<int>());
         }
     }
@@ -53,17 +55,25 @@ public:
 class EvalSystem : public job_stream::Job<int> {
 public:
     static EvalSystem* make() { return new EvalSystem(); }
-    void handleWork(int& sleepTime) {
-        const int max = sleepTime * 200000;
+    void handleWork(unique_ptr<int> sleepTime) {
+        const int max = *sleepTime * 200000;
         volatile int i = 0;
         while (++i != max);
-        this->emit(sleepTime);
+        this->emit(*sleepTime);
     }
 };
 
 class CheckSystems : public job_stream::Reducer<SystemCheck, int> {
 public:
     static CheckSystems* make() { return new CheckSystems(); }
+
+    void handleAdd(SystemCheck& current, unique_ptr<int> work) {
+        current += *work;
+    }
+
+    void handleJoin(SystemCheck& current, unique_ptr<SystemCheck> other) {
+        current += std::move(other);
+    }
 
     void handleDone(SystemCheck& current) {
         if (current.iteration >= this->config["iterations"].as<int>()) {

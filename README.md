@@ -30,14 +30,15 @@ Essentially, you code some jobs, and optionally a reducer for combining results:
 
     #include <job_stream/job_stream.h>
 
+    using std::unique_ptr;
 
     /** Add one to any integer we receive */
     class AddOneJob : public job_stream::Job<int> {
     public:
         static AddOneJob* make() { return new AddOneJob(); }
 
-        void handleWork(int& work) {
-            this->emit(work + 1);
+        void handleWork(unique_ptr<int> work) {
+            this->emit(*work + 1);
         }
     };
 
@@ -46,9 +47,9 @@ Essentially, you code some jobs, and optionally a reducer for combining results:
     public:
         static DuplicateJob* make() { return new DuplicateJob(); }
 
-        void handleWork(int& work) {
-            this->emit(work);
-            this->emit(work);
+        void handleWork(unique_ptr<int> work) {
+            this->emit(*work);
+            this->emit(*work);
         }
     };
 
@@ -57,12 +58,12 @@ Essentially, you code some jobs, and optionally a reducer for combining results:
     public:
         static GetToTenJob* make() { return new GetToTenJob(); }
 
-        void handleWork(int& work) {
-            if (work < 10) {
-                this->emit(work, "keep_going");
+        void handleWork(unique_ptr<int> work) {
+            if (*work < 10) {
+                this->emit(*work, "keep_going");
             }
             else {
-                this->emit(work, "done");
+                this->emit(*work, "done");
             }
         }
     };
@@ -80,13 +81,13 @@ Essentially, you code some jobs, and optionally a reducer for combining results:
         }
 
         /** Used to add a new output to this Reducer */
-        void handleAdd(int& current, int& work) {
-            current += work;
+        void handleAdd(int& current, unique_ptr<int> work) {
+            current += *work;
         }
 
         /** Called to join this Reducer with the accumulator from another */
-        void handleJoin(int& current, int& other) {
-            current += other;
+        void handleJoin(int& current, unique_ptr<int> other) {
+            current += *other;
         }
 
         /** Called when the reduction is complete, or nearly - recur() may be used
@@ -94,17 +95,6 @@ Essentially, you code some jobs, and optionally a reducer for combining results:
         void handleDone(int& current) {
             this->emit(current);
         }
-    };
-
-
-    //Another way to write SumReducer, relying on defaults (operator+):
-    class Sum2Reducer : public job_stream::Reducer<int> {
-        static Sum2Reducer* make() { return new Sum2Reducer(); }
-
-        /** Init is needed just because int does not have an initializer.  User
-            classes should specify an initializer rather than overloading 
-            handleInit. */
-        void handleInit(int& current) { current = 0; }
     };
 
 
@@ -116,18 +106,18 @@ Essentially, you code some jobs, and optionally a reducer for combining results:
             current = 0;
         }
 
-        void handleAdd(int& current, int& work) {
+        void handleAdd(int& current, unique_ptr<int> work) {
             //Everytime we get an output less than 2, we'll need to run it through
             //the system again.
-            printf("Adding %i\n", work);
-            if (work < 3) {
+            printf("Adding %i\n", *work);
+            if (*work < 3) {
                 this->recur(3);
             }
-            current += work;
+            current += *work;
         }
 
-        void handleJoin(int& current, int& other) {
-            current += other;
+        void handleJoin(int& current, unique_ptr<int> other) {
+            current += *other;
         }
 
         void handleDone(int& current) {
@@ -204,12 +194,12 @@ to main.cpp:
     public:
         static GetToTenJob* make() { return new GetToTenJob(); }
 
-        void handleWork(int& work) {
-            if (work < 10) {
-                this->emit(work, "keep_going");
+        void handleWork(unique_ptr<int> work) {
+            if (*work < 10) {
+                this->emit(*work, "keep_going");
             }
             else {
-                this->emit(work, "done");
+                this->emit(*work, "done");
             }
         }
     };
@@ -271,10 +261,6 @@ early on.  So handleDone() gets called with 20, 62, and finally 188.
 Words of Warning
 ----------------
 
-Reducers get a non-const reference to an object.  This object is still 
-temporary!  If you are adding it to a collection, you must copy the object.  Do
-not store a pointer to that object.
-
 Sometimes, passing -bind-to-core to mpirun can have a profoundly positive impact
 on performance.
 
@@ -282,12 +268,20 @@ on performance.
 Roadmap
 -------
 
-* Note - reduce += should use steal (rvalue) arg with std::move
+* Get rid of needed istream specialization; use an if and a runtime\_exception,
+  and have classes implement getInputTypeSpec
+* Python embedded bindings / application
 * Reductions should always happen locally; a dead ring should merge them.  
     * Issue - would need a merge() function on the templated reducer base class.  Also, recurrence would have to re-initialize those rings.  Might be better to hold off on this one until it's a proven performance issue.
     * Unless, of course, T_accum == T_input always and I remove the second param.  Downsides include awkwardness if you want other components to feed into the reducer in a non-reduced format... but, you'd have to write a converter anyway (current handleMore).  So...
     * Though, if T_accum == T_input, it's much more awkward to make generic, modular components.  For instance, suppose you have a vector calculation.  Sometimes you just want to print the vectors, or route them to a splicer or whatever.  If you have to form them as reductions, that's pretty forced...
     * Note - decided to go with handleJoin(), which isn't used currently, but will be soon (I think this will become a small issue)
-* Doxygen documentation
 * Tests
 * Subproject - executable integrated with python, for compile-less / easier work
+
+Recent Changelog
+----------------
+* 2014-2-4 - handleWork, handleAdd, and handleJoin all changed to take a 
+  unique\_ptr rather than references.  This allows preventing more memory 
+  allocations and copies.  Default implementation with += removed.
+
