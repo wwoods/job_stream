@@ -268,8 +268,6 @@ on performance.
 Roadmap
 -------
 
-* Get rid of needed istream specialization; use an if and a runtime\_exception,
-  and have classes implement getInputTypeSpec
 * Python embedded bindings / application
 * Reductions should always happen locally; a dead ring should merge them.  
     * Issue - would need a merge() function on the templated reducer base class.  Also, recurrence would have to re-initialize those rings.  Might be better to hold off on this one until it's a proven performance issue.
@@ -281,6 +279,8 @@ Roadmap
 
 Recent Changelog
 ----------------
+* 2014-2-4 - Got rid of needed istream specialization; use an if and a 
+  runtime\_exception.
 * 2014-2-4 - handleWork, handleAdd, and handleJoin all changed to take a 
   unique\_ptr rather than references.  This allows preventing more memory 
   allocations and copies.  Default implementation with += removed.

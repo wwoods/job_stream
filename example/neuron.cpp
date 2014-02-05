@@ -3,6 +3,7 @@
 
 #include <job_stream/job_stream.h>
 
+#include <boost/lexical_cast.hpp>
 #include <cmath>
 #include <memory>
 #include <random>
@@ -283,15 +284,6 @@ private:
         }
     }
 };
-
-//TODO / FIXME!!! I don't want these specified...lexical_cast might not work.
-//Could pidgeonhole it as per output... though.. hm.
-std::istream &operator>>(std::istream &source, NeuralNet const &h) {
-    return source;
-}
-std::istream &operator>>(std::istream &source, NetworkPopulace const &h) {
-    return source;
-} 
 
 
 class MakeNetworks : public job_stream::Job<int> {

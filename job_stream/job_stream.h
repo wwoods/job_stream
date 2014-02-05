@@ -7,7 +7,6 @@
 #include "serialization.h"
 #include "yaml.h"
 
-#include <boost/lexical_cast.hpp>
 #include <boost/mpi.hpp>
 #include <functional>
 #include <string>
@@ -64,8 +63,8 @@ namespace job_stream {
     protected:
         std::unique_ptr<T_input> currentWork;
 
-        virtual std::string parseAndSerialize(const std::string& line) {
-            return serialization::encode(boost::lexical_cast<T_input>(line));
+        virtual std::string getInputTypeName() {
+            return typeid(T_input).name();
         }
     };
 
@@ -276,9 +275,10 @@ namespace job_stream {
         bool hadRecurrence;
         std::map<uint64_t, job::ReduceAccumulator<T_accum> > reduceMap;
 
-        virtual std::string parseAndSerialize(const std::string& line) {
-            return serialization::encode(boost::lexical_cast<T_input>(line));
+        virtual std::string getInputTypeName() {
+            return typeid(T_input).name();
         }
+
 
     private:
         /** Set currentReduce to point to the right ReduceAccumulator */

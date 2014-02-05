@@ -38,9 +38,6 @@ private:
     }
 };
 
-std::istream& operator>>(std::istream& source, SystemCheck const& h) {
-    return source;
-}
 
 class MakeSystems : public job_stream::Job<int> {
 public:
@@ -52,6 +49,7 @@ public:
     }
 };
 
+
 class EvalSystem : public job_stream::Job<int> {
 public:
     static EvalSystem* make() { return new EvalSystem(); }
@@ -62,6 +60,7 @@ public:
         this->emit(*sleepTime);
     }
 };
+
 
 class CheckSystems : public job_stream::Reducer<SystemCheck, int> {
 public:
@@ -91,6 +90,7 @@ public:
         printf("Iteration %i\n", current.iteration);
     }
 };
+
 
 int main(int argc, char* argv[]) {
     job_stream::addJob("makeSystems", MakeSystems::make);

@@ -28,10 +28,11 @@ public:
     virtual void postSetup();
 
 protected:
-    /* Return a JobBase for the given job id */
+    /** Return a JobBase for the given job id */
     job::JobBase* getJob(const std::string& id);
 
-    virtual std::string parseAndSerialize(const std::string& line);
+    /** Returns the input type of the first job (or reducer input) */
+    virtual std::string getInputTypeName();
 
 private:
     /* Map of job ids to JobBase */

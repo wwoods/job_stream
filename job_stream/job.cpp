@@ -5,6 +5,7 @@
 #include "processor.h"
 #include "yaml.h"
 
+#include <boost/lexical_cast.hpp>
 #include <exception>
 
 namespace job_stream {
@@ -72,6 +73,32 @@ std::vector<std::string> SharedBase::getTargetForReducer() {
     target.push_back("reduced");
     return target;
 }
+
+
+std::string SharedBase::parseAndSerialize(const std::string& line) {
+    std::string typeName = this->getInputTypeName();
+
+    #define TRY_TYPE(T) \
+            if (typeName == typeid(T).name()) { \
+                return serialization::encode(boost::lexical_cast<T>(line)); \
+            }
+
+    TRY_TYPE(std::string);
+    TRY_TYPE(uint64_t);
+    TRY_TYPE(int64_t);
+    TRY_TYPE(unsigned int);
+    TRY_TYPE(int);
+    TRY_TYPE(unsigned short);
+    TRY_TYPE(short);
+    TRY_TYPE(unsigned char);
+    TRY_TYPE(char);
+
+    std::ostringstream ss;
+    ss << "Unrecognized work type for input: " << typeName;
+    throw std::runtime_error(ss.str());
+    #undef TRY_TYPE
+}
+
 
 /*
 void SharedBase::sendModuleOutput(const std::string& payload) {
