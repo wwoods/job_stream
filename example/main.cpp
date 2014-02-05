@@ -1,14 +1,15 @@
 
 #include <job_stream/job_stream.h>
 
+using std::unique_ptr;
 
 /** Add one to any integer we receive */
 class AddOneJob : public job_stream::Job<int> {
 public:
     static AddOneJob* make() { return new AddOneJob(); }
 
-    void handleWork(int& work) {
-        this->emit(work + 1);
+    void handleWork(unique_ptr<int> work) {
+        this->emit(*work + 1);
     }
 };
 
@@ -17,9 +18,9 @@ class DuplicateJob : public job_stream::Job<int> {
 public:
     static DuplicateJob* make() { return new DuplicateJob(); }
 
-    void handleWork(int& work) {
-        this->emit(work);
-        this->emit(work);
+    void handleWork(unique_ptr<int> work) {
+        this->emit(*work);
+        this->emit(*work);
     }
 };
 
@@ -28,12 +29,12 @@ class GetToTenJob : public job_stream::Job<int> {
 public:
     static GetToTenJob* make() { return new GetToTenJob(); }
 
-    void handleWork(int& work) {
-        if (work < 10) {
-            this->emit(work, "keep_going");
+    void handleWork(unique_ptr<int> work) {
+        if (*work < 10) {
+            this->emit(*work, "keep_going");
         }
         else {
-            this->emit(work, "done");
+            this->emit(*work, "done");
         }
     }
 };
@@ -51,13 +52,13 @@ public:
     }
 
     /** Used to add a new output to this Reducer */
-    void handleAdd(int& current, int& work) {
-        current += work;
+    void handleAdd(int& current, unique_ptr<int> work) {
+        current += *work;
     }
 
     /** Called to join this Reducer with the accumulator from another */
-    void handleJoin(int& current, int& other) {
-        current += other;
+    void handleJoin(int& current, unique_ptr<int> other) {
+        current += *other;
     }
 
     /** Called when the reduction is complete, or nearly - recur() may be used
@@ -65,17 +66,6 @@ public:
     void handleDone(int& current) {
         this->emit(current);
     }
-};
-
-
-//Another way to write SumReducer, relying on defaults (operator+):
-class Sum2Reducer : public job_stream::Reducer<int> {
-    static Sum2Reducer* make() { return new Sum2Reducer(); }
-
-    /** Init is needed just because int does not have an initializer.  User
-        classes should specify an initializer rather than overloading 
-        handleInit. */
-    void handleInit(int& current) { current = 0; }
 };
 
 
@@ -87,18 +77,18 @@ public:
         current = 0;
     }
 
-    void handleAdd(int& current, int& work) {
+    void handleAdd(int& current, unique_ptr<int> work) {
         //Everytime we get an output less than 2, we'll need to run it through
         //the system again.
-        printf("Adding %i\n", work);
-        if (work < 3) {
+        printf("Adding %i\n", *work);
+        if (*work < 3) {
             this->recur(3);
         }
-        current += work;
+        current += *work;
     }
 
-    void handleJoin(int& current, int& other) {
-        current += other;
+    void handleJoin(int& current, unique_ptr<int> other) {
+        current += *other;
     }
 
     void handleDone(int& current) {

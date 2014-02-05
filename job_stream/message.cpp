@@ -31,6 +31,15 @@ WorkRecord::WorkRecord(const std::vector<std::string>& target,
 }
 
 
+WorkRecord::WorkRecord(const std::vector<std::string>& target,
+        void* work) : reduceTag(0), reduceHomeRank(0) {
+    this->source.hostname = boost::asio::ip::host_name();
+    this->source.target = target;
+    this->source.tsSent = Location::getCurrentTimeMs();
+    //work will be set in derived constructor
+}
+
+
 void WorkRecord::chainFrom(const WorkRecord& wr) {
     this->route.insert(this->route.end(), wr.route.begin(), wr.route.end());
     this->route.push_back(wr.source);
@@ -48,6 +57,8 @@ std::string getAsString(const std::string& payload) {
 
 
 std::string WorkRecord::getWorkAsString() const {
+    this->serializeTypedWork();
+
 #define TRY_TYPE(T) \
         try { \
             return getAsString<T>(this->work); \
@@ -59,6 +70,7 @@ std::string WorkRecord::getWorkAsString() const {
     TRY_TYPE(std::string);
     TRY_TYPE(uint64_t);
     TRY_TYPE(int64_t);
+    TRY_TYPE(unsigned int);
     TRY_TYPE(int);
     TRY_TYPE(unsigned short);
     TRY_TYPE(short);

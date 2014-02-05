@@ -184,9 +184,9 @@ job::JobBase* Module::getJob(const std::string& id) {
 }
 
 
-std::string Module::parseAndSerialize(const std::string& line) {
+std::string Module::getInputTypeName() {
     return this->getJob(this->config["input"].as<std::string>())
-            ->parseAndSerialize(line);
+            ->getInputTypeName();
 }
 
 } //module

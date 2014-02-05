@@ -64,17 +64,27 @@ namespace job {
         /* The processor that we are running under */
         processor::Processor* processor;
 
-        /** Given a string (input from stdin or console), convert it to our
-            input type and serialize it back to a string that can be sent
-            as work. */
-        virtual std::string parseAndSerialize(const std::string& line) = 0;
+        /** Given a target relative to our module, return the whole path to
+            that target. */
+        std::vector<std::string> getTargetForJob(std::string target);
+
+        /** Get a target based on our config, if we are a reducer. */
+        std::vector<std::string> getTargetForReducer();
+
+        /** Look at our template arguments and return typeid(T).name() so that
+            we can cast basic input types into the system appropriately. */
+        virtual std::string getInputTypeName() = 0;
 
         /* Put the given payload into module's output.  Called by reducers. */
-        void sendModuleOutput(const std::string& payload);
+        //void sendModuleOutput(const std::string& payload);
 
         /* Put the given payload, which is a boost::serialized archive, into a
            WorkRecord and dispatch it to a given target from config. */
-        void sendTo(const YAML::Node& targetList, const std::string& payload);
+        //void sendTo(const YAML::Node& targetList, const std::string& payload);
+
+        /** Take a line of stdin or argv input and convert it to the 
+            appropriate type for this job (or module's first job). */
+        std::string parseAndSerialize(const std::string& line);
     };
 
 
@@ -111,7 +121,7 @@ namespace job {
         std::unique_ptr<message::WorkRecord> originalWork;
 
         /* The accumulator for this record */
-        T_accum accumulator;
+        std::unique_ptr<T_accum> accumulator;
     };
 }
 }

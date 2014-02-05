@@ -1,0 +1,21 @@
+
+# Hey!
+
+# TODO - tests should be stdin file (< file), number networks should be
+# config in here.
+
+sleepTime: 20
+
+input: initSystems
+reducer: 
+    type: checkSystems
+    iterations: 20
+    recurTo: runSystems
+jobs:
+    initSystems:
+        type: makeSystems
+        to: runSystems
+    runSystems:
+        type: evalSystem
+        to: output
+

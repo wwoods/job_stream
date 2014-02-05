@@ -5,6 +5,7 @@
 #include "processor.h"
 #include "yaml.h"
 
+#include <boost/lexical_cast.hpp>
 #include <exception>
 
 namespace job_stream {
@@ -37,6 +38,69 @@ void SharedBase::setup(processor::Processor* processor, module::Module* parent,
 }
 
 
+std::vector<std::string> SharedBase::getTargetForJob(std::string target) {
+    std::vector<std::string> targetNew = this->currentRecord->getTarget();
+    //On our first send, target includes the job (it already did).  We
+    //want to redirect to targetList based on the module level.  So we 
+    //always pop the last part of target.
+    //...unless it's the root module (recur on top-level reducer)
+    if (targetNew.size() != 0) {
+        targetNew.pop_back();
+    }
+    targetNew.push_back(target);
+
+    return targetNew;
+}
+
+
+std::vector<std::string> SharedBase::getTargetForReducer() {
+    //Called in the context of a Reducer, meaning currentRecord's target was
+    //the record that started the reduce - that is, it points to our module.
+    if (this->parent->getLevel() != 0) {
+        const YAML::Node& parentTo = this->parent->getConfig()["to"];
+        if (!parentTo) {
+            std::ostringstream ss;
+            ss << "Module " << this->parent->getFullName() << " needs 'to'";
+            throw std::runtime_error(ss.str());
+        }
+        return this->getTargetForJob(parentTo.as<std::string>());
+    }
+
+    std::vector<std::string> target = this->currentRecord->getTarget();
+
+    //Final output (that is, this is the top module, and we are final output).
+    target.push_back("output");
+    target.push_back("reduced");
+    return target;
+}
+
+
+std::string SharedBase::parseAndSerialize(const std::string& line) {
+    std::string typeName = this->getInputTypeName();
+
+    #define TRY_TYPE(T) \
+            if (typeName == typeid(T).name()) { \
+                return serialization::encode(boost::lexical_cast<T>(line)); \
+            }
+
+    TRY_TYPE(std::string);
+    TRY_TYPE(uint64_t);
+    TRY_TYPE(int64_t);
+    TRY_TYPE(unsigned int);
+    TRY_TYPE(int);
+    TRY_TYPE(unsigned short);
+    TRY_TYPE(short);
+    TRY_TYPE(unsigned char);
+    TRY_TYPE(char);
+
+    std::ostringstream ss;
+    ss << "Unrecognized work type for input: " << typeName;
+    throw std::runtime_error(ss.str());
+    #undef TRY_TYPE
+}
+
+
+/*
 void SharedBase::sendModuleOutput(const std::string& payload) {
     std::vector<std::string> target = this->currentRecord->getTarget();
     //sendModuleOutput() is called in the context of a Reducer, meaning
@@ -80,7 +144,7 @@ void SharedBase::sendTo(const YAML::Node& targetList,
         this->processor->sendWork(wr);
     }
 }
-
+*/
 
 } //job
 } //job_stream

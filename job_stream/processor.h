@@ -12,7 +12,7 @@
 #include <deque>
 #include <functional>
 #include <memory>
-#include <queue>
+#include <list>
 
 namespace job_stream {
 namespace processor {
@@ -87,12 +87,41 @@ private:
 /** Holds information about a received MPI message, so that we process them in
     order. */
 struct MpiMessage {
+    /** The MPI message tag that this message belongs to */
     int tag;
-    std::string message;
 
-    MpiMessage() {}
-    MpiMessage(int tag, const std::string& message) : tag(tag), 
-            message(message) {}
+    MpiMessage(int tag, void* data);
+
+    /** Kind of a factory method - depending on tag, deserialize message into
+        the desired message class, and put it in data. */
+    MpiMessage(int tag, std::string&& message);
+
+    MpiMessage(MpiMessage&& other) : tag(other.tag), data(0) {
+        std::swap(this->data, other.data);
+        std::swap(this->encodedMessage, other.encodedMessage);
+    }
+
+    ~MpiMessage();
+
+    std::string serialized() const;
+
+    template<typename T>
+    T* getTypedData() const {
+        this->_ensureDecoded();
+        return (T*)this->data;
+    }
+
+private:
+    /** An owned version of the data in this message - deleted manually in
+        destructor.  We would use unique_ptr, but we don't know the type of our 
+        data! */
+    mutable void* data;
+
+    /** The string representing this message, serialized. */
+    mutable std::string encodedMessage;
+
+    /** If data == 0, populate it by deserializing encodedMessage. */
+    void _ensureDecoded() const;
 };
 
 
@@ -127,10 +156,13 @@ public:
     /* MPI message tags */
     enum ProcessorSendTag {
         TAG_WORK,
+        TAG_REDUCE_WORK,
         TAG_DEAD_RING_TEST,
         TAG_DEAD_RING_IS_DEAD,
         TAG_STEAL,
-        //Placeholder for number of tags
+        /** A group of messages - tag, body, tag, body, etc. */
+        TAG_GROUP,
+        /** Placeholder for number of tags */
         TAG_COUNT,
     };
 
@@ -166,14 +198,18 @@ public:
     Processor(boost::mpi::communicator world, const YAML::Node& config);
     ~Processor();
 
-    /* Allocate and return a new tag for reduction operations. */
+
+    /** Add work to our workInQueue.  We now own wr. */
+    void addWork(message::WorkRecord* wr);
+    /** Allocate and return a new tag for reduction operations. */
     uint64_t getNextReduceTag();
+    /** Return this Processor's rank */
     int getRank() const { return this->world.rank(); }
     /** Run all modules defined in config; inputLine (already trimmed) 
         determines whether we are using one row of input (the inputLine) or 
         stdin (if empty) */
     void run(const std::string& inputLine);
-    /* Start a dead ring test for the given reduceTag */
+    /** Start a dead ring test for the given reduceTag */
     void startRingTest(uint64_t reduceTag, uint64_t parentTag, 
             job::ReducerBase* reducer);
 
@@ -182,20 +218,17 @@ protected:
             const YAML::Node& config);
     job::ReducerBase* allocateReducer(module::Module* parent, 
             const YAML::Node& config);
-    /* If we have an input thread, join it */
+    /** If we have an input thread, join it */
     void joinThreads();
-    /* We got a steal message; decode it and maybe give them work. */
+    /** We got a steal message; decode it and maybe give someone work. */
     void maybeAllowSteal(const std::string& messageBuffer);
-    /* Listen for input events and put them on workOutQueue.  When this thread 
-       is finished, it emits a TAG_DEAD_RING_TEST message for 0. */
+    /** Listen for input events and put them on workOutQueue.  When this thread 
+        is finished, it emits a TAG_DEAD_RING_TEST message for 0. */
     void processInputThread_main(const std::string& inputLine);
-    /* Process a previously received mpi message */
-    void process(const MpiMessage& message);
-    /* Immediately send the given WorkRecord to the next worker (must be called
-       from main thread) */
-    void sendWork(const message::WorkRecord& work);
-
-    /* Try to receive the current request, or make a new one */
+    /** Process a previously received mpi message.  Passed non-const so that it
+        can be steal-constructored (rvalue) */
+    void process(MpiMessage& message);
+    /** Try to receive the current request, or make a new one */
     bool tryReceive();
 
 private:
@@ -211,8 +244,6 @@ private:
                     timeType(type) {}
     };
 
-    /* Prevent steal message spam */
-    bool canSteal;
     /** Array containing how many cpu clocks were spent in each type of 
         operation.  Indexed by ProcessorTimeType */
     std::unique_ptr<uint64_t[]> clksByType;
@@ -241,7 +272,7 @@ private:
         Indexed by ProcessorTimeType */
     std::unique_ptr<uint64_t[]> timesByType;
     //Any work waiting to be done on this Processor.
-    std::queue<MpiMessage> workInQueue;
+    std::list<MpiMessage> workInQueue;
     /* workOutQueue gets redistributed to all workers; MPI is not implicitly
        thread-safe, that is why this queue exists.  Used for input only at
        the moment. */
