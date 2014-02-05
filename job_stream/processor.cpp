@@ -137,6 +137,29 @@ Processor::~Processor() {
 }
 
 
+/** Synchronize information about each processor's effectiveness at the end
+    of execution. */
+struct ProcessorInfo {
+    int pctUserTime;
+    int pctUserCpu;
+    uint64_t userCpuTotal;
+    int pctMpiTime;
+    uint64_t msgsTotal;
+    int pctUserMsgs;
+
+    friend class boost::serialization::access;
+    template<class Archive>
+    void serialize(Archive& ar, const unsigned int version) {
+        ar & this->pctUserTime;
+        ar & this->pctUserCpu;
+        ar & this->userCpuTotal;
+        ar & this->pctMpiTime;
+        ar & this->msgsTotal;
+        ar & this->pctUserMsgs;
+    }
+};
+
+
 void Processor::run(const std::string& inputLine) {
     this->sawEof = false;
     this->sentEndRing0 = false;
@@ -215,17 +238,54 @@ void Processor::run(const std::string& inputLine) {
             msgsUser += this->msgsByTag[i];
         }
     }
-    fprintf(stderr, 
-            "%i %i%% user time (%i%% mpi), %i%% user cpu, "
-                "%lu messages (%i%% user)\n", 
-            this->world.rank(),
-            (int)(100 * this->timesByType[Processor::TIME_USER] / timesTotal),
-            (int)(100 * this->timesByType[Processor::TIME_COMM] / timesTotal),
-            (int)(100 * this->clksByType[Processor::TIME_USER] / clksTotal),
-            msgsTotal, (int)(100 * msgsUser / msgsTotal));
 
     //Stop all threads
     this->joinThreads();
+
+    //Cancel any outstanding request
+    if (this->recvRequest) {
+        this->world.send(this->world.rank(), Processor::TAG_COUNT,
+                std::string());
+        this->recvRequest->wait();
+    }
+
+    //Let everyone catch up so that partial request has no effect...
+    this->world.barrier();
+
+    ProcessorInfo myInfo;
+    myInfo.pctUserTime = (int)(100 * this->timesByType[Processor::TIME_USER]
+            / timesTotal);
+    myInfo.userCpuTotal = this->clksByType[Processor::TIME_USER];
+    myInfo.pctMpiTime = (int)(100 * this->timesByType[Processor::TIME_COMM]
+            / timesTotal);
+    myInfo.pctUserCpu = (int)(100 * this->clksByType[Processor::TIME_USER]
+            / clksTotal);
+    myInfo.msgsTotal = msgsTotal;
+    myInfo.pctUserMsgs = (int)(100 * msgsUser / msgsTotal);
+
+    //Send info to rank 0, which prints out everything in order
+    if (this->world.rank() != 0) {
+        mpi::gather(this->world, myInfo, 0);
+    }
+    else {
+        std::vector<ProcessorInfo> infos;
+        mpi::gather(this->world, myInfo, infos, 0);
+
+        int totalTime = 0;
+        int totalCpu = 0;
+        for (int i = 0, m = infos.size(); i < m; i++) {
+            ProcessorInfo& pi = infos[i];
+            totalTime += pi.pctUserTime;
+            totalCpu += pi.userCpuTotal;
+            fprintf(stderr, 
+                    "%i %i%% user time (%i%% mpi), %i%% user cpu, "
+                        "%lu messages (%i%% user)\n", 
+                    i, pi.pctUserTime, pi.pctMpiTime, pi.pctUserCpu, 
+                    pi.msgsTotal, pi.pctUserMsgs);
+        }
+        fprintf(stderr, "C %i%% user time, quality %.2f ticks/ms\n", totalTime, 
+                (double)totalCpu / timesTotal);
+    }
 }
 
 

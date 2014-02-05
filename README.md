@@ -268,6 +268,8 @@ on performance.
 Roadmap
 -------
 
+* Solve config problem - if e.g. all jobs need to fill in some globally shared
+  information (tests to run, something not in YAML)
 * Python embedded bindings / application
 * Reductions should always happen locally; a dead ring should merge them.  
     * Issue - would need a merge() function on the templated reducer base class.  Also, recurrence would have to re-initialize those rings.  Might be better to hold off on this one until it's a proven performance issue.
