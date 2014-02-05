@@ -281,8 +281,8 @@ Roadmap
 
 Recent Changelog
 ----------------
-* 2014-2-5 - In terms of user ticks / wall clock ms, less_serialization now has
-  a very slight (3302 vs 3393 ticks / ms) advantage over master, in addition
+* 2014-2-5 - In terms of user ticks / wall clock ms, less_serialization is on
+  par with master (3416 vs 3393 ticks / ms, 5% error), in addition
   to all of the other fixes that branch has.  Merged in.
 * 2014-2-4 - Got rid of needed istream specialization; use an if and a 
   runtime\_exception.
