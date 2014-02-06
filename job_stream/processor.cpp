@@ -252,6 +252,11 @@ void Processor::run(const std::string& inputLine) {
     //Let everyone catch up so that partial request has no effect...
     this->world.barrier();
 
+    //Stop divide by zero
+    timesTotal = (timesTotal > 0) ? timesTotal : 1;
+    clksTotal = (clksTotal > 0) ? clksTotal : 1;
+    msgsTotal = (msgsTotal > 0) ? msgsTotal : 1;
+
     ProcessorInfo myInfo;
     myInfo.pctUserTime = (int)(100 * this->timesByType[Processor::TIME_USER]
             / timesTotal);
