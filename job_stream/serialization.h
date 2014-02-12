@@ -34,6 +34,10 @@ template<typename T, class ExampleOnly>
 void decode(const std::string& message, T& dest);
 template<typename T>
 std::string encode(const T& src);
+/** Register a polymorphic base class */
+template<class T>
+void registerType();
+/** Register a derivative of a polymorphic base class */
 template<class T, class Base1>
 void registerType();
 
@@ -115,6 +119,13 @@ public:
 
 
 extern std::vector<std::unique_ptr<RegisteredTypeBase>> registeredTypes;
+
+template<class T>
+void registerType() {
+    registerType<T, T>();
+}
+
+
 template<class T, class Base1>
 void registerType() {
     std::unique_ptr<RegisteredTypeBase> ptr(new RegisteredType<T, Base1>());
@@ -285,21 +296,7 @@ std::string encode(const T& src) {
 }
 
 
-/* Sharing is caring */
-template<class T>
-void serialize(OArchive& a, std::unique_ptr<T>& ptr) {
-    std::string encoded = encode(ptr.get());
-    a << encoded;
-}
-
-template<class T>
-void serialize(IArchive& a, std::unique_ptr<T>& ptr) {
-    std::string decoded;
-    a >> decoded;
-    decode(decoded, ptr);
-}
-
-
+/** Lazy person's copy functionality */
 template<class T>
 void copy(const T& src, std::unique_ptr<T>& dest) {
     decode(encode(&src), dest);
@@ -307,5 +304,23 @@ void copy(const T& src, std::unique_ptr<T>& dest) {
 
 }
 }//job_stream
+
+
+/** Global namespace capability to encode / decode std::unique_ptr */
+template<class T>
+void serialize(job_stream::serialization::OArchive& a, std::unique_ptr<T>& ptr, 
+        const unsigned int version) {
+    std::string encoded = job_stream::serialization::encode(ptr.get());
+    a << encoded;
+}
+
+/** Global namespace capability to encode / decode std::unique_ptr */
+template<class T>
+void serialize(job_stream::serialization::IArchive& a, std::unique_ptr<T>& ptr, 
+        const unsigned int version) {
+    std::string decoded;
+    a >> decoded;
+    job_stream::serialization::decode(decoded, ptr);
+}
 
 #endif//JOB_STREAM_SERIALIZATION_H_
