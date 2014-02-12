@@ -1,0 +1,4 @@
+
+jobs:
+    - type: makeInstances
+    - type: getValue

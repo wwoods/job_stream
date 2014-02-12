@@ -264,6 +264,8 @@ private:
     /* Set when eof is reached on stdin (or input line), or if our index is not
        zero. */
     bool sawEof;
+    /** Currently pending outbound nonBlocking requests */
+    std::list<boost::mpi::request> sendRequests;
     /* Set when we send ring test for 0 */
     bool sentEndRing0;
     /* True until quit message is received (ring 0 is completely closed). */

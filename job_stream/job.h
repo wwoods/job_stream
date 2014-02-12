@@ -64,6 +64,11 @@ namespace job {
         /* The processor that we are running under */
         processor::Processor* processor;
 
+        /** Since reducers can have handleWork() vs handleDone(), one of which
+            has ::output as the target, and the other is the target of the 
+            module itself.  */
+        bool targetIsModule;
+
         /** Given a target relative to our module, return the whole path to
             that target. */
         std::vector<std::string> getTargetForJob(std::string target);

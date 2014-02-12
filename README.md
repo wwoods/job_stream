@@ -268,6 +268,8 @@ on performance.
 Roadmap
 -------
 
+* Update README with serialization changes, clean up code
+* Idle time tracking - show how much time is spent e.g. waiting on a reducer
 * Solve config problem - if e.g. all jobs need to fill in some globally shared
   information (tests to run, something not in YAML)
 * Python embedded bindings / application
@@ -281,6 +283,11 @@ Roadmap
 
 Recent Changelog
 ----------------
+* 2014-2-12 - Serialization is now via pointer, and supports polymorphic classes
+  completely unambiguously via dynamic_cast and 
+  job_stream::serialization::registerType.  User cpu % updated to be in terms of
+  user time (quality measure) for each processor, and cumulative CPUs for 
+  cumulative time.  
 * 2014-2-5 - In terms of user ticks / wall clock ms, less_serialization is on
   par with master (3416 vs 3393 ticks / ms, 5% error), in addition
   to all of the other fixes that branch has.  Merged in.

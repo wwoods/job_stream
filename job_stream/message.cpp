@@ -50,9 +50,9 @@ void WorkRecord::chainFrom(const WorkRecord& wr) {
 
 template<typename T>
 std::string getAsString(const std::string& payload) {
-    T decoded;
+    std::unique_ptr<T> decoded;
     serialization::decode(payload, decoded);
-    return boost::lexical_cast<std::string>(decoded);
+    return boost::lexical_cast<std::string>(*decoded);
 }
 
 
@@ -79,10 +79,9 @@ std::string WorkRecord::getWorkAsString() const {
     TRY_TYPE(float);
     TRY_TYPE(double);
 
-    std::ostringstream ss;
-    ss << "Unrecognized work type for string output: " << this->work;
-    throw std::runtime_error(ss.str());
-
+    //All attempts failed; re-try string, which will print out the appropriate message
+    //(expected vs actual)
+    getAsString<std::string>(this->work);
 #undef TRY_TYPE
 }
 

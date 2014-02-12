@@ -11,7 +11,7 @@
 namespace job_stream {
 namespace job {
 
-SharedBase::SharedBase() {
+SharedBase::SharedBase() : targetIsModule(false) {
 }
 
 
@@ -44,7 +44,7 @@ std::vector<std::string> SharedBase::getTargetForJob(std::string target) {
     //want to redirect to targetList based on the module level.  So we 
     //always pop the last part of target.
     //...unless it's the root module (recur on top-level reducer)
-    if (targetNew.size() != 0) {
+    if (!this->targetIsModule) {
         targetNew.pop_back();
     }
     targetNew.push_back(target);
@@ -80,7 +80,8 @@ std::string SharedBase::parseAndSerialize(const std::string& line) {
 
     #define TRY_TYPE(T) \
             if (typeName == typeid(T).name()) { \
-                return serialization::encode(boost::lexical_cast<T>(line)); \
+                T val = boost::lexical_cast<T>(line); \
+                return serialization::encode(&val); \
             }
 
     TRY_TYPE(std::string);

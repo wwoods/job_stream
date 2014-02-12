@@ -156,9 +156,7 @@ namespace message {
                 dest.reset((T*)this->getTypedWork());
             }
             else {
-                T* value = new T();
-                serialization::decode(this->work, *value);
-                dest.reset(value);
+                serialization::decode(this->work, dest);
             }
         }
 

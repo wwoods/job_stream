@@ -197,6 +197,19 @@ void Processor::run(const std::string& inputLine) {
     std::unique_ptr<WorkTimer> outerTimer(new WorkTimer(this, 
             Processor::TIME_SYSTEM));
     while (this->shouldRun) {
+        { //Check up on pending outbound
+            WorkTimer sendTimer(this, Processor::TIME_COMM);
+            auto it = this->sendRequests.begin();
+            while (it != this->sendRequests.end()) {
+                if (it->test()) {
+                    this->sendRequests.erase(it++);
+                }
+                else {
+                    it++;
+                }
+            }
+        }
+
         //See if we have any messages; while we do, load them.
         this->tryReceive();
 
@@ -258,15 +271,17 @@ void Processor::run(const std::string& inputLine) {
     msgsTotal = (msgsTotal > 0) ? msgsTotal : 1;
 
     ProcessorInfo myInfo;
-    myInfo.pctUserTime = (int)(100 * this->timesByType[Processor::TIME_USER]
+    myInfo.pctUserTime = (int)(1000 * this->timesByType[Processor::TIME_USER]
             / timesTotal);
     myInfo.userCpuTotal = this->clksByType[Processor::TIME_USER];
-    myInfo.pctMpiTime = (int)(100 * this->timesByType[Processor::TIME_COMM]
+    myInfo.pctMpiTime = (int)(1000 * this->timesByType[Processor::TIME_COMM]
             / timesTotal);
-    myInfo.pctUserCpu = (int)(100 * this->clksByType[Processor::TIME_USER]
-            / clksTotal);
+    uint64_t userTimeNonZero = this->timesByType[Processor::TIME_USER];
+    userTimeNonZero = (userTimeNonZero > 0) ? userTimeNonZero : 1;
+    myInfo.pctUserCpu = (int)(1000000 * this->clksByType[Processor::TIME_USER]
+            / (CLOCKS_PER_SEC * userTimeNonZero));
     myInfo.msgsTotal = msgsTotal;
-    myInfo.pctUserMsgs = (int)(100 * msgsUser / msgsTotal);
+    myInfo.pctUserMsgs = (int)(1000 * msgsUser / msgsTotal);
 
     //Send info to rank 0, which prints out everything in order
     if (this->world.rank() != 0) {
@@ -277,18 +292,22 @@ void Processor::run(const std::string& inputLine) {
         mpi::gather(this->world, myInfo, infos, 0);
 
         int totalTime = 0;
-        int totalCpu = 0;
+        uint64_t totalCpu = 0;
+        int totalCpuTime = 0;
         for (int i = 0, m = infos.size(); i < m; i++) {
             ProcessorInfo& pi = infos[i];
             totalTime += pi.pctUserTime;
             totalCpu += pi.userCpuTotal;
-            fprintf(stderr, 
+            totalCpuTime += pi.pctUserCpu * pi.pctUserTime;
+            fprintf(stderr,
                     "%i %i%% user time (%i%% mpi), %i%% user cpu, "
                         "%lu messages (%i%% user)\n", 
-                    i, pi.pctUserTime, pi.pctMpiTime, pi.pctUserCpu, 
-                    pi.msgsTotal, pi.pctUserMsgs);
+                    i, pi.pctUserTime / 10, pi.pctMpiTime / 10, 
+                    pi.pctUserCpu / 10, pi.msgsTotal, pi.pctUserMsgs / 10);
         }
-        fprintf(stderr, "C %i%% user time, quality %.2f ticks/ms\n", totalTime, 
+        fprintf(stderr, "C %i%% user time, %i%% user cpu, "
+                "quality %.2f ticks/ms\n", 
+                totalTime / 10, totalCpuTime / 10000,
                 (double)totalCpu / timesTotal);
     }
 }
@@ -719,8 +738,7 @@ void Processor::process(MpiMessage& message) {
 
 
 bool Processor::tryReceive() {
-    //First run filter
-    WorkTimer timer(this, Processor::TIME_COMM);
+    WorkTimer recvTimer(this, Processor::TIME_COMM);
 
     bool wasSteal = false;
     std::string stealBuffer;
@@ -801,11 +819,7 @@ void Processor::_nonBlockingSend(int dest, int tag,
     //is sent) so that we don't freeze the application waiting for the send
     //buffer.
     WorkTimer timer(this, Processor::TIME_COMM);
-    mpi::request sendReq = this->world.isend(dest, tag, message);
-    while (!sendReq.test()) {
-        //Send isn't done, see if we can receive our next message...
-        this->tryReceive();
-    }
+    this->sendRequests.emplace_back(this->world.isend(dest, tag, message));
 }
 
 

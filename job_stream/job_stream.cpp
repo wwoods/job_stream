@@ -12,8 +12,8 @@ namespace mpi = boost::mpi;
 
 namespace job_stream {
 
-void func() {
-    printf("THREAD SAYS WHAT?\n");
+namespace serialization {
+    std::vector<std::unique_ptr<RegisteredTypeBase>> registeredTypes;
 }
 
 
@@ -36,7 +36,7 @@ void runProcessor(int argc, char** argv) {
     if (argc < 2) {
         std::ostringstream ss;
         ss << "Usage: " << argv[0] 
-                << " path/to/config [-f inputFile | seed line]";
+                << " path/to/config [seed line; if omitted, stdin]";
         printf("%s\n\n", ss.str().c_str());
         printf("-f or seed line will only be used if 'input' from config is\n");
         printf("a string; if it is a map, (not implemented)\n");

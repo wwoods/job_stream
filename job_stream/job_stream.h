@@ -35,13 +35,29 @@ namespace job_stream {
         }
 
 
-        template<class T_output> void emit(const T_output& output) {
-            this->emit(output, "");
+        template<class T_output> void emit(T_output* o,
+                const std::string& target = "") {
+            this->emit(*o, target);
         }
 
 
-        template<class T_output> void emit(const T_output& output, 
-                const std::string& target) {
+        template<class T_output> void emit(std::unique_ptr<T_output>& o,
+                const std::string& target = "") {
+            this->emit(*o, target);
+        }
+
+
+        template<class T_output> void emit(std::unique_ptr<T_output>&& o,
+                const std::string& target = "") {
+            //r-value constructor - we can take o.  We don't have to, but we
+            //certainly can.
+            this->emit(*o, target);
+            o.reset(0);
+        }
+
+
+        template<class T_output> void emit(T_output&& output, 
+                const std::string& target = "") {
             processor::Processor::WorkTimer timer(this->processor, 
                     processor::Processor::TIME_SYSTEM);
 
@@ -54,8 +70,9 @@ namespace job_stream {
                         .template as<std::string>();
             }
 
-            message::WorkRecord* wr = new message::TypedWorkRecord<T_output>(
-                    this->getTargetForJob(nextTarget), new T_output(output));
+            message::WorkRecord* wr = new message::WorkRecord(
+                    this->getTargetForJob(nextTarget),
+                    serialization::encode(&output));
             wr->chainFrom(*this->currentRecord);
             this->processor->addWork(wr);
         }
@@ -99,6 +116,7 @@ namespace job_stream {
             this->setCurrentReduce(reduceTag);
             this->currentRecord = this->currentReduce->originalWork.get();
             this->hadRecurrence = false;
+            this->targetIsModule = true;
 
             { //timer scope
                 processor::Processor::WorkTimer timer(this->processor, 
@@ -106,6 +124,7 @@ namespace job_stream {
                 this->handleDone(*this->currentReduce->accumulator);
             }
 
+            this->targetIsModule = false;
             this->currentRecord = 0;
             this->currentReduce = 0;
 
@@ -202,28 +221,56 @@ namespace job_stream {
         }
 
 
+        template<class T_output> void emit(std::unique_ptr<T_output>& o) {
+            this->emit(*o);
+        }
+
+
+        template<class T_output> void emit(std::unique_ptr<T_output>&& o) {
+            this->emit(*o);
+        }
+
+
+        template<class T_output> void emit(T_output* o) {
+            this->emit(*o);
+        }
+
+
         /** Output some work from this module */
-        template<class T_output> void emit(const T_output& output) {
+        template<class T_output> void emit(T_output&& output) {
             processor::Processor::WorkTimer timer(this->processor, 
                     processor::Processor::TIME_SYSTEM);
 
-            message::WorkRecord* wr = new message::TypedWorkRecord<T_output>(
-                    this->getTargetForReducer(), new T_output(output));
+            message::WorkRecord* wr = new message::WorkRecord(
+                    this->getTargetForReducer(), serialization::encode(&output));
             wr->chainFrom(*this->currentRecord);
             this->processor->addWork(wr);
         }
 
 
-        /** Output some work back into this module (from input location) */
-        template<class T_output> void recur(const T_output& output) {
-            this->recur(output, "");
+        template<class T_output> void recur(std::unique_ptr<T_output>& output,
+                const std::string& target = "") {
+            this->recur(*output, target);
+        }
+
+
+        template<class T_output> void recur(std::unique_ptr<T_output>&& output,
+                const std::string& target = "") {
+            this->recur(*output, target);
+        }
+
+
+        template<class T_output> void recur(T_output* output,
+                const std::string& target = "") {
+            this->recur(*output, target);
         }
 
 
         /** Output some work back into this module at job named under config
-            recurTo.target */
-        template<class T_output> void recur(const T_output& output, 
-                const std::string& target) {
+            recurTo.target.  If target is empty (default), send back to 
+            module input. */
+        template<class T_output> void recur(T_output&& output, 
+                const std::string& target = "") {
             processor::Processor::WorkTimer timer(this->processor, 
                     processor::Processor::TIME_SYSTEM);
 
@@ -253,8 +300,8 @@ namespace job_stream {
                         .template as<std::string>());
             }
 
-            message::WorkRecord* wr = new message::TypedWorkRecord<T_output>(
-                    ntarget, new T_output(output));
+            message::WorkRecord* wr = new message::WorkRecord(
+                    ntarget, serialization::encode(&output));
             wr->chainFrom(*this->currentRecord);
             this->processor->addWork(wr);
 

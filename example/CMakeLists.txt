@@ -25,21 +25,7 @@ target_link_libraries(job_stream_example
 # But, for now, not worth the time.
 SET(BOOST_LIB "${CMAKE_SOURCE_DIR}/../lib/boost")
 SET(YAML_LIB "${CMAKE_SOURCE_DIR}/../lib/yaml-cpp")
-
-target_link_libraries(job_stream_example 
-        ${BOOST_LIB}/libboost_system.a
-        ${BOOST_LIB}/libboost_thread.a
-        ${BOOST_LIB}/libboost_serialization.a
-        ${BOOST_LIB}/libboost_mpi.a
-        ${YAML_LIB}/libyaml-cpp.a
-        # rt must be last
-        rt)
-
-## Bonus neuron library for demo purposes...
-add_executable(job_stream_neuron
-        neuron.cpp)
-
-target_link_libraries(job_stream_neuron 
+SET(JS_LIB 
         ${CMAKE_SOURCE_DIR}/../build/libjob_stream.a
         ${BOOST_LIB}/libboost_system.a
         ${BOOST_LIB}/libboost_thread.a
@@ -48,17 +34,20 @@ target_link_libraries(job_stream_neuron
         ${YAML_LIB}/libyaml-cpp.a
         # rt must be last
         rt)
+
+target_link_libraries(job_stream_example ${JS_LIB})
+
+## Bonus neuron library for demo purposes...
+add_executable(job_stream_neuron
+        neuron.cpp)
+target_link_libraries(job_stream_neuron ${JS_LIB})
 
 ## Stable timing exe
 add_executable(job_stream_stable
         stable.cpp)
 
-target_link_libraries(job_stream_stable
-        ${CMAKE_SOURCE_DIR}/../build/libjob_stream.a
-        ${BOOST_LIB}/libboost_system.a
-        ${BOOST_LIB}/libboost_thread.a
-        ${BOOST_LIB}/libboost_serialization.a
-        ${BOOST_LIB}/libboost_mpi.a
-        ${YAML_LIB}/libyaml-cpp.a
-        # rt must be last
-        rt)
+target_link_libraries(job_stream_stable ${JS_LIB})
+
+## Inheritance test
+add_executable(job_stream_inherit inherit.cpp)
+target_link_libraries(job_stream_inherit ${JS_LIB})
