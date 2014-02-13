@@ -268,7 +268,8 @@ on performance.
 Roadmap
 -------
 
-* Update README with serialization changes, clean up code
+* Update README with serialization changes, clean up code.  Note that unique_ptr
+  serialize() is specified in serialization.h.
 * Idle time tracking - show how much time is spent e.g. waiting on a reducer
 * Solve config problem - if e.g. all jobs need to fill in some globally shared
   information (tests to run, something not in YAML)
