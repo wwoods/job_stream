@@ -218,6 +218,9 @@ protected:
             const YAML::Node& config);
     job::ReducerBase* allocateReducer(module::Module* parent, 
             const YAML::Node& config);
+    /** Called in the middle of a job / reducer; update all asynchronous MPI
+        operations to ensure our buffers are full */
+    void checkMpi();
     /** If we have an input thread, join it */
     void joinThreads();
     /** We got a steal message; decode it and maybe give someone work. */

@@ -38,6 +38,9 @@ void SharedBase::setup(processor::Processor* processor, module::Module* parent,
 }
 
 
+void SharedBase::checkMpi()  { processor->checkMpi(); }
+
+
 std::vector<std::string> SharedBase::getTargetForJob(std::string target) {
     std::vector<std::string> targetNew = this->currentRecord->getTarget();
     //On our first send, target includes the job (it already did).  We

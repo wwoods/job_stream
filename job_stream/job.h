@@ -44,6 +44,12 @@ namespace job {
                 const YAML::Node& config, 
                 const YAML::Node& globalConfig);
 
+        /** If you notice you parallelism isn't as good as you might expect,
+            call this function periodically in your job / reducer.  It updates
+            all of the asynchronous MPI operations, meaning that buffers that
+            were once full may be filled again. */
+        void checkMpi();
+
     protected:
         /* Our job's specific config, including "to", "id", and "type". */
         YAML::Node config;

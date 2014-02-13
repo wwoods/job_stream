@@ -197,21 +197,8 @@ void Processor::run(const std::string& inputLine) {
     std::unique_ptr<WorkTimer> outerTimer(new WorkTimer(this, 
             Processor::TIME_SYSTEM));
     while (this->shouldRun) {
-        { //Check up on pending outbound
-            WorkTimer sendTimer(this, Processor::TIME_COMM);
-            auto it = this->sendRequests.begin();
-            while (it != this->sendRequests.end()) {
-                if (it->test()) {
-                    this->sendRequests.erase(it++);
-                }
-                else {
-                    it++;
-                }
-            }
-        }
-
-        //See if we have any messages; while we do, load them.
-        this->tryReceive();
+        //Update communications
+        this->checkMpi();
 
         if (!this->sentEndRing0) {
             //Eof found and we haven't sent ring!  Send it
@@ -222,6 +209,7 @@ void Processor::run(const std::string& inputLine) {
 
             //Distribute any outbound work
             while (this->workOutQueue.pop(work)) {
+                //deletes work if it is not added locally.
                 this->addWork(work);
             }
         }
@@ -306,9 +294,9 @@ void Processor::run(const std::string& inputLine) {
                     pi.pctUserCpu / 10, pi.msgsTotal, pi.pctUserMsgs / 10);
         }
         fprintf(stderr, "C %i%% user time, %i%% user cpu, "
-                "quality %.2f ticks/ms\n", 
+                "quality %.2f ticks/ms, ran %.3fs\n", 
                 totalTime / 10, totalCpuTime / 10000,
-                (double)totalCpu / timesTotal);
+                (double)totalCpu / timesTotal, timesTotal * 0.001);
     }
 }
 
@@ -419,6 +407,9 @@ void Processor::maybeAllowSteal(const std::string& messageBuffer) {
             iNeedWork = true;
         }
     }
+    else if (!this->sendRequests.empty()) {
+        //We don't want to donate any work if we're already sending some.
+    }
     else {
         //Does anyone else need work?
         int wsize = this->world.size();
@@ -470,7 +461,7 @@ void Processor::maybeAllowSteal(const std::string& messageBuffer) {
 
     //Forward the steal ring!
     sr.needsWork[this->getRank()] = iNeedWork;
-    this->_nonBlockingSend(this->_getNextRank(), Processor::TAG_STEAL,
+    this->world.send(this->_getNextRank(), Processor::TAG_STEAL,
             sr.serialized());
 
     if (JOB_STREAM_DEBUG >= 2) {
@@ -575,6 +566,25 @@ job::ReducerBase* Processor::allocateReducer(module::Module* parent,
             this->root->getConfig());
     reducer->postSetup();
     return reducer;
+}
+
+
+void Processor::checkMpi() {
+    WorkTimer sendTimer(this, Processor::TIME_COMM);
+
+    //Fill any outbound buffers
+    auto it = this->sendRequests.begin();
+    while (it != this->sendRequests.end()) {
+        if (it->test()) {
+            this->sendRequests.erase(it++);
+        }
+        else {
+            it++;
+        }
+    }
+
+    //See if we have any messages; while we do, load them.
+    this->tryReceive();
 }
 
 
