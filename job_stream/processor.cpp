@@ -609,7 +609,7 @@ void Processor::checkMpi() {
         //See if we have any messages; while we do, load them.
         sentOrReceived |= this->tryReceive();
 
-        if (message::Location::getCurrentTimeMs() - start > 10) {
+        if (message::Location::getCurrentTimeMs() - start >= 10) {
             break;
         }
     }
