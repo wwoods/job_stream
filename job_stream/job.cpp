@@ -11,7 +11,7 @@
 namespace job_stream {
 namespace job {
 
-SharedBase::SharedBase() : targetIsModule(false) {
+SharedBase::SharedBase() : targetIsModule(false), currentRecord(0) {
 }
 
 
@@ -59,6 +59,16 @@ std::vector<std::string> SharedBase::getTargetForJob(std::string target) {
 std::vector<std::string> SharedBase::getTargetForReducer() {
     //Called in the context of a Reducer, meaning currentRecord's target was
     //the record that started the reduce - that is, it points to our module.
+    //Note that this function is used for emit(), not recur().
+    std::vector<std::string> targetNew = this->currentRecord->getTarget();
+    if (!this->targetIsModule) {
+        //We want it to point to a module
+        targetNew.pop_back();
+    }
+
+
+    //Now it's the module containing our reducer; we want to go to a sibling
+    //job.  So..
     if (this->parent->getLevel() != 0) {
         const YAML::Node& parentTo = this->parent->getConfig()["to"];
         if (!parentTo) {
@@ -66,15 +76,16 @@ std::vector<std::string> SharedBase::getTargetForReducer() {
             ss << "Module " << this->parent->getFullName() << " needs 'to'";
             throw std::runtime_error(ss.str());
         }
-        return this->getTargetForJob(parentTo.as<std::string>());
+        targetNew.pop_back();
+        targetNew.push_back(parentTo.as<std::string>());
     }
-
-    std::vector<std::string> target = this->currentRecord->getTarget();
-
-    //Final output (that is, this is the top module, and we are final output).
-    target.push_back("output");
-    target.push_back("reduced");
-    return target;
+    else {
+        //Final output (that is, this is the top module, and we are final 
+        //output).
+        targetNew.push_back("output");
+        targetNew.push_back("reduced");
+    }
+    return targetNew;
 }
 
 

@@ -12,6 +12,12 @@
 #include <string>
 
 namespace job_stream {
+    /** When you have a type where you either aren't sure or don't care what
+        it is, use this.  Used primarily for special types of jobs or reducers
+        (see Frame) */
+    typedef job_stream::serialization::AnyType AnyType;
+
+
     /** Specialized Job base class. */
     template<typename T_input>
     class Job : public job::JobBase {
@@ -77,14 +83,13 @@ namespace job_stream {
             this->processor->addWork(wr);
         }
 
-    protected:
+    private:
         std::unique_ptr<T_input> currentWork;
 
         virtual std::string getInputTypeName() {
             return typeid(T_input).name();
         }
     };
-
 
 
     /** Specialized reducer class.  Default implementation relies on operator+,
@@ -168,6 +173,7 @@ namespace job_stream {
                 record.originalWork.reset(new message::WorkRecord(
                         work.serialized()));
                 record.accumulator.reset(new T_accum());
+                record.gotFirstWork = false;
 
                 { //timer scope
                     processor::Processor::WorkTimer timer(this->processor, 
@@ -312,7 +318,7 @@ namespace job_stream {
         }
 
 
-    protected:
+    private:
         uint64_t currentReduceTag;
         job::ReduceAccumulator<T_accum>* currentReduce;
         std::unique_ptr<T_input> currentWork;
@@ -320,14 +326,13 @@ namespace job_stream {
         /** Used in dispatchDone() to see if we had recurrence.  If we did not,
             the reduction is finished. */
         bool hadRecurrence;
-        std::map<uint64_t, job::ReduceAccumulator<T_accum> > reduceMap;
+        std::map<uint64_t, job::ReduceAccumulator<T_accum>> reduceMap;
 
         virtual std::string getInputTypeName() {
             return typeid(T_input).name();
         }
 
 
-    private:
         /** Set currentReduce to point to the right ReduceAccumulator */
         void setCurrentReduce(uint64_t reduceTag) {
             auto iter = this->reduceMap.find(reduceTag);
@@ -340,6 +345,43 @@ namespace job_stream {
 
             this->currentReduceTag = reduceTag;
             this->currentReduce = &iter->second;
+        }
+
+        template<typename T1, typename T2, typename T3>
+        friend class Frame;
+    };
+
+
+    /** A Frame is a special type of Reducer that has special logic based on
+        the first type of data it receives.  If T_first == T_recur, you 
+        probably don't need a Frame, you probably want a Reducer.  But, for
+        instance, an algorithm that runs a simulation over and over until
+        a dynamic number of trials have been completed (based on the results
+        of past trials) should be implemented as a Frame. */
+    template<typename T_accum, typename T_first, typename T_work = T_accum>
+    class Frame : public Reducer<T_accum, AnyType> {
+    public:
+        /** Handles the first work that initiates the Reduce loop */
+        virtual void handleFirst(T_accum& current, 
+                std::unique_ptr<T_first> first) = 0;
+        /** Handles any subsequent work in this Reduce loop (from recur) */
+        virtual void handleWork(T_accum& current,
+                std::unique_ptr<T_work> work) = 0;
+
+        /** The AnyType resolution of handleAdd */
+        void handleAdd(T_accum& current, std::unique_ptr<AnyType> work) {
+            if (!this->currentReduce->gotFirstWork) {
+                this->currentReduce->gotFirstWork = true;
+                this->handleFirst(current, std::move(work->as<T_first>()));
+            }
+            else {
+                this->handleWork(current, std::move(work->as<T_work>()));
+            }
+        }
+
+    private:
+        virtual std::string getInputTypeName() {
+            return typeid(T_first).name();
         }
     };
 

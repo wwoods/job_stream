@@ -268,7 +268,19 @@ on performance.
 Roadmap
 -------
 
-* Update README with serialization changes, clean up code.  Note that unique_ptr
+* Replace to: output with to: parent; input: output to input: reducer
+* Consider replacing "reducer" keyword with "frame" to automatically rewrite
+  recurTo as input and input as reducer
+* Consider attachToNext() paired w/ emit and recur; attachments have their own
+  getAttached<type>("label") retriever that returns a modifiable version of the
+  attachment.  removeAttached("label").  Anyway, attachments go to all child
+  reducers but are not transmitted via emitted() work from reducers.  Would 
+  greatly simplify trainer / maximize code... though, if something is required,
+  passing it in a struct is probably a better idea as it's a compile-time error.
+  Then again, it wouldn't work for return values, but it would work for
+  attaching return values to a recur'd tuple and waiting for it to come back
+  around.
+* Update README with serialization changes, clean up code.  Note that unique\_ptr
   serialize() is specified in serialization.h.
 * Idle time tracking - show how much time is spent e.g. waiting on a reducer
 * Solve config problem - if e.g. all jobs need to fill in some globally shared
@@ -284,6 +296,9 @@ Roadmap
 
 Recent Changelog
 ----------------
+* 2014-2-19 - Added Frame specialization of Reducer.  Expects a different
+  first work than subsequent.  Usage pattern is to do some initialization work
+  and then recur() additional work as needed.
 * 2014-2-12 - Serialization is now via pointer, and supports polymorphic classes
   completely unambiguously via dynamic_cast and 
   job_stream::serialization::registerType.  User cpu % updated to be in terms of

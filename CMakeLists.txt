@@ -54,7 +54,8 @@ add_library(job_stream
         job_stream/job.cpp
         job_stream/message.cpp
         job_stream/module.cpp
-        job_stream/processor.cpp)
+        job_stream/processor.cpp
+        job_stream/serialization.cpp)
 target_link_libraries(job_stream ${BOOST_LIB}/libboost_system.a)
 target_link_libraries(job_stream ${BOOST_LIB}/libboost_thread.a)
 target_link_libraries(job_stream ${BOOST_LIB}/libboost_serialization.a)

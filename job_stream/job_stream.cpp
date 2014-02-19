@@ -12,11 +12,6 @@ namespace mpi = boost::mpi;
 
 namespace job_stream {
 
-namespace serialization {
-    std::vector<std::unique_ptr<RegisteredTypeBase>> registeredTypes;
-}
-
-
 void addJob(const std::string& typeName,
         std::function<job::JobBase* ()> allocator) {
     processor::Processor::addJob(typeName, allocator);

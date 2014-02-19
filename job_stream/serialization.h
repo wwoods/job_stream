@@ -33,6 +33,8 @@ typedef boost::archive::binary_iarchive IArchive;
 template<typename T, class ExampleOnly>
 void decode(const std::string& message, T& dest);
 template<typename T>
+void decode(const std::string& message, std::unique_ptr<T>& dest);
+template<typename T>
 std::string encode(const T& src);
 /** Register a polymorphic base class */
 template<class T>
@@ -51,7 +53,31 @@ void serialize(IArchive& a, std::unique_ptr<T>& ptr);
 /** Fully polymorphic object copy - even if you specify the base pointer,
     the derived class will be copied. */
 template<class T>
-void copy(T&& src, std::unique_ptr<T>& dest);
+void copy(const T& src, std::unique_ptr<T>& dest);
+template<class T>
+void copy(const std::unique_ptr<T>& src, std::unique_ptr<T>& dest);
+
+
+/** A special serializable type that will preserve whatever the original type
+    was. */
+class AnyType {
+public:
+    AnyType() {}
+    AnyType(std::string message) : data(std::move(message)) {}
+
+    template<typename T>
+    std::unique_ptr<T> as() {
+        std::unique_ptr<T> ptr;
+        decode(this->data, ptr);
+        return std::move(ptr);
+    }
+
+private:
+    std::string data;
+    //Note - there should not need to be any serialize() on AnyType!  Otherwise
+    //it's trying to go through the normal channels, which means it is
+    //implemented wrong.
+};
 
 
 //Implementations
@@ -102,9 +128,10 @@ public:
     }
 
     bool tryEncode(OArchive& a, const char* srcTypeName, void* src) {
+        bool isNull = (src == 0);
         if (strcmp(srcTypeName, typeName()) != 0
                 && (strcmp(srcTypeName, baseName()) != 0
-                    || dynamic_cast<T*>((B*)src) == 0)) {
+                    || !isNull && dynamic_cast<T*>((B*)src) == 0)) {
             return false;
         }
 
@@ -204,18 +231,29 @@ struct _SerialHelper<T*, typename boost::enable_if<boost::mpl::bool_<
 
     static void encodeTypeAndObject(OArchive& a, T* const & obj) {
         std::string tn = typeName();
+        bool isNull = (obj == 0);
         a << tn;
-        a << *obj;
+        a << isNull;
+        if (!isNull) {
+            a << *obj;
+        }
     }
 
     static void decodeTypeAndObject(IArchive& a, T*& obj) {
         std::string type;
+        bool isNull;
         a >> type;
         if (type != typeName()) {
             _SerialHelperUtility::typeError(typeName(), type);
         }
-        obj = new T();
-        a >> *obj;
+        a >> isNull;
+        if (isNull) {
+            obj = 0;
+        }
+        else {
+            obj = new T();
+            a >> *obj;
+        }
     }
 };
 
@@ -286,6 +324,10 @@ void decode(const std::string& message, std::unique_ptr<T>& dest) {
 }
 
 
+template<>
+void decode(const std::string& message, std::unique_ptr<AnyType>& dest);
+
+
 template<class T>
 std::string encode(const T& src) {
     typedef _SerialHelper<T> sh;
@@ -300,6 +342,11 @@ std::string encode(const T& src) {
 template<class T>
 void copy(const T& src, std::unique_ptr<T>& dest) {
     decode(encode(&src), dest);
+}
+
+template<class T>
+void copy(const std::unique_ptr<T>& src, std::unique_ptr<T>& dest) {
+    decode(encode(src.get()), dest);
 }
 
 }

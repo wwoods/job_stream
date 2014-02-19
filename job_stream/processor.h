@@ -147,6 +147,18 @@ struct ProcessorReduceInfo {
 
 
 
+/** Information tied to an in-progress send */
+struct ProcessorSendInfo {
+    boost::mpi::request request;
+    std::vector<uint64_t> reduceTags;
+
+    ProcessorSendInfo(boost::mpi::request request,
+            std::vector<uint64_t> reduceTags) : request(request),
+                reduceTags(std::move(reduceTags)) {}
+};
+
+
+
 /** Handles communication and job dispatch, as well as input streaming */
 class Processor {
     friend class job::SharedBase;
@@ -221,6 +233,9 @@ protected:
     /** Called in the middle of a job / reducer; update all asynchronous MPI
         operations to ensure our buffers are full */
     void checkMpi();
+    /** Called to handle a ring test message, possibly within tryReceive, or
+        possibly in the main work loop. */
+    void handleRingTest(std::shared_ptr<MpiMessage> message, bool isWork);
     /** If we have an input thread, join it */
     void joinThreads();
     /** We got a steal message; decode it and maybe give someone work. */
@@ -230,7 +245,7 @@ protected:
     void processInputThread_main(const std::string& inputLine);
     /** Process a previously received mpi message.  Passed non-const so that it
         can be steal-constructored (rvalue) */
-    void process(MpiMessage& message);
+    void process(std::shared_ptr<MpiMessage> message);
     /** Try to receive the current request, or make a new one */
     bool tryReceive();
 
@@ -268,7 +283,7 @@ private:
        zero. */
     bool sawEof;
     /** Currently pending outbound nonBlocking requests */
-    std::list<boost::mpi::request> sendRequests;
+    std::list<ProcessorSendInfo> sendRequests;
     /* Set when we send ring test for 0 */
     bool sentEndRing0;
     /* True until quit message is received (ring 0 is completely closed). */
@@ -276,8 +291,10 @@ private:
     /** Array containing how much time was spent in each type of operation.
         Indexed by ProcessorTimeType */
     std::unique_ptr<uint64_t[]> timesByType;
-    //Any work waiting to be done on this Processor.
-    std::list<MpiMessage> workInQueue;
+    //Any work waiting to be done on this Processor.  First element in queue
+    //is current work.  We use shared_ptr so we can pass it around and still
+    //read from first element for e.g. reduce tags.
+    std::list<std::shared_ptr<MpiMessage>> workInQueue;
     /* workOutQueue gets redistributed to all workers; MPI is not implicitly
        thread-safe, that is why this queue exists.  Used for input only at
        the moment. */
@@ -292,9 +309,12 @@ private:
     int _getNextRank();
     /* Increment and wrap workTarget, return new value */
     int _getNextWorker();
-    /** Send in a non-blocking manner (asynchronously, receiving all the while)
+    /** Send in a non-blocking manner (asynchronously, receiving all the while).
+        reduceTags are any tags that should be kept alive by the fact that this
+        is in the process of being sent.
         */
-    void _nonBlockingSend(int dest, int tag, const std::string& message);
+    void _nonBlockingSend(int dest, int tag, const std::string& message,
+            std::vector<uint64_t> reduceTags);
     /** Push down a new timer section */
     void _pushWorkTimer(ProcessorTimeType userWork);
     /** Pop the last timer section */

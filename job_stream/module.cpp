@@ -185,6 +185,9 @@ job::JobBase* Module::getJob(const std::string& id) {
 
 
 std::string Module::getInputTypeName() {
+    if (this->config["input"].as<std::string>() == "output") {
+        return this->reducer->getInputTypeName();
+    }
     return this->getJob(this->config["input"].as<std::string>())
             ->getInputTypeName();
 }

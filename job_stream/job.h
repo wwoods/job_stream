@@ -133,6 +133,9 @@ namespace job {
 
         /* The accumulator for this record */
         std::unique_ptr<T_accum> accumulator;
+
+        /* Used for Frames, allows first work to be distinguished.... */
+        bool gotFirstWork;
     };
 }
 }
