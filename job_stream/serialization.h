@@ -36,12 +36,12 @@ template<typename T>
 void decode(const std::string& message, std::unique_ptr<T>& dest);
 template<typename T>
 std::string encode(const T& src);
-/** Register a polymorphic base class */
-template<class T>
+/** Register a polymorphic base class or a derivative with its bases */
+template<class T, class Base1 = void, class Base2 = void, class Base3 = void,
+        class Base4 = void, class Base5 = void, class Base6 = void>
 void registerType();
-/** Register a derivative of a polymorphic base class */
-template<class T, class Base1>
-void registerType();
+/** Helper class for debugging registerType issues (unregistered class) */
+void printRegisteredTypes();
 
 /** Since job_stream supports smarter serialization of pointers with 
     polymorphic classes than boost... here's to it */
@@ -89,21 +89,14 @@ public:
             const char* destTypeName, void** dest) = 0;
     virtual bool tryEncode(OArchive& a, const char* srcTypeName, void* src) = 0;
 
-    /** Since we go through these in order, it is important that the
-        most-derived classes are encountered first.  Otherwise, encode() will 
-        find a base class before a potential better match, and since 
-        dynamic_cast will return non-zero, encoding will stop.
+    template<class U>
+    bool isBaseClass() {
+        return strcmp(typeid(U*).name(), baseName()) == 0;
+    }
 
-        Returns -1 if this RegisteredTypeBase MUST go before other, and a 1 if 
-        it MUST go after.  Returns 0 if it doesn't matter. */
-    int getOrder(RegisteredTypeBase& other) {
-        if (strcmp(other.baseName(), this->typeName()) == 0) {
-            return 1;
-        }
-        if (strcmp(other.typeName(), this->baseName()) == 0) {
-            return -1;
-        }
-        return 0;
+    template<class U>
+    bool isDerivedClass() {
+        return strcmp(typeid(U*).name(), typeName()) == 0;
     }
 };
 
@@ -145,35 +138,78 @@ public:
 
 
 
-extern std::vector<std::unique_ptr<RegisteredTypeBase>> registeredTypes;
+extern std::list<std::unique_ptr<RegisteredTypeBase>> registeredTypes;
+
+template<class T, class Base>
+class _RegisterType_impl {
+public:
+    static void doRegister() {
+        std::unique_ptr<RegisteredTypeBase> ptr(new RegisteredType<T, Base>());
+        auto it = registeredTypes.begin();
+        for (; it != registeredTypes.end(); it++) {
+            /** Since we go through these in order, it is important that the
+                most-derived classes are encountered first.  Otherwise, encode()
+                will find a base class before a potential better match, and 
+                since dynamic_cast will return non-zero, encoding will stop. */
+            if ((*it)->isDerivedClass<T>()) {
+                //put with our people
+                registeredTypes.insert(it, std::move(ptr));
+                return;
+            }
+            else if ((*it)->isDerivedClass<Base>()) {
+                //We derive from this class, so go above its block, and move all
+                //of our other instances above it too
+                registeredTypes.insert(it, std::move(ptr));
+                auto insertIt = it;
+                //it now points to one before the row that triggered this if
+                //condition, after this decr and the first incr
+                --it;
+                while (++it != registeredTypes.end()) {
+                    if ((*it)->isDerivedClass<T>()) {
+                        auto toRemove = it++;
+                        std::unique_ptr<RegisteredTypeBase> ptr = std::move(
+                                *toRemove);
+                        registeredTypes.erase(toRemove);
+                        registeredTypes.insert(insertIt, std::move(ptr));
+                        --it;
+                    }
+                }
+                return;
+            }
+        }
+
+        registeredTypes.insert(it, std::move(ptr));
+    }
+};
+
 
 template<class T>
-void registerType() {
-    registerType<T, T>();
-}
-
-
-template<class T, class Base1>
-void registerType() {
-    std::unique_ptr<RegisteredTypeBase> ptr(new RegisteredType<T, Base1>());
-    bool insertOverZero = false;
-    auto it = registeredTypes.begin();
-    for (; it != registeredTypes.end(); it++) {
-        int order = ptr->getOrder(*it->get());
-        if (order < 0) {
-            registeredTypes.insert(it, std::move(ptr));
-            return;
-        }
-        else if (order > 0) {
-            insertOverZero = true;
-        }
-        else if (insertOverZero) {
-            registeredTypes.insert(it, std::move(ptr));
-            return;
-        }
+class _RegisterType_impl<T, void> {
+public:
+    static void doRegister() {
+        //Nothing can derive from void
     }
+};
 
-    registeredTypes.insert(it, std::move(ptr));
+
+template<class T, class Base1 = void, class Base2 = void, class Base3 = void,
+        class Base4 = void, class Base5 = void, class Base6 = void>
+void registerType() {
+    _RegisterType_impl<T, T>::doRegister();
+#define REGISTER(Base)\
+    boost::mpl::if_< \
+            std::is_same<Base, void>, \
+            _RegisterType_impl<void, void>, \
+            _RegisterType_impl<T, Base>>::type::doRegister()
+
+    REGISTER(Base1);
+    REGISTER(Base2);
+    REGISTER(Base3);
+    REGISTER(Base4);
+    REGISTER(Base5);
+    REGISTER(Base6);
+
+#undef REGISTER
 }
 
 
