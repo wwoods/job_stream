@@ -826,7 +826,7 @@ void Processor::process(std::shared_ptr<MpiMessage> message) {
 
 
 bool Processor::tryReceive() {
-    WorkTimer recvTimer(this, Processor::TIME_SYSTEM);
+    WorkTimer recvTimer(this, Processor::TIME_COMM);
 
     bool wasSteal = false;
     std::string stealBuffer;
