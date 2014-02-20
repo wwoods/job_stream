@@ -4,18 +4,29 @@
 # TODO - tests should be stdin file (< file), number networks should be
 # config in here.
 
-sleepTime: 20
+sleepTime: 10
 
 input: initSystems
 reducer: 
     type: checkSystems
-    iterations: 20
+    iterations: 5
     recurTo: runSystems
 jobs:
     initSystems:
         type: makeSystems
         to: runSystems
     runSystems:
-        type: evalSystem
+        input: initMoreSystems
         to: output
+        reducer:
+            type: checkSystems
+            iterations: 2
+            recurTo: run
+        jobs:
+            initMoreSystems:
+                type: makeSystems
+                to: run
+            run:
+                type: evalSystem
+                to: output
 

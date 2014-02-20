@@ -597,7 +597,7 @@ void Processor::checkMpi() {
             sentOrReceived = true;
             if (it->request.test()) {
                 for (uint64_t reduceTag : it->reduceTags) {
-                    this->reduceInfoMap[reduceTag].childTagCount -= 1;
+                    this->decrReduceChildTag(reduceTag);
                 }
                 this->sendRequests.erase(it++);
             }
@@ -616,6 +616,22 @@ void Processor::checkMpi() {
 }
 
 
+void Processor::decrReduceChildTag(uint64_t reduceTag) {
+    auto& ri = this->reduceInfoMap[reduceTag];
+    ri.childTagCount -= 1;
+    if (ri.childTagCount == 0) {
+        auto it = this->workInQueue.begin();
+        if (it != this->workInQueue.end()) {
+            it++;
+        }
+        for (auto& m : ri.messagesWaiting) {
+            this->workInQueue.insert(it, std::move(m));
+        }
+        ri.messagesWaiting.clear();
+    }
+}
+
+
 void Processor::handleRingTest(std::shared_ptr<MpiMessage> message,
         bool isWork) {
     //Handle a ring test check in either tryReceive or the main work loop.
@@ -627,12 +643,11 @@ void Processor::handleRingTest(std::shared_ptr<MpiMessage> message,
 
     //Step one - is something holding this queue back?
     if (this->reduceInfoMap[dm.reduceTag].childTagCount) {
-        //Just send it to the next member of the ring.  We could
-        //hold onto it until we no longer have activity holding
-        //this ring back, but we haven't bothered implementing that
-        //yet.
-        dm.pass = -1;
-        forward = true;
+        //Hold onto this ring test until we no longer have activity holding this
+        //ring back.
+        dm.pass = 0;
+        this->reduceInfoMap[dm.reduceTag].messagesWaiting.push_back(
+                std::move(message));
     }
     else {
         //Go backwards through our work queue; if we hit work with
@@ -688,9 +703,9 @@ void Processor::handleRingTest(std::shared_ptr<MpiMessage> message,
                             dm.reduceTag, dm.pass, dm.passWork, dm.allWork);
                 }
 
+                forward = true;
                 if (dm.pass >= 2 && dm.allWork == dm.passWork) {
                     //Now we might remove it, if there is no recurrence
-                    forward = true;
                     if (dm.reduceTag == 0) {
                         //Global
                         this->shouldRun = false;
@@ -701,7 +716,7 @@ void Processor::handleRingTest(std::shared_ptr<MpiMessage> message,
                         auto it = this->reduceInfoMap.find(dm.reduceTag);
                         if (it->second.reducer->dispatchDone(dm.reduceTag)) {
                             uint64_t parentTag = it->second.parentTag;
-                            this->reduceInfoMap[parentTag].childTagCount -= 1;
+                            this->decrReduceChildTag(parentTag);
 
                             this->reduceInfoMap.erase(it);
                             forward = false;
@@ -738,7 +753,6 @@ void Processor::handleRingTest(std::shared_ptr<MpiMessage> message,
                     }
                 }
                 else {
-                    forward = true;
                     //Move passWork into allWork since the pass is done.
                     dm.allWork = dm.passWork;
                     dm.passWork = 0;
@@ -812,7 +826,7 @@ void Processor::process(std::shared_ptr<MpiMessage> message) {
 
 
 bool Processor::tryReceive() {
-    WorkTimer recvTimer(this, Processor::TIME_COMM);
+    WorkTimer recvTimer(this, Processor::TIME_SYSTEM);
 
     bool wasSteal = false;
     std::string stealBuffer;

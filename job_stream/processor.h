@@ -130,6 +130,10 @@ struct ProcessorReduceInfo {
     /** The number of child reduceTags this one is waiting for */
     int childTagCount;
 
+    /** Any messages waiting on this tag to resume (childTagCount != 0, waiting
+        for 0). */
+    std::vector<std::shared_ptr<MpiMessage>> messagesWaiting;
+
     /** The workCount from our reduction; used to tell when a ring is done
         processing and can be settled (marked done). */
     uint64_t workCount;
@@ -233,6 +237,9 @@ protected:
     /** Called in the middle of a job / reducer; update all asynchronous MPI
         operations to ensure our buffers are full */
     void checkMpi();
+    /** Called to reduce a childTagCount on a ProcessorReduceInfo for a given
+        reduceTag.  Optionally dispatch messages pending. */
+    void decrReduceChildTag(uint64_t reduceTag);
     /** Called to handle a ring test message, possibly within tryReceive, or
         possibly in the main work loop. */
     void handleRingTest(std::shared_ptr<MpiMessage> message, bool isWork);

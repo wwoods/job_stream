@@ -77,6 +77,7 @@ public:
     void handleDone(SystemCheck& current) {
         if (current.iteration >= this->config["iterations"].as<int>()) {
             printf("Done!\n");
+            this->emit(current.works[0]);
             return;
         }
 
