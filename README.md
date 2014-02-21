@@ -268,6 +268,7 @@ on performance.
 Roadmap
 -------
 
+* TODO - MESSAGE ROUTING WITHIN MESSAGE BASE CLASS, NOT ONLY GROUPMESSAGE!!!
 * Replace to: output with to: parent; input: output to input: reducer
 * Consider replacing "reducer" keyword with "frame" to automatically rewrite
   recurTo as input and input as reducer

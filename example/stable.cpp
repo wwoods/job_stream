@@ -9,25 +9,30 @@
 
 using std::unique_ptr;
 
-class SystemCheck {
-public:
+struct LoadedInt {
+    LoadedInt() {}
+    LoadedInt(int i, int loadBytes) : value(i) {
+        this->load.resize(loadBytes, '=');
+    }
+
+    int value;
+    std::string load;
+
+private:
+    friend class boost::serialization::access;
+    template<class Archive>
+    void serialize(Archive& ar, const unsigned int version) {
+        ar & this->value;
+        ar & this->load;
+    }
+};
+
+struct SystemCheck {
     SystemCheck() : iteration(0) {
     }
 
-    SystemCheck& operator+=(int work) {
-        this->works.push_back(work);
-    }
-
-    SystemCheck& operator+=(unique_ptr<SystemCheck> other) {
-        this->iteration += other->iteration;
-        for (int i = 0, m = other->works.size(); i < m; i++) {
-            this->works.push_back(other->works[i]);
-        }
-    }
-
     int iteration;
-    std::vector<int> works;
-
+    std::vector<LoadedInt> works;
 
 private:
     friend class boost::serialization::access;
@@ -39,39 +44,60 @@ private:
 };
 
 
-class MakeSystems : public job_stream::Job<int> {
+class MakeLoaded : public job_stream::Job<int> {
+public:
+    static MakeLoaded* make() { return new MakeLoaded(); }
+    void handleWork(unique_ptr<int> input) {
+        this->emit(LoadedInt(*input, this->globalConfig["dataSize"].as<int>()));
+    }
+};
+
+
+class UnmakeLoaded : public job_stream::Job<LoadedInt> {
+public:
+    static UnmakeLoaded* make() { return new UnmakeLoaded(); }
+    void handleWork(unique_ptr<LoadedInt> input) {
+        this->emit(input->value);
+    }
+};
+
+
+class MakeSystems : public job_stream::Job<LoadedInt> {
 public:
     static MakeSystems* make() { return new MakeSystems(); }
-    void handleWork(unique_ptr<int> networkCount) {
-        for (int i = 0; i < *networkCount; i++) {
-            this->emit(this->globalConfig["sleepTime"].as<int>());
+    void handleWork(unique_ptr<LoadedInt> networkCount) {
+        for (int i = 0; i < networkCount->value; i++) {
+            this->emit(LoadedInt(this->globalConfig["sleepTime"].as<int>(),
+                    this->globalConfig["dataSize"].as<int>()));
         }
     }
 };
 
 
-class EvalSystem : public job_stream::Job<int> {
+class EvalSystem : public job_stream::Job<LoadedInt> {
 public:
     static EvalSystem* make() { return new EvalSystem(); }
-    void handleWork(unique_ptr<int> sleepTime) {
-        const int max = *sleepTime * 200000;
+    void handleWork(unique_ptr<LoadedInt> sleepTime) {
+        const int max = sleepTime->value * 200000;
         volatile int i = 0;
         while (++i != max);
-        this->emit(*sleepTime);
+        this->emit(sleepTime);
     }
 };
 
 
-class CheckSystems : public job_stream::Reducer<SystemCheck, int> {
+class CheckSystems : public job_stream::Reducer<SystemCheck, LoadedInt> {
 public:
     static CheckSystems* make() { return new CheckSystems(); }
 
-    void handleAdd(SystemCheck& current, unique_ptr<int> work) {
-        current += *work;
+    void handleAdd(SystemCheck& current, unique_ptr<LoadedInt> work) {
+        current.works.push_back(*work);
     }
 
     void handleJoin(SystemCheck& current, unique_ptr<SystemCheck> other) {
-        current += std::move(other);
+        current.works.insert(current.works.end(), other->works.begin(), 
+                other->works.end());
+        current.iteration += other->iteration;
     }
 
     void handleDone(SystemCheck& current) {
@@ -94,8 +120,10 @@ public:
 
 
 int main(int argc, char* argv[]) {
+    job_stream::addJob("makeLoaded", MakeLoaded::make);
     job_stream::addJob("makeSystems", MakeSystems::make);
     job_stream::addJob("evalSystem", EvalSystem::make);
+    job_stream::addJob("unmakeLoaded", UnmakeLoaded::make);
     job_stream::addReducer("checkSystems", CheckSystems::make);
     job_stream::runProcessor(argc, argv);
     return 0;

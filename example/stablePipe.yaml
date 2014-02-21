@@ -5,28 +5,33 @@
 # config in here.
 
 sleepTime: 100
+# Bytes sent with every value
+dataSize: 10000
 
-input: initSystems
-reducer: 
-    type: checkSystems
-    iterations: 5
-    recurTo: runSystems
 jobs:
-    initSystems:
-        type: makeSystems
-        to: runSystems
-    runSystems:
-        input: initMoreSystems
-        to: output
-        reducer:
+    - type: makeLoaded
+    -   input: initSystems
+        reducer: 
             type: checkSystems
-            iterations: 2
-            recurTo: run
+            iterations: 5
+            recurTo: runSystems
         jobs:
-            initMoreSystems:
+            initSystems:
                 type: makeSystems
-                to: run
-            run:
-                type: evalSystem
+                to: runSystems
+            runSystems:
+                input: initMoreSystems
                 to: output
+                reducer:
+                    type: checkSystems
+                    iterations: 2
+                    recurTo: run
+                jobs:
+                    initMoreSystems:
+                        type: makeSystems
+                        to: run
+                    run:
+                        type: evalSystem
+                        to: output
+    - type: unmakeLoaded
 
