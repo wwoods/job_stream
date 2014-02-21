@@ -4,7 +4,7 @@
 # TODO - tests should be stdin file (< file), number networks should be
 # config in here.
 
-sleepTime: 10
+sleepTime: 100
 
 input: initSystems
 reducer: 
