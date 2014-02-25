@@ -102,8 +102,11 @@ namespace job {
     /** Base class for Jobs */
     class JobBase : public SharedBase {
     public:
-        /* Pass work to handleWork() function in templated override. */
+        /** Pass work to handleWork() function in templated override. */
         virtual void dispatchWork(message::WorkRecord& work) = 0;
+
+        /** Pass work to see if it would start a new reduction. */
+        virtual bool wouldReduce(message::WorkRecord& work) = 0;
     };
 
 

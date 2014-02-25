@@ -268,7 +268,11 @@ on performance.
 Roadmap
 -------
 
-* TODO - MESSAGE ROUTING WITHIN MESSAGE BASE CLASS, NOT ONLY GROUPMESSAGE!!!
+* Make a checkpoint, convert to server / worker model in a single process
+* TIME\_COMM should not include initial isend request, since we're not using
+  primitive objects and that groups in the serialization time
+* Frame probably shouldn't need handleJoin (behavior would be wrong, since
+  the first tuple would be different in each incarnation)
 * Replace to: output with to: parent; input: output to input: reducer
 * Consider replacing "reducer" keyword with "frame" to automatically rewrite
   recurTo as input and input as reducer

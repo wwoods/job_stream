@@ -41,6 +41,11 @@ namespace job_stream {
         }
 
 
+        virtual bool wouldReduce(message::WorkRecord& work) {
+            return false;
+        }
+
+
         template<class T_output> void emit(T_output* o,
                 const std::string& target = "") {
             this->emit(*o, target);

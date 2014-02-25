@@ -157,6 +157,23 @@ void Module::dispatchWork(message::WorkRecord& work) {
 }
 
 
+bool Module::wouldReduce(message::WorkRecord& work) {
+    const std::vector<std::string>& target = work.getTarget();
+    std::string curTarget;
+    if (this->level >= target.size()) {
+        if (this->reducer) {
+            return true;
+        }
+        curTarget = this->config["input"].as<std::string>();
+    }
+    else {
+        curTarget = target[this->level];
+    }
+
+    return this->getJob(curTarget)->wouldReduce(work);
+}
+
+
 job::JobBase* Module::getJob(const std::string& id) {
     auto jobIter = this->jobMap.find(id);
     if (jobIter != this->jobMap.end()) {

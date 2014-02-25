@@ -191,7 +191,6 @@ struct ProcessorInfo {
 
 
 void Processor::run(const std::string& inputLine) {
-    this->deadCount = 0;
     this->sawEof = false;
     this->sentEndRing0 = false;
     this->shouldRun = true;
@@ -209,52 +208,6 @@ void Processor::run(const std::string& inputLine) {
     //Figure out our siblings
     std::vector<std::string> hosts;
     mpi::all_gather(this->world, this->env->processor_name(), hosts);
-
-    int firstAdded = -1;
-    for (int i = 0; i < this->world.size()*0+2; i += 1 + i) {
-        int rSend = this->getRank() + i;
-        int rRecv = this->getRank() - i;
-        if (rSend < 0) rSend += this->world.size();
-        else rSend %= this->world.size();
-        if (rRecv < 0) rRecv += this->world.size();
-        else rRecv %= this->world.size();
-        if (firstAdded < 0) {
-            firstAdded = rSend;
-        }
-        else if (rSend == firstAdded) {
-            //Completely connected topo
-            break;
-        }
-        this->sendTopo.push_back(rSend);
-        this->recvTopo.push_back(rRecv);
-    }
-
-    //Add all local hosts
-    for (int i = 0, m = this->world.size(); i < m; i++) {
-        if (hosts[i] != hosts[this->getRank()]) {
-            continue;
-        }
-
-        if (std::find(this->sendTopo.begin(), this->sendTopo.end(), i)
-                == this->sendTopo.end()) {
-            this->sendTopo.push_back(i);
-        }
-        if (std::find(this->recvTopo.begin(), this->recvTopo.end(), i)
-                == this->recvTopo.end()) {
-            this->recvTopo.push_back(i);
-        }
-    }
-
-    printf("I am %i and I send to ", getRank());
-    for (int i : this->sendTopo) {
-        printf("%i, ", i);
-    }
-    printf("\n");
-    printf("I am %i and I recv from ", getRank());
-    for (int i : this->recvTopo) {
-        printf("%i, ", i);
-    }
-    printf("\n");
 
     this->workTarget = 1;
     if (this->world.rank() == 0) {
@@ -301,6 +254,17 @@ void Processor::run(const std::string& inputLine) {
         //a tryReceive()...  except when it goes locally)
         if (!this->workInQueue.empty()) {
             msg = this->workInQueue.front();
+            if (JOB_STREAM_DEBUG >= 2) {
+                fprintf(stderr, "%i %lu processing %i ", this->getRank(), 
+                        message::Location::getCurrentTimeMs(), msg->tag);
+                if (msg->tag == Processor::TAG_WORK 
+                        || msg->tag == Processor::TAG_REDUCE_WORK) {
+                    for (const std::string& s : msg->getTypedData<message::WorkRecord>()->getTarget()) {
+                        fprintf(stderr, "::%s", s.c_str());
+                    }
+                }
+                fprintf(stderr, "\n");
+            }
             this->process(msg);
             //Pop after process so that e.g. dead ring tests can look at the
             //reduceTag of what we're currently working on
@@ -331,16 +295,13 @@ void Processor::run(const std::string& inputLine) {
     //Finish all outstanding activity and send a message to everyone letting
     //them know we're done.  Otherwise, messages won't line up and MPI complains
     //about messages being truncated.
-    while (!this->sendRequests.empty()) {
+    while (!this->sendRequests.empty() || this->tryReceive()) {
         this->checkMpi();
     }
-    for (int i = 0, m = this->sendTopo.size(); i < m; i++) {
-        this->_nonBlockingSend(Processor::TAG_IM_DEAD, 
-                message::Header(this->sendTopo[i]), "");
-    }
-    while (this->deadCount < this->recvTopo.size()) {
-        this->checkMpi();
-    }
+    this->world.send(this->getRank(), 0, message::_Message(
+            message::Header(this->getRank()), ""));
+    this->recvRequest->wait();
+    this->world.barrier();
 
     //Stop divide by zero
     timesTotal = (timesTotal > 0) ? timesTotal : 1;
@@ -399,14 +360,20 @@ void Processor::addWork(message::WorkRecord* wr) {
         tag = Processor::TAG_REDUCE_WORK;
     }
     else {
-        dest = this->_getNextWorker();
+        if (this->root->wouldReduce(*wr)) {
+            dest = this->_getNextWorker();
+        }
+        else {
+            //Let stealing take care of it.
+            dest = rank;
+        }
     }
 
     if (dest != rank) {
         std::vector<uint64_t> reduceTags;
         reduceTags.push_back(wr->getReduceTag());
         this->_nonBlockingSend(tag,
-                message::Header(dest, std::move(reduceTags)),
+                message::Header(dest, std::move(reduceTags)), 
                 wr->serialized());
         delete wr;
     }
@@ -475,6 +442,13 @@ void Processor::joinThreads() {
 }
 
 
+bool sortWorkBySize(std::list<std::shared_ptr<MpiMessage>>::iterator a,
+        std::list<std::shared_ptr<MpiMessage>>::iterator b) {
+    return (*a)->getTypedData<message::WorkRecord>()->serialized().size() >
+            (*b)->getTypedData<message::WorkRecord>()->serialized().size();
+}
+
+
 void Processor::maybeAllowSteal(const std::string& messageBuffer) {
     message::StealRing sr(messageBuffer);
     if (JOB_STREAM_DEBUG >= 2) {
@@ -482,20 +456,24 @@ void Processor::maybeAllowSteal(const std::string& messageBuffer) {
     }
 
     //Go through our queue and see if we need work or can donate work.
-    std::vector<std::list<std::shared_ptr<MpiMessage>>::iterator> stealable;
+    std::deque<std::list<std::shared_ptr<MpiMessage>>::iterator> stealable;
     int unstealableWork = 0;
-    //REMEMBER - First work is in progress and should not be stolen!
+    //REMEMBER - First work is in progress and should not be stolen!  Even if
+    //the first work isn't the first in the queue, don't let someone steal it,
+    //since that means we would have nothing else to process
+    bool seenFirst = false;
     auto iter = this->workInQueue.begin();
-    if (iter != this->workInQueue.end()) {
-        iter++;
-    }
     for (; iter != this->workInQueue.end();
             iter++) {
         if ((*iter)->tag == Processor::TAG_WORK) {
-            stealable.push_back(iter);
+            if (seenFirst) {
+                stealable.push_back(iter);
+            }
+            seenFirst = true;
         }
         else if ((*iter)->tag == Processor::TAG_REDUCE_WORK) {
             unstealableWork += 1;
+            seenFirst = true;
         }
     }
 
@@ -514,30 +492,38 @@ void Processor::maybeAllowSteal(const std::string& messageBuffer) {
         int wsize = this->world.size();
         int rank = this->getRank();
         int needWork = 0;
-        for (int i = 0; i < wsize; i++) {
-            if (i == rank) continue;
-            if (sr.needsWork[i]) {
+        for (int i = rank - 1, m = rank - wsize; i > m; --i) {
+            int r = i;
+            if (r < 0) {
+                r += wsize;
+            }
+            if (sr.needsWork[r]) {
                 needWork += 1;
             }
         }
 
         if (needWork > 0) {
+            //Sort stealable work from least desirable to most desirable
+            std::sort(stealable.begin(), stealable.end(), sortWorkBySize);
+
             int stealTop = stealable.size();
             int stealSlice = stealTop / needWork;
             if (unstealableWork < stealSlice) {
                 stealSlice = (stealTop + unstealableWork) / (needWork + 1);
             }
             int stealBottom = std::max(0, stealTop - stealSlice * needWork);
-            for (int i = 0; i < wsize; i++) {
-                if (i == rank) continue;
-                if (!sr.needsWork[i]) continue;
+            for (int i = rank - 1, m = rank - wsize; i > m; --i) {
+                int r = i;
+                if (r < 0) {
+                    r += wsize;
+                }
+                if (!sr.needsWork[r]) continue;
 
                 //Give work to this rank!
-                sr.needsWork[i] = false;
+                sr.needsWork[r] = false;
 
                 message::GroupMessage msgOut;
                 std::vector<uint64_t> reduceTags;
-                msgOut.destination = i;
                 int stealNext = std::min(stealTop, stealBottom + stealSlice);
                 for (int j = stealBottom; j < stealNext; j++) {
                     const MpiMessage& msg = **stealable[j];
@@ -549,7 +535,7 @@ void Processor::maybeAllowSteal(const std::string& messageBuffer) {
                 stealBottom = stealNext;
 
                 this->_nonBlockingSend(Processor::TAG_GROUP, 
-                        message::Header(i, std::move(reduceTags)),
+                        message::Header(r, std::move(reduceTags)),
                         msgOut.serialized());
 
                 if (stealBottom == stealTop) {
@@ -934,31 +920,12 @@ bool Processor::tryReceive() {ZZZ
     bool wasSteal = false;
     std::string stealBuffer;
 
-    if (this->recvRequests.size() == 0) {ZZZ
-        //First time!  Generate requests
-        //Make sure that recvBuffers is never moved!  Otherwise our references
-        //become invalid
-        this->recvBuffers.reserve(this->recvTopo.size());
-        this->recvRequests.reserve(this->recvTopo.size());
-        for (int i = 0, m = this->recvTopo.size(); i < m; i++) {
-            this->recvBuffers.emplace_back();
-            this->recvRequests.emplace_back(this->world.irecv(
-                    this->recvTopo[i], mpi::any_tag, this->recvBuffers[i]));
-        }
+    if (!this->recvRequest) {
+        this->recvRequest = this->world.irecv(mpi::any_source, mpi::any_tag,
+                this->recvBuffer);
     }
 
-    int index, m;
-    boost::optional<mpi::status> recvMaybe;
-ZZ
-    for (index = 0, m = this->recvTopo.size(); index < m; index++) {
-        if (!this->recvRequests[index]) {
-            //Dead
-            continue;
-        }
-        if (recvMaybe = this->recvRequests[index].get().test()) {
-            break;
-        }
-    }
+    boost::optional<mpi::status> recvMaybe = this->recvRequest->test();
     if (!recvMaybe) {
         //Nothing received yet
         return false;
@@ -970,7 +937,7 @@ ZZ
         WorkTimer systemTimer(this, Processor::TIME_SYSTEM);ZZZ
 
         int tag = recv.tag();
-        message::_Message& msg = this->recvBuffers[index];
+        message::_Message& msg = this->recvBuffer;
 
         //NOTE - The way boost::mpi receives into strings corrupts the 
         //string.  That's why we copy it here with a substr() call.
@@ -985,17 +952,6 @@ ZZ
             //Forward it to the proper destination.
             this->_nonBlockingSend(tag, std::move(msg.header), 
                     std::move(msg.buffer));
-        }
-        else if (tag == Processor::TAG_IM_DEAD) {ZZZ
-            //Steal requests happen out of sync with everything else; they can
-            //even be serviced in the middle of work!
-            this->recvRequests[index] = boost::optional<mpi::request>();
-            this->deadCount += 1;
-
-            //Note - we specifically do NOT want to start a new request on this
-            //rank.  This should be the only condition that returns early once
-            //we have a message.
-            return true;
         }
         else if (tag == Processor::TAG_STEAL) {ZZZ
             //Since maybeAllowSteal() can result in a tryReceive call when
@@ -1027,9 +983,9 @@ ZZ
     //std::move() with a buffer doesn't always seem to swap them, so make
     //sure that the next payload has a new home
     std::string nextBuffer;
-    std::swap(nextBuffer, this->recvBuffers[index].buffer);
-    this->recvRequests[index] = this->world.irecv(this->recvTopo[index], 
-            mpi::any_tag, this->recvBuffers[index]);
+    std::swap(nextBuffer, this->recvBuffer.buffer);
+    this->recvRequest = this->world.irecv(mpi::any_source, mpi::any_tag, 
+            this->recvBuffer);
 ZZ
     if (wasSteal) {
         WorkTimer stealTimer(this, Processor::TIME_SYSTEM);
@@ -1051,8 +1007,6 @@ int Processor::_getNextWorker() {
         this->workTarget = 0;
         return 0;
     }
-    //this->workTarget = (this->workTarget + 1) % this->sendTopo.size();
-    //return this->sendTopo[this->workTarget];
     //Tends to be slower
     //return rand() % this->world.size();
     int size = (int)this->world.size();
@@ -1074,34 +1028,9 @@ void Processor::_nonBlockingSend(int tag, message::Header header,
         this->reduceInfoMap[reduceTag].childTagCount += 1;
     }
 
-    //Is this going within our work topo?
-    bool found = false;
-    int closest = -1;
-    int closestDist = this->world.size();
-    for (int i : this->sendTopo) {
-        if (i == dest) {
-            found = true;
-            break;
-        }
-
-        //Get as close as possible without overshooting
-        int dist = dest - i;
-        if (dist < 0) {
-            dist += this->world.size();
-        }
-        if (dist < closestDist) {
-            closestDist = dist;
-            closest = i;
-        }
-    }
-    int realDest = dest;
-    if (!found) {
-        realDest = closest;
-    }
-
     message::_Message msg(std::move(header), std::move(payload));
     WorkTimer timer(this, Processor::TIME_COMM);
-    mpi::request request = this->world.isend(realDest, tag, msg);
+    mpi::request request = this->world.isend(dest, tag, msg);
     this->sendRequests.emplace_back(request, std::move(msg.header.reduceTags));
 }
 

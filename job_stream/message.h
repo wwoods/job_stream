@@ -66,16 +66,12 @@ namespace message {
         }
 
 
-        int destination;
-        //For forwarding convenience
-        std::vector<uint64_t> reduceTags;
         std::vector<int> messageTags;
         std::vector<std::string> messages;
     private:
         friend class boost::serialization::access;
         template<class Archive>
         void serialize(Archive& ar, const unsigned int version) {
-            ar & this->destination & this->reduceTags;
             int m = messageTags.size();
             ar & m;
             if (Archive::is_saving::value) {

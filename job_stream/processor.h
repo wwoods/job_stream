@@ -178,7 +178,6 @@ public:
         TAG_STEAL,
         /** A group of messages - tag, body, tag, body, etc. */
         TAG_GROUP,
-        TAG_IM_DEAD,
         /** Placeholder for number of tags */
         TAG_COUNT,
     };
@@ -275,8 +274,6 @@ private:
     /** Array containing how many cpu clocks were spent in each type of 
         operation.  Indexed by ProcessorTimeType */
     std::unique_ptr<uint64_t[]> clksByType;
-    /** Number of TAG_IM_DEAD messages received. */
-    int deadCount;
     /** Our environment */
     std::unique_ptr<boost::mpi::environment> env;
     /** Running count of messages by tag */
@@ -284,11 +281,9 @@ private:
     /* The stdin management thread; only runs on node 0 */
     boost::thread* processInputThread;
     /* Buffers corresponding to requests */
-    std::vector<message::_Message> recvBuffers;
+    message::_Message recvBuffer;
     /* The current message receiving requests (null when dead) */
-    std::vector<boost::optional<boost::mpi::request>> recvRequests;
-    /** The topography of our communications; where we receive from. */
-    std::vector<int> recvTopo;
+    boost::optional<boost::mpi::request> recvRequest;
     /* The current number of assigned tags for reductions */
     uint64_t reduceTagCount;
     std::map<uint64_t, ProcessorReduceInfo> reduceInfoMap;
@@ -300,8 +295,6 @@ private:
     bool sawEof;
     /** Currently pending outbound nonBlocking requests */
     std::list<ProcessorSendInfo> sendRequests;
-    /** The topography of our communications; where we send to */
-    std::vector<int> sendTopo;
     /* Set when we send ring test for 0 */
     bool sentEndRing0;
     /* True until quit message is received (ring 0 is completely closed). */

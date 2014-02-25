@@ -21,6 +21,9 @@ public:
     /* Find the Job responsible for processing work and run it. */
     virtual void dispatchWork(message::WorkRecord& work);
 
+    /** Would the given work make a new reduction? */
+    virtual bool wouldReduce(message::WorkRecord& work);
+
     /* Get our module level */
     int getLevel() const { return this->level; }
 

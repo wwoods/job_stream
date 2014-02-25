@@ -65,8 +65,8 @@ public:
 class MakeSystems : public job_stream::Job<LoadedInt> {
 public:
     static MakeSystems* make() { return new MakeSystems(); }
-    void handleWork(unique_ptr<LoadedInt> networkCount) {
-        for (int i = 0; i < networkCount->value; i++) {
+    void handleWork(unique_ptr<LoadedInt> unused) {
+        for (int i = 0; i < this->config["count"].as<int>(); i++) {
             this->emit(LoadedInt(this->globalConfig["sleepTime"].as<int>(),
                     this->globalConfig["dataSize"].as<int>()));
         }
@@ -78,9 +78,12 @@ class EvalSystem : public job_stream::Job<LoadedInt> {
 public:
     static EvalSystem* make() { return new EvalSystem(); }
     void handleWork(unique_ptr<LoadedInt> sleepTime) {
-        const int max = sleepTime->value * 200000;
-        volatile int i = 0;
-        while (++i != max);
+        for (int j = 0; j < 10; j++) {
+            this->checkMpi();
+            const int max = sleepTime->value * 20000;
+            volatile int i = 0;
+            while (++i != max);
+        }
         this->emit(sleepTime);
     }
 };
@@ -101,6 +104,8 @@ public:
     }
 
     void handleDone(SystemCheck& current) {
+        current.iteration += 1;
+        printf("Iteration %i done\n", current.iteration);
         if (current.iteration >= this->config["iterations"].as<int>()) {
             printf("Done!\n");
             this->emit(current.works[0]);
@@ -113,8 +118,6 @@ public:
 
         //Wait for those to come through, maintain population size
         current.works.clear();
-        current.iteration += 1;
-        printf("Iteration %i\n", current.iteration);
     }
 };
 
