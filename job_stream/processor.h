@@ -16,6 +16,17 @@
 
 namespace job_stream {
 namespace processor {
+    class AnyUniquePtr;
+}
+}
+
+namespace std {
+    void swap(job_stream::processor::AnyUniquePtr& p1,
+            job_stream::processor::AnyUniquePtr& p2);
+}
+
+namespace job_stream {
+namespace processor {
 
 /* Debug flag when testing library; 
   1 = basic messages (min output),
@@ -23,21 +34,21 @@ namespace processor {
 extern const int JOB_STREAM_DEBUG;
 
 
-/** Generic thread-safe queue class. */
+/** Generic thread-safe queue class with unique_ptrs. */
 template<typename T>
 class ThreadSafeQueue {
 public:
-    void push(const T& value) {
+    void push(std::unique_ptr<T> value) {
         boost::mutex::scoped_lock lock(this->mutex);
-        this->queue.push_back(value);
+        this->queue.push_back(std::move(value));
     }
 
-    bool pop(T& value) {
+    bool pop(std::unique_ptr<T>& value) {
         boost::mutex::scoped_lock lock(this->mutex);
         if (this->queue.empty()) {
             return false;
         }
-        value = this->queue.front();
+        value = std::move(this->queue.front());
         this->queue.pop_front();
         return true;
     }
@@ -47,39 +58,81 @@ public:
         return this->queue.size();
     }
 
-    /** Walk through queue calling canSteal() on each element; if canSteal
-        returns true for any element, put that element in value, and remove
-        it from our queue.  Returns true if something was stolen, false 
-        otherwise.
+private:
+    std::deque<std::unique_ptr<T>> queue;
+    boost::mutex mutex;
+};
 
-        minCount - At least this many messages must be found in queue to
-                remove first.
-        */
-    bool steal(bool (*canSteal)(const T& value), int minCount, T& value) {
-        boost::mutex::scoped_lock lock(this->mutex);
 
-        int firstEl = -1;
-        int count = 0;
-        for (int i = 0, m = this->queue.size(); i < m; i++) {
-            if (canSteal(this->queue[i])) {
-                count += 1;
-                if (count == 1) {
-                    firstEl = i;
-                }
-                if (count >= minCount) {
-                    value = this->queue[firstEl];
-                    this->queue.erase(this->queue.begin() + firstEl);
-                    return true;
-                }
-            }
+
+/** A cheat for a unique_ptr to any class which can be retrieved later and is
+    properly deleted.  Application is responsible for keeping track of the type
+    though.  This just prevents you from needing to write a tricky destructor,
+    so you can focus on logic. */
+class AnyUniquePtr {
+public:
+    AnyUniquePtr() {}
+
+    template<class T>
+    AnyUniquePtr(std::unique_ptr<T> ptr) : 
+            _impl(new AnyPtrImpl<T>(std::move(ptr))) {}
+
+    AnyUniquePtr(AnyUniquePtr&& other) : _impl(std::move(other._impl)) {}
+
+    virtual ~AnyUniquePtr() {}
+
+    operator bool() const {
+        return (bool)this->_impl;
+    }
+
+    template<class T>
+    AnyUniquePtr& operator=(std::unique_ptr<T> ptr) {
+        this->_impl.reset(new AnyPtrImpl<T>(std::move(ptr)));
+    }
+
+    template<class T>
+    T* get() { 
+        if (!this->_impl) {
+            return 0;
         }
+        return (T*)this->_impl->get();
+    }
 
-        return false;
+    void reset() {
+        this->_impl.reset();
+    }
+
+    template<class T>
+    void reset(T* ptr) {
+        this->_impl.reset(new AnyPtrImpl<T>(std::unique_ptr<T>(ptr)));
+    }
+
+    void swapWith(AnyUniquePtr& other) {
+        std::swap(this->_impl, other._impl);
     }
 
 private:
-    std::deque<T> queue;
-    boost::mutex mutex;
+    struct AnyPtrImplBase {
+        AnyPtrImplBase(void* ptr) : void_ptr(ptr) {}
+        virtual ~AnyPtrImplBase() {}
+
+        void* get() { return void_ptr; }
+
+    protected:
+        void* void_ptr;
+    };
+
+    template<class T>
+    struct AnyPtrImpl : public AnyPtrImplBase {
+        AnyPtrImpl(std::unique_ptr<T> ptr) : AnyPtrImplBase((void*)ptr.get()), 
+                t_ptr(std::move(ptr)) {}
+
+        virtual ~AnyPtrImpl() {}
+    private:
+        std::unique_ptr<T> t_ptr;
+    };
+
+    std::unique_ptr<AnyPtrImplBase> _impl;
 };
 
 
@@ -90,32 +143,32 @@ struct MpiMessage {
     /** The MPI message tag that this message belongs to */
     int tag;
 
-    MpiMessage(int tag, void* data);
+    MpiMessage(int tag, AnyUniquePtr data);
 
     /** Kind of a factory method - depending on tag, deserialize message into
         the desired message class, and put it in data. */
     MpiMessage(int tag, std::string&& message);
 
-    MpiMessage(MpiMessage&& other) : tag(other.tag), data(0) {
+    MpiMessage(MpiMessage&& other) : tag(other.tag) {
         std::swap(this->data, other.data);
         std::swap(this->encodedMessage, other.encodedMessage);
     }
 
-    ~MpiMessage();
+    ~MpiMessage() {}
 
     std::string serialized() const;
 
     template<typename T>
     T* getTypedData() const {
         this->_ensureDecoded();
-        return (T*)this->data;
+        return this->data.get<T>();
     }
 
 private:
     /** An owned version of the data in this message - deleted manually in
         destructor.  We would use unique_ptr, but we don't know the type of our 
         data! */
-    mutable void* data;
+    mutable AnyUniquePtr data;
 
     /** The string representing this message, serialized. */
     mutable std::string encodedMessage;
@@ -218,7 +271,7 @@ public:
 
 
     /** Add work to our workInQueue.  We now own wr. */
-    void addWork(message::WorkRecord* wr);
+    void addWork(std::unique_ptr<message::WorkRecord> wr);
     /** Allocate and return a new tag for reduction operations. */
     uint64_t getNextReduceTag();
     /** Return this Processor's rank */
@@ -309,7 +362,7 @@ private:
     /* workOutQueue gets redistributed to all workers; MPI is not implicitly
        thread-safe, that is why this queue exists.  Used for input only at
        the moment. */
-    ThreadSafeQueue<message::WorkRecord*> workOutQueue;
+    ThreadSafeQueue<message::WorkRecord> workOutQueue;
     int workTarget;
     std::vector<_WorkTimerRecord> workTimers;
     boost::mpi::communicator world;

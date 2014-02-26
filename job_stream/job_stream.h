@@ -81,11 +81,11 @@ namespace job_stream {
                         .template as<std::string>();
             }
 
-            message::WorkRecord* wr = new message::WorkRecord(
+            std::unique_ptr<message::WorkRecord> wr(new message::WorkRecord(
                     this->getTargetForJob(nextTarget),
-                    serialization::encode(&output));
+                    serialization::encode(&output)));
             wr->chainFrom(*this->currentRecord);
-            this->processor->addWork(wr);
+            this->processor->addWork(std::move(wr));
         }
 
     private:
@@ -252,10 +252,11 @@ namespace job_stream {
             processor::Processor::WorkTimer timer(this->processor, 
                     processor::Processor::TIME_SYSTEM);
 
-            message::WorkRecord* wr = new message::WorkRecord(
-                    this->getTargetForReducer(), serialization::encode(&output));
+            std::unique_ptr<message::WorkRecord> wr(new message::WorkRecord(
+                    this->getTargetForReducer(), 
+                    serialization::encode(&output)));
             wr->chainFrom(*this->currentRecord);
-            this->processor->addWork(wr);
+            this->processor->addWork(std::move(wr));
         }
 
 
@@ -311,10 +312,10 @@ namespace job_stream {
                         .template as<std::string>());
             }
 
-            message::WorkRecord* wr = new message::WorkRecord(
-                    ntarget, serialization::encode(&output));
+            std::unique_ptr<message::WorkRecord> wr(new message::WorkRecord(
+                    ntarget, serialization::encode(&output)));
             wr->chainFrom(*this->currentRecord);
-            this->processor->addWork(wr);
+            this->processor->addWork(std::move(wr));
 
             //Restore old reduce information and set hadRecurrence so that our
             //reduction ring isn't marked dead

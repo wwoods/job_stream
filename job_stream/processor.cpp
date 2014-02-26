@@ -14,6 +14,13 @@
 
 namespace mpi = boost::mpi;
 
+namespace std {
+    void swap(job_stream::processor::AnyUniquePtr& p1,
+            job_stream::processor::AnyUniquePtr& p2) {
+        p1.swapWith(p2);
+    }
+}
+
 namespace job_stream {
 namespace processor {
 
@@ -21,7 +28,7 @@ static std::map<std::string, std::function<job::JobBase* ()> > jobTypeMap;
 static std::map<std::string, std::function<job::ReducerBase* ()> > 
         reducerTypeMap;
 
-extern const int JOB_STREAM_DEBUG = 1;
+extern const int JOB_STREAM_DEBUG = 0;
 
 class _Z_impl {
 public:
@@ -83,43 +90,27 @@ void Processor::addReducer(const std::string& typeName,
 
 
 
-MpiMessage::MpiMessage(int tag, void* data) : tag(tag), data(data) {}
+MpiMessage::MpiMessage(int tag, AnyUniquePtr data) : tag(tag), 
+        data(std::move(data)) {}
 
 
 MpiMessage::MpiMessage(int tag, std::string&& message) : tag(tag),
-        data(0), encodedMessage(message) {
-}
-
-
-MpiMessage::~MpiMessage() {
-    if (!this->data) {
-        //ok, never allocated
-    }
-    else if (tag == Processor::TAG_WORK || tag == Processor::TAG_REDUCE_WORK) {
-        delete (message::WorkRecord*)this->data;
-    }
-    else if (tag == Processor::TAG_DEAD_RING_TEST
-            || tag == Processor::TAG_DEAD_RING_IS_DEAD) {
-        delete (message::DeadRingTestMessage*)this->data;
-    }
-    else {
-        throw std::runtime_error("~MpiMessage() didn't find tag?");
-    }
+        encodedMessage(message) {
 }
 
 
 std::string MpiMessage::serialized() const {
-    if (this->data == 0) {
+    if (!this->data) {
         //Already serialized!
         return this->encodedMessage;
     }
 
     if (tag == Processor::TAG_WORK || tag == Processor::TAG_REDUCE_WORK) {
-        return ((message::WorkRecord*)this->data)->serialized();
+        return this->data.get<message::WorkRecord>()->serialized();
     }
     else if (tag == Processor::TAG_DEAD_RING_TEST
             || tag == Processor::TAG_DEAD_RING_IS_DEAD) {
-        return ((message::DeadRingTestMessage*)this->data)->serialized();
+        return this->data.get<message::DeadRingTestMessage>()->serialized();
     }
     else {
         throw std::runtime_error("MpiMessage::serialized() didn't find tag");
@@ -134,11 +125,11 @@ void MpiMessage::_ensureDecoded() const {
 
     std::string&& message = std::move(this->encodedMessage);
     if (this->tag == Processor::TAG_WORK || tag == Processor::TAG_REDUCE_WORK) {
-        this->data = new message::WorkRecord(message);
+        this->data.reset(new message::WorkRecord(message));
     }
     else if (this->tag == Processor::TAG_DEAD_RING_TEST
             || this->tag == Processor::TAG_DEAD_RING_IS_DEAD) {
-        this->data = new message::DeadRingTestMessage(message);
+        this->data.reset(new message::DeadRingTestMessage(message));
     }
     else {
         std::ostringstream ss;
@@ -227,7 +218,7 @@ void Processor::run(const std::string& inputLine) {
     }
 
     int dest, tag;
-    message::WorkRecord* work;
+    std::unique_ptr<message::WorkRecord> work;
     std::shared_ptr<MpiMessage> msg;
     //Begin tallying time spent in system vs user functionality.
     std::unique_ptr<WorkTimer> outerTimer(new WorkTimer(this, 
@@ -245,8 +236,7 @@ void Processor::run(const std::string& inputLine) {
 
             //Distribute any outbound work
             while (this->workOutQueue.pop(work)) {
-                //deletes work if it is not added locally.
-                this->addWork(work);
+                this->addWork(std::move(work));
             }
         }
 
@@ -351,7 +341,7 @@ void Processor::run(const std::string& inputLine) {
 }
 
 
-void Processor::addWork(message::WorkRecord* wr) {
+void Processor::addWork(std::unique_ptr<message::WorkRecord> wr) {
     int dest, rank = this->getRank();
     int tag = Processor::TAG_WORK;
     const std::vector<std::string>& target = wr->getTarget();
@@ -385,10 +375,9 @@ void Processor::addWork(message::WorkRecord* wr) {
         this->_nonBlockingSend(tag,
                 message::Header(dest, std::move(reduceTags)), 
                 wr->serialized());
-        delete wr;
     }
     else {
-        this->workInQueue.emplace_back(new MpiMessage(tag, wr));
+        this->workInQueue.emplace_back(new MpiMessage(tag, std::move(wr)));
     }
 }
 
@@ -570,8 +559,9 @@ void Processor::maybeAllowSteal(const std::string& messageBuffer) {
 void Processor::_enqueueInputWork(const std::string& line) {
     //All input goes straight to the root module by default...
     std::vector<std::string> inputDest;
-    this->workOutQueue.push(new message::WorkRecord(inputDest,
-            this->root->parseAndSerialize(line)));
+    this->workOutQueue.push(std::unique_ptr<message::WorkRecord>(
+            new message::WorkRecord(inputDest, 
+                std::move(this->root->parseAndSerialize(line)))));
 }
 
 

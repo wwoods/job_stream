@@ -51,12 +51,6 @@ std::vector<std::string> SharedBase::getTargetForJob(std::string target) {
         targetNew.pop_back();
     }
     targetNew.push_back(target);
-
-    fprintf(stderr, "%i got job targ: ", getpid());
-    for (std::string& s : targetNew) {
-        fprintf(stderr, "::%s", s.c_str());
-    }
-    fprintf(stderr, "\n");
     return targetNew;
 }
 
@@ -90,11 +84,6 @@ std::vector<std::string> SharedBase::getTargetForReducer() {
         targetNew.push_back("output");
         targetNew.push_back("reduced");
     }
-    fprintf(stderr, "%i got red targ: ", getpid());
-    for (std::string& s : targetNew) {
-        fprintf(stderr, "::%s", s.c_str());
-    }
-    fprintf(stderr, "\n");
     return targetNew;
 }
 
