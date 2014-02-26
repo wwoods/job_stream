@@ -37,11 +37,6 @@ std::tuple<string, string> run(string prog, string args,
 }
 
 
-string runOut(string prog, string args, string input) {
-    return std::get<0>(run(std::move(prog), std::move(args), std::move(input)));
-}
-
-
 string getLastLine(string text) {
     int ptr = text.size() - 1;
     while (ptr != string::npos && boost::algorithm::trim_right_copy(
@@ -54,24 +49,31 @@ string getLastLine(string text) {
 }
 
 
+void runWithExpectedOut(string prog, string args, string input, string output,
+        bool lastOnly) {
+    string out, err;
+    std::tie(out, err) = run(std::move(prog), std::move(args), 
+            std::move(input));
+
+    INFO("Full stdout: " << out);
+    INFO("Full stderr: " << err);
+    if (lastOnly) {
+        out = getLastLine(std::move(out));
+    }
+    REQUIRE(output == out);
+}
+
+
 void testExample(string pipe, string input, string output,
         bool lastOnly = false) {
     SECTION(pipe) {
         string prog = "mpirun";
         string args = "example/job_stream_example ../example/" + pipe;
         WHEN("one process") {
-            string out = runOut(prog, "-np 1 " + args, input);
-            if (lastOnly) {
-                out = getLastLine(std::move(out));
-            }
-            REQUIRE(output == out);
+            runWithExpectedOut(prog, "-np 1 " + args, input, output, lastOnly);
         }
         WHEN("four processes") {
-            string out = runOut(prog, "-np 4 " + args, input);
-            if (lastOnly) {
-                out = getLastLine(std::move(out));
-            }
-            REQUIRE(output == out);
+            runWithExpectedOut(prog, "-np 4 " + args, input, output, lastOnly);
         }
     }
 }

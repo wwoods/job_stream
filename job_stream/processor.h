@@ -185,7 +185,7 @@ struct ProcessorReduceInfo {
 
     /** Any messages waiting on this tag to resume (childTagCount != 0, waiting
         for 0). */
-    std::vector<std::shared_ptr<MpiMessage>> messagesWaiting;
+    std::vector<std::unique_ptr<MpiMessage>> messagesWaiting;
 
     /** The workCount from our reduction; used to tell when a ring is done
         processing and can be settled (marked done). */
@@ -297,7 +297,7 @@ protected:
     void decrReduceChildTag(uint64_t reduceTag);
     /** Called to handle a ring test message, possibly within tryReceive, or
         possibly in the main work loop. */
-    void handleRingTest(std::shared_ptr<MpiMessage> message, bool isWork);
+    void handleRingTest(std::unique_ptr<MpiMessage> message, bool isWork);
     /** If we have an input thread, join it */
     void joinThreads();
     /** We got a steal message; decode it and maybe give someone work. */
@@ -307,7 +307,7 @@ protected:
     void processInputThread_main(const std::string& inputLine);
     /** Process a previously received mpi message.  Passed non-const so that it
         can be steal-constructored (rvalue) */
-    void process(std::shared_ptr<MpiMessage> message);
+    void process(std::unique_ptr<MpiMessage> message);
     /** Try to receive the current request, or make a new one */
     bool tryReceive();
 
@@ -355,10 +355,8 @@ private:
     /** Array containing how much time was spent in each type of operation.
         Indexed by ProcessorTimeType */
     std::unique_ptr<uint64_t[]> timesByType;
-    //Any work waiting to be done on this Processor.  First element in queue
-    //is current work.  We use shared_ptr so we can pass it around and still
-    //read from first element for e.g. reduce tags.
-    std::list<std::shared_ptr<MpiMessage>> workInQueue;
+    //Any work waiting to be done on this Processor.
+    std::list<std::unique_ptr<MpiMessage>> workInQueue;
     /* workOutQueue gets redistributed to all workers; MPI is not implicitly
        thread-safe, that is why this queue exists.  Used for input only at
        the moment. */

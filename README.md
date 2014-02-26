@@ -269,6 +269,7 @@ Roadmap
 -------
 
 * Make a checkpoint, convert to server / worker model in a single process
+* Sleep 0 or 1 when we don't get any messages for awhile...
 * Merge job\_stream\_inherit into job\_stream\_example (and test it)
 * TIME\_COMM should not include initial isend request, since we're not using
   primitive objects and that groups in the serialization time
