@@ -49,6 +49,15 @@ endif()
 
 include_directories("include/")
 
+SET(REQ_LIB
+        ${BOOST_LIB}/libboost_system.a
+        ${BOOST_LIB}/libboost_thread.a
+        ${BOOST_LIB}/libboost_serialization.a
+        ${BOOST_LIB}/libboost_mpi.a
+        ${YAML_LIB}/libyaml-cpp.a
+        # rt must be last
+        rt)
+
 add_library(job_stream 
         job_stream/job_stream.cpp
         job_stream/job.cpp
@@ -56,11 +65,35 @@ add_library(job_stream
         job_stream/module.cpp
         job_stream/processor.cpp
         job_stream/serialization.cpp)
-target_link_libraries(job_stream ${BOOST_LIB}/libboost_system.a)
-target_link_libraries(job_stream ${BOOST_LIB}/libboost_thread.a)
-target_link_libraries(job_stream ${BOOST_LIB}/libboost_serialization.a)
-target_link_libraries(job_stream ${BOOST_LIB}/libboost_mpi.a)
-target_link_libraries(job_stream ${YAML_LIB}/libyaml-cpp.a)
+target_link_libraries(job_stream ${REQ_LIB})
 
-# rt must be last
-target_link_libraries(job_stream rt)
+# Examples
+add_executable(example/job_stream_example example/main.cpp)
+add_custom_command(TARGET example/job_stream_example
+        PRE_BUILD COMMAND mkdir -p example)
+target_link_libraries(example/job_stream_example job_stream ${REQ_LIB})
+target_include_directories(example/job_stream_example PUBLIC .)
+
+add_executable(example/job_stream_stable example/stable.cpp)
+add_custom_command(TARGET example/job_stream_stable
+        PRE_BUILD COMMAND mkdir -p example)
+target_link_libraries(example/job_stream_stable job_stream ${REQ_LIB})
+target_include_directories(example/job_stream_stable PUBLIC .)
+
+add_custom_target(example)
+add_dependencies(example 
+        example/job_stream_example
+        example/job_stream_stable)
+
+# Tests
+FILE(GLOB TEST_SOURCES "job_stream/test/*.cpp" "test/*.cpp")
+add_executable(test_job_stream ${TEST_SOURCES} 
+        test/libexecstream/exec-stream.cpp)
+target_include_directories(test_job_stream PUBLIC "include/" 
+        "test/libexecstream/")
+add_dependencies(test_job_stream example)
+
+add_custom_target(test DEPENDS test_job_stream)
+add_custom_command(TARGET test
+        POST_BUILD COMMAND test_job_stream)
+

@@ -21,7 +21,7 @@ static std::map<std::string, std::function<job::JobBase* ()> > jobTypeMap;
 static std::map<std::string, std::function<job::ReducerBase* ()> > 
         reducerTypeMap;
 
-extern const int JOB_STREAM_DEBUG = 0;
+extern const int JOB_STREAM_DEBUG = 1;
 
 class _Z_impl {
 public:
@@ -254,7 +254,7 @@ void Processor::run(const std::string& inputLine) {
         //a tryReceive()...  except when it goes locally)
         if (!this->workInQueue.empty()) {
             msg = this->workInQueue.front();
-            if (JOB_STREAM_DEBUG >= 2) {
+            if (JOB_STREAM_DEBUG >= 1) {
                 fprintf(stderr, "%i %lu processing %i ", this->getRank(), 
                         message::Location::getCurrentTimeMs(), msg->tag);
                 if (msg->tag == Processor::TAG_WORK 
@@ -355,7 +355,17 @@ void Processor::addWork(message::WorkRecord* wr) {
     int dest, rank = this->getRank();
     int tag = Processor::TAG_WORK;
     const std::vector<std::string>& target = wr->getTarget();
-    if (target.size() > 0 && target[target.size() - 1] == "output") {
+    if (target.size() > 1 && target[target.size() - 2] == "output") {
+        //Reduced output for top-level reducer
+        if (target[target.size() - 1] != "reduced") {
+            std::ostringstream ss;
+            ss << "Unexpected tag after output: " << target[target.size() - 1];
+            throw std::runtime_error(ss.str());
+        }
+        dest = 0;
+        tag = Processor::TAG_REDUCE_WORK;
+    }
+    else if (target.size() > 0 && target[target.size() - 1] == "output") {
         dest = wr->getReduceHomeRank();
         tag = Processor::TAG_REDUCE_WORK;
     }
