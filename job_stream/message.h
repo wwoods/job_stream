@@ -12,12 +12,13 @@ namespace message {
     struct Header {
         /** For boost */
         Header() {}
-        Header(Header&& other) : dest(other.dest), 
+        Header(Header&& other) : tag(other.tag), dest(other.dest), 
                 reduceTags(std::move(other.reduceTags)) {}
-        Header(int dest, 
+        Header(int tag, int dest, 
                 std::vector<uint64_t> reduceTags = std::vector<uint64_t>())
-            : dest(dest), reduceTags(std::move(reduceTags)) {}
+            : tag(tag), dest(dest), reduceTags(std::move(reduceTags)) {}
 
+        int tag;
         int dest;
         /** Reduce tags held up by the contained message; that is, deliberately
             block completion of a ring with any of these tags. */
@@ -27,7 +28,7 @@ namespace message {
         friend class boost::serialization::access;
         template<class Archive>
         void serialize(Archive& ar, const unsigned int version) {
-            ar & dest & reduceTags;
+            ar & tag & dest & reduceTags;
         }
     };
 

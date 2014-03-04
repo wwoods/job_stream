@@ -2,9 +2,11 @@
 #define JOB_STREAM_JOB_H_
 
 #include "message.h"
+#include "types.h"
 #include "yaml.h"
 
 #include <memory>
+#include <mutex>
 #include <string>
 
 namespace job_stream {
@@ -44,18 +46,12 @@ namespace job {
                 const YAML::Node& config, 
                 const YAML::Node& globalConfig);
 
-        /** If you notice you parallelism isn't as good as you might expect,
-            call this function periodically in your job / reducer.  It updates
-            all of the asynchronous MPI operations, meaning that buffers that
-            were once full may be filled again. */
-        void checkMpi();
-
     protected:
         /* Our job's specific config, including "to", "id", and "type". */
         YAML::Node config;
 
         /* The current WorkRecord being processed; NULL out of processing */
-        message::WorkRecord* currentRecord;
+        static thread_local message::WorkRecord* currentRecord;
 
         /* Our module's config, from global module_config or submodule
          * instantiation */
@@ -73,7 +69,7 @@ namespace job {
         /** Since reducers can have handleWork() vs handleDone(), one of which
             has ::output as the target, and the other is the target of the 
             module itself.  */
-        bool targetIsModule;
+        static thread_local bool targetIsModule;
 
         /** Given a target relative to our module, return the whole path to
             that target. */
@@ -136,6 +132,11 @@ namespace job {
 
         /* The accumulator for this record */
         std::unique_ptr<T_accum> accumulator;
+
+        /** To prevent client code from needing its own locks, we ensure that one
+            Reducer's methods aren't called simulateously for the same current
+            reduction. */
+        Mutex mutex;
 
         /* Used for Frames, allows first work to be distinguished.... */
         bool gotFirstWork;

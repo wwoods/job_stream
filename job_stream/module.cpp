@@ -175,6 +175,8 @@ bool Module::wouldReduce(message::WorkRecord& work) {
 
 
 job::JobBase* Module::getJob(const std::string& id) {
+    Lock lock(this->mutex);
+
     auto jobIter = this->jobMap.find(id);
     if (jobIter != this->jobMap.end()) {
         return jobIter->second.get();

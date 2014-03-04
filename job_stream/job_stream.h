@@ -5,6 +5,7 @@
 #include "job.h"
 #include "processor.h"
 #include "serialization.h"
+#include "types.h"
 #include "yaml.h"
 
 #include <boost/mpi.hpp>
@@ -89,12 +90,15 @@ namespace job_stream {
         }
 
     private:
-        std::unique_ptr<T_input> currentWork;
+        static thread_local std::unique_ptr<T_input> currentWork;
 
         virtual std::string getInputTypeName() {
             return typeid(T_input).name();
         }
     };
+
+    template<typename T_input> thread_local std::unique_ptr<T_input> 
+            Job<T_input>::currentWork;
 
 
     /** Specialized reducer class.  Default implementation relies on operator+,
@@ -136,9 +140,10 @@ namespace job_stream {
 
             this->targetIsModule = false;
             this->currentRecord = 0;
-            this->currentReduce = 0;
+            this->unsetCurrentReduce();
 
             if (!this->hadRecurrence) {
+                Lock lock(this->reduceMapMutex);
                 this->reduceMap.erase(reduceTag);
                 return true;
             }
@@ -152,6 +157,9 @@ namespace job_stream {
             uint64_t tag = 1;
             int homeRank = 0;
             bool reallyInit = true;
+
+            Lock lock(this->reduceMapMutex);
+
             //So this is a tiny hack (for elegance though!), but essentially
             //if our work's target is the root module, that means root has
             //a reducer.  But since init work can go anywhere, and is not
@@ -209,7 +217,7 @@ namespace job_stream {
                         std::move(this->currentWork));
             }
 
-            this->currentReduce = 0;
+            this->unsetCurrentReduce();
             this->currentRecord = 0;
         }
 
@@ -227,7 +235,7 @@ namespace job_stream {
                         std::move(this->currentJoin));
             }
 
-            this->currentReduce = 0;
+            this->unsetCurrentReduce();
             this->currentRecord = 0;
         }
 
@@ -325,14 +333,15 @@ namespace job_stream {
 
 
     private:
-        uint64_t currentReduceTag;
-        job::ReduceAccumulator<T_accum>* currentReduce;
-        std::unique_ptr<T_input> currentWork;
-        std::unique_ptr<T_accum> currentJoin;
+        static thread_local uint64_t currentReduceTag;
+        static thread_local job::ReduceAccumulator<T_accum>* currentReduce;
+        static thread_local std::unique_ptr<T_input> currentWork;
+        static thread_local std::unique_ptr<T_accum> currentJoin;
         /** Used in dispatchDone() to see if we had recurrence.  If we did not,
             the reduction is finished. */
-        bool hadRecurrence;
+        static thread_local bool hadRecurrence;
         std::map<uint64_t, job::ReduceAccumulator<T_accum>> reduceMap;
+        Mutex reduceMapMutex;
 
         virtual std::string getInputTypeName() {
             return typeid(T_input).name();
@@ -341,6 +350,7 @@ namespace job_stream {
 
         /** Set currentReduce to point to the right ReduceAccumulator */
         void setCurrentReduce(uint64_t reduceTag) {
+            Lock lock(this->reduceMapMutex);
             auto iter = this->reduceMap.find(reduceTag);
             if (iter == this->reduceMap.end()) {
                 std::ostringstream ss;
@@ -351,11 +361,34 @@ namespace job_stream {
 
             this->currentReduceTag = reduceTag;
             this->currentReduce = &iter->second;
+            this->currentReduce->mutex.lock();
+        }
+
+
+        /** Unlock working with this particular reduceTag */
+        void unsetCurrentReduce() {
+            this->currentReduce->mutex.unlock();
+            this->currentReduce = 0;
         }
 
         template<typename T1, typename T2, typename T3>
         friend class Frame;
     };
+
+    template<typename T_accum, typename T_input>
+    thread_local uint64_t Reducer<T_accum, T_input>::currentReduceTag
+            = (uint64_t)-1;
+    template<typename T_accum, typename T_input>
+    thread_local job::ReduceAccumulator<T_accum>* 
+            Reducer<T_accum, T_input>::currentReduce = 0;
+    template<typename T_accum, typename T_input>
+    thread_local std::unique_ptr<T_input> 
+            Reducer<T_accum, T_input>::currentWork;
+    template<typename T_accum, typename T_input>
+    thread_local std::unique_ptr<T_accum> 
+            Reducer<T_accum, T_input>::currentJoin;
+    template<typename T_accum, typename T_input>
+    thread_local bool Reducer<T_accum, T_input>::hadRecurrence = false;
 
 
     /** A Frame is a special type of Reducer that has special logic based on

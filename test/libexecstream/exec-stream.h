@@ -61,6 +61,7 @@ public:
     
     bool close_in();
     bool close();
+    bool is_alive();
     void kill(int signal = SIGKILL);
     int exit_code();
 

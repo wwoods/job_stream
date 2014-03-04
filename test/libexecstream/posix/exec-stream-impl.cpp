@@ -369,6 +369,25 @@ void exec_stream_t::kill(int signal)
     }
 }
 
+bool exec_stream_t::is_alive() {
+    if (m_impl->m_child_pid != -1) {
+        pid_t code=waitpid( m_impl->m_child_pid, &m_impl->m_exit_code, WNOHANG );
+        if (code == -1) {
+            throw os_error_t("exec_stream_t::is_alive: waitpid failed");
+        }
+        else if (code == 0) {
+            return true;
+        }
+        else {
+            //Dead, no more waiting
+            m_impl->m_child_pid=-1;
+            return false;
+        }
+    }
+
+    return false;
+}
+
 int exec_stream_t::exit_code()
 {
     if( m_impl->m_child_pid!=-1 ) {

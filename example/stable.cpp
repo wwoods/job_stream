@@ -79,7 +79,7 @@ public:
     static EvalSystem* make() { return new EvalSystem(); }
     void handleWork(unique_ptr<LoadedInt> sleepTime) {
         for (int j = 0; j < 10; j++) {
-            this->checkMpi();
+            //this->checkMpi();
             const int max = sleepTime->value * 20000;
             volatile int i = 0;
             while (++i != max);

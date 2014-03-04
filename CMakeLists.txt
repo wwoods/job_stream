@@ -64,7 +64,8 @@ add_library(job_stream
         job_stream/message.cpp
         job_stream/module.cpp
         job_stream/processor.cpp
-        job_stream/serialization.cpp)
+        job_stream/serialization.cpp
+        job_stream/workerThread.cpp)
 target_link_libraries(job_stream ${REQ_LIB})
 
 # Examples
@@ -73,6 +74,12 @@ add_custom_command(TARGET example/job_stream_example
         PRE_BUILD COMMAND mkdir -p example)
 target_link_libraries(example/job_stream_example job_stream ${REQ_LIB})
 target_include_directories(example/job_stream_example PUBLIC .)
+
+add_executable(example/job_stream_neuron example/neuron.cpp)
+add_custom_command(TARGET example/job_stream_neuron
+        PRE_BUILD COMMAND mkdir -p example)
+target_link_libraries(example/job_stream_neuron job_stream ${REQ_LIB})
+target_include_directories(example/job_stream_neuron PUBLIC .)
 
 add_executable(example/job_stream_stable example/stable.cpp)
 add_custom_command(TARGET example/job_stream_stable
@@ -83,13 +90,17 @@ target_include_directories(example/job_stream_stable PUBLIC .)
 add_custom_target(example)
 add_dependencies(example 
         example/job_stream_example
+        example/job_stream_neuron
         example/job_stream_stable)
 
 # Tests
 FILE(GLOB TEST_SOURCES "job_stream/test/*.cpp" "test/*.cpp")
 add_executable(test_job_stream ${TEST_SOURCES} 
         test/libexecstream/exec-stream.cpp)
-target_include_directories(test_job_stream PUBLIC "include/" 
+target_link_libraries(test_job_stream job_stream ${REQ_LIB})
+target_include_directories(test_job_stream PUBLIC 
+        "include/" 
+        "./"
         "test/libexecstream/")
 add_dependencies(test_job_stream example)
 

@@ -12,7 +12,7 @@ tests:
 input: initNeuralNets
 reducer: 
     type: checkErrorAndBreed
-    error: 0.75
+    error: 0.05
     recurTo: testNetworks
 jobs:
     initNeuralNets:

@@ -11,7 +11,11 @@
 namespace job_stream {
 namespace job {
 
-SharedBase::SharedBase() : targetIsModule(false), currentRecord(0) {
+thread_local message::WorkRecord* SharedBase::currentRecord = 0;
+thread_local bool SharedBase::targetIsModule = false;
+
+
+SharedBase::SharedBase() {
 }
 
 
@@ -36,9 +40,6 @@ void SharedBase::setup(processor::Processor* processor, module::Module* parent,
     this->config = config;
     this->globalConfig = globalConfig;
 }
-
-
-void SharedBase::checkMpi()  { processor->checkMpi(); }
 
 
 std::vector<std::string> SharedBase::getTargetForJob(std::string target) {

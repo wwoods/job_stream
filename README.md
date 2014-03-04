@@ -264,12 +264,27 @@ Words of Warning
 Sometimes, passing -bind-to-core to mpirun can have a profoundly positive impact
 on performance.
 
+Job and reduction routines MUST be thread safe.  That is, do NOT create a shared buffer to do your work in as part of the class.  If you do, make sure you declare it thread\_local (which requires static).
+
 
 Roadmap
 -------
 
 * Make a checkpoint, convert to server / worker model in a single process
-* Sleep 0 or 1 when we don't get any messages for awhile...
+    * 32.25s for 1 worker 28 procs vs 29.031 for 4 worker 7 procs
+    * 15.36 cpus for 7 workers 4 threads, 11.89 cpus for 28 workers 1 thread... 8.49 for 28 workers old method.  YAY!  Full hardware concurrency 19.03 cpus :)
+    * Sleep 1ms faster than sleep 0ms, probably contention with Mpi thread context switches. Up to 22 cpus
+    * User time % seems suspicious (it's fine)
+    * ReduceTag issues.  I think it might be because isend() reports success
+      before the matching irecv() necessarily finishes, leaving a gap 
+      especially when sending to self where the queued messages (blocking on
+      the send) will be added to the work queue and handled before the recv
+      finishes...  Should probably set about proving that one.  Could solve
+      it (if that's the issue) by increasing workCount on a successful isend.
+      Implemented on line 785 to see...  Another thing to do would be, when
+      childTagCount hits zero, increase workCount to show that something.
+      That didn't work, trying pass >= 10
+    * pass >= 10 works, but of course it's ugly.  Need to find real reason.
 * Merge job\_stream\_inherit into job\_stream\_example (and test it)
 * TIME\_COMM should not include initial isend request, since we're not using
   primitive objects and that groups in the serialization time

@@ -4,15 +4,16 @@
 #include "job.h"
 #include "message.h"
 #include "module.h"
+#include "types.h"
+#include "workerThread.h"
 #include "yaml.h"
 
 #include <boost/mpi.hpp>
-#include <boost/thread/mutex.hpp>
-#include <boost/thread/thread.hpp>
 #include <deque>
 #include <functional>
 #include <memory>
 #include <list>
+#include <thread>
 
 namespace job_stream {
 namespace processor {
@@ -30,21 +31,21 @@ namespace processor {
 
 /* Debug flag when testing library; 
   1 = basic messages (min output),
-  2 = very, very verbose */
+  2 = very, very verbose
+  3 = overly verbose */
 extern const int JOB_STREAM_DEBUG;
-
 
 /** Generic thread-safe queue class with unique_ptrs. */
 template<typename T>
 class ThreadSafeQueue {
 public:
     void push(std::unique_ptr<T> value) {
-        boost::mutex::scoped_lock lock(this->mutex);
+        Lock lock(this->mutex);
         this->queue.push_back(std::move(value));
     }
 
     bool pop(std::unique_ptr<T>& value) {
-        boost::mutex::scoped_lock lock(this->mutex);
+        Lock lock(this->mutex);
         if (this->queue.empty()) {
             return false;
         }
@@ -54,13 +55,13 @@ public:
     }
 
     size_t size() {
-        boost::mutex::scoped_lock lock(this->mutex);
+        Lock lock(this->mutex);
         return this->queue.size();
     }
 
 private:
     std::deque<std::unique_ptr<T>> queue;
-    boost::mutex mutex;
+    Mutex mutex;
 };
 
 
@@ -220,6 +221,7 @@ struct ProcessorSendInfo {
 class Processor {
     friend class job::SharedBase;
     friend class module::Module;
+    friend class WorkerThread;
 
 public:
     /* MPI message tags */
@@ -238,6 +240,7 @@ public:
     /*  Profiler categories.  User time is the most important distinction; 
         others are internal. */
     enum ProcessorTimeType {
+        TIME_IDLE,
         TIME_USER,
         TIME_SYSTEM,
         TIME_COMM,
@@ -276,6 +279,9 @@ public:
     uint64_t getNextReduceTag();
     /** Return this Processor's rank */
     int getRank() const { return this->world.rank(); }
+    /** Get work for a Worker, or return a null unique_ptr if there is no 
+        work */
+    std::unique_ptr<MpiMessage> getWork();
     /** Run all modules defined in config; inputLine (already trimmed) 
         determines whether we are using one row of input (the inputLine) or 
         stdin (if empty) */
@@ -289,9 +295,6 @@ protected:
             const YAML::Node& config);
     job::ReducerBase* allocateReducer(module::Module* parent, 
             const YAML::Node& config);
-    /** Called in the middle of a job / reducer; update all asynchronous MPI
-        operations to ensure our buffers are full */
-    void checkMpi();
     /** Called to reduce a childTagCount on a ProcessorReduceInfo for a given
         reduceTag.  Optionally dispatch messages pending. */
     void decrReduceChildTag(uint64_t reduceTag);
@@ -300,6 +303,10 @@ protected:
     void handleRingTest(std::unique_ptr<MpiMessage> message, bool isWork);
     /** If we have an input thread, join it */
     void joinThreads();
+    /** Initialize local timing info */
+    void localTimersInit();
+    /** Merge local timing info into globals */
+    void localTimersMerge();
     /** We got a steal message; decode it and maybe give someone work. */
     void maybeAllowSteal(const std::string& messageBuffer);
     /** Listen for input events and put them on workOutQueue.  When this thread 
@@ -324,15 +331,27 @@ private:
                     timeType(type) {}
     };
 
-    /** Array containing how many cpu clocks were spent in each type of 
-        operation.  Indexed by ProcessorTimeType */
-    std::unique_ptr<uint64_t[]> clksByType;
     /** Our environment */
     std::unique_ptr<boost::mpi::environment> env;
+    /** Global array; see localClksByType */
+    std::unique_ptr<uint64_t[]> globalClksByType;
+    std::unique_ptr<uint64_t[]> globalTimesByType;
+    /** Array containing how many cpu clocks were spent in each type of 
+        operation.  Indexed by ProcessorTimeType */
+    static thread_local std::unique_ptr<uint64_t[]> localClksByType;
+    /** Array containing how much time was spent in each type of operation.
+        Indexed by ProcessorTimeType */
+    static thread_local std::unique_ptr<uint64_t[]> localTimesByType;
+    /** The main thread id - useful for verifying there aren't errors in where
+        certain functions are called (must be main) */
+    std::thread::id mainThreadId;
     /** Running count of messages by tag */
     std::unique_ptr<uint64_t[]> msgsByTag;
+    /** Locks shared resources - workInQueue, reduceInfoMap 
+        and reduceTagCount */
+    Mutex mutex;
     /* The stdin management thread; only runs on node 0 */
-    boost::thread* processInputThread;
+    std::unique_ptr<std::thread> processInputThread;
     /* Buffers corresponding to requests */
     message::_Message recvBuffer;
     /* The current message receiving requests (null when dead) */
@@ -352,30 +371,39 @@ private:
     bool sentEndRing0;
     /* True until quit message is received (ring 0 is completely closed). */
     bool shouldRun;
-    /** Array containing how much time was spent in each type of operation.
-        Indexed by ProcessorTimeType */
-    std::unique_ptr<uint64_t[]> timesByType;
+    std::vector<std::unique_ptr<WorkerThread>> workers;
     //Any work waiting to be done on this Processor.
     std::list<std::unique_ptr<MpiMessage>> workInQueue;
     /* workOutQueue gets redistributed to all workers; MPI is not implicitly
        thread-safe, that is why this queue exists.  Used for input only at
        the moment. */
     ThreadSafeQueue<message::WorkRecord> workOutQueue;
+    ThreadSafeQueue<message::_Message> messageQueue;
     int workTarget;
-    std::vector<_WorkTimerRecord> workTimers;
+    static thread_local std::vector<_WorkTimerRecord> workTimers;
     boost::mpi::communicator world;
 
-    /* Enqueue a line of input (stdin or argv) to system */
+    /** Raises a runtime_error if this is not the main thread */
+    void _assertMain();
+    /** Update all asynchronous MPI operations to ensure our buffers are full */
+    void _checkMpi();
+    /** Send work from workOutQueue to either our local workInQueue or send to
+        a remote source. */
+    void _distributeWork(std::unique_ptr<message::WorkRecord> wr);
+    /** Enqueue a line of input (stdin or argv) to system */
     void _enqueueInputWork(const std::string& line);
-    /* Return rank + 1, modulo world size */
+    /** Return cpu time for this thread in ms */
+    static uint64_t _getThreadCpuTimeMs();
+    /** Return rank + 1, modulo world size */
     int _getNextRank();
-    /* Increment and wrap workTarget, return new value */
+    /** Increment and wrap workTarget, return new value */
     int _getNextWorker();
     /** Send in a non-blocking manner (asynchronously, receiving all the while).
         reduceTags are any tags that should be kept alive by the fact that this
         is in the process of being sent.
         */
-    void _nonBlockingSend(int tag, message::Header header, std::string payload);
+    void _nonBlockingSend(message::Header header, std::string payload);
+    void _nonBlockingSend(message::_Message&& msg);
     /** Push down a new timer section */
     void _pushWorkTimer(ProcessorTimeType userWork);
     /** Pop the last timer section */

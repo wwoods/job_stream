@@ -3,10 +3,12 @@
 
 #include "job.h"
 #include "message.h"
+#include "types.h"
 #include "yaml.h"
 
 #include <map>
 #include <memory>
+#include <mutex>
 
 namespace job_stream {
 namespace module {
@@ -44,6 +46,8 @@ private:
     /* This module's level (base-0; for indexing arrays).  Points to the child
        job of this module, more specifically. */
     int level;
+
+    Mutex mutex;
 
     /* Our reducer, if any */
     std::unique_ptr<job::ReducerBase> reducer;
