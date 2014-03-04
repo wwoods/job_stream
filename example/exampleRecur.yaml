@@ -1,0 +1,25 @@
+# exampleRecur.yaml - create a LOT of recur loops
+jobs:
+    - type: addOne
+    - reducer: sum
+      jobs:
+        - type: duplicate
+        - reducer: sum
+          jobs:
+            - type: addOne
+            - reducer: 
+                type: getToValue
+                value: 1000
+              jobs:
+                - type: addOne
+                - type: duplicate
+                - reducer: sum
+                  jobs:
+                    - type: addOne
+            - reducer: sum
+              jobs:
+                - type: duplicate
+                - reducer: sum
+                  jobs:
+                    - type: addOne
+

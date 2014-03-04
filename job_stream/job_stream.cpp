@@ -25,7 +25,7 @@ void addReducer(const std::string& typeName,
 
 
 void runProcessor(int argc, char** argv) {
-    mpi::environment env(argc, argv);
+    std::unique_ptr<mpi::environment> env(new mpi::environment(argc, argv));
     mpi::communicator world;
 
     if (argc < 2) {
@@ -49,7 +49,7 @@ void runProcessor(int argc, char** argv) {
     }
     boost::algorithm::trim(inputLine);
 
-    processor::Processor p(world, config);
+    processor::Processor p(std::move(env), world, config);
     p.run(inputLine);
 }
 

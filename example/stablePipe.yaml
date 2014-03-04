@@ -4,29 +4,55 @@
 # TODO - tests should be stdin file (< file), number networks should be
 # config in here.
 
-sleepTime: 100
+sleepTime: 1000
+# Bytes sent with every value
+dataSize: 1000000
 
-input: initSystems
-reducer: 
-    type: checkSystems
-    iterations: 5
-    recurTo: runSystems
+# -- with even distribute (_getNextWorker, never rank)
+# W and w/o checkMpi - 2242% and 928% with 1 bytes
+# W and w/o checkMpi - 429% and 326% with 1MB
+
+# -- with rank for non-reduce
+# W and w/o checkMpi - 2074% and 1234% with 1 bytes
+# W and w/o checkMpi - 1283% and 1043% with 1MB
+
+# mpirun -np 20 -host aar.ece.pdx.edu,inn.ece.pdx.edu,rhine.ece.pdx.edu,rhone.ece.pdx.edu build/job_stream_stable ./stablePipe.yaml 10
+# 1812% with 100 / 1
+# 13% with 10 / 1000000
+# 18% with self-work only but normal fair-stealing, 10 / 1000000
+# 41% with only one steal
+# 60% with no steal
+# 45% w/ reduce distribute: 29.636s
+
 jobs:
-    initSystems:
-        type: makeSystems
-        to: runSystems
-    runSystems:
-        input: initMoreSystems
-        to: output
-        reducer:
+    - type: makeLoaded
+    -   input: initSystems
+        reducer: 
             type: checkSystems
             iterations: 2
-            recurTo: run
+            recurTo: runSystems
         jobs:
-            initMoreSystems:
+            initSystems:
                 type: makeSystems
-                to: run
-            run:
+                to: runSystems
+                count: 25
+            runSystem:
                 type: evalSystem
                 to: output
+            runSystems:
+                input: initMoreSystems
+                to: output
+                reducer:
+                    type: checkSystems
+                    iterations: 2
+                    recurTo: run
+                jobs:
+                    initMoreSystems:
+                        type: makeSystems
+                        to: run
+                        count: 5
+                    run:
+                        type: evalSystem
+                        to: output
+    - type: unmakeLoaded
 

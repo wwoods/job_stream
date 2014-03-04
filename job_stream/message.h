@@ -8,6 +8,49 @@
 
 namespace job_stream {
 namespace message {
+    /** Meta data passed with any message. */
+    struct Header {
+        /** For boost */
+        Header() {}
+        Header(Header&& other) : tag(other.tag), dest(other.dest), 
+                reduceTags(std::move(other.reduceTags)) {}
+        Header(int tag, int dest, 
+                std::vector<uint64_t> reduceTags = std::vector<uint64_t>())
+            : tag(tag), dest(dest), reduceTags(std::move(reduceTags)) {}
+
+        int tag;
+        int dest;
+        /** Reduce tags held up by the contained message; that is, deliberately
+            block completion of a ring with any of these tags. */
+        std::vector<uint64_t> reduceTags;
+
+    private:
+        friend class boost::serialization::access;
+        template<class Archive>
+        void serialize(Archive& ar, const unsigned int version) {
+            ar & tag & dest & reduceTags;
+        }
+    };
+
+
+    /** Used as actual vessel of send / receive over the network. */
+    struct _Message {
+        _Message() {}
+        _Message(Header header, std::string payload) 
+                : header(std::move(header)), buffer(std::move(payload)) {}
+
+        Header header;
+        std::string buffer;
+
+    private:
+        friend class boost::serialization::access;
+        template<class Archive>
+        void serialize(Archive& ar, const unsigned int version) {
+            ar & header & buffer;
+        }
+    };
+
+
     /** A group of serialized messages */
     class GroupMessage {
     public:

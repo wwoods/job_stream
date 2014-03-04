@@ -4,82 +4,136 @@
 #include "job.h"
 #include "message.h"
 #include "module.h"
+#include "types.h"
+#include "workerThread.h"
 #include "yaml.h"
 
 #include <boost/mpi.hpp>
-#include <boost/thread/mutex.hpp>
-#include <boost/thread/thread.hpp>
 #include <deque>
 #include <functional>
 #include <memory>
 #include <list>
+#include <thread>
+
+namespace job_stream {
+namespace processor {
+    class AnyUniquePtr;
+}
+}
+
+namespace std {
+    void swap(job_stream::processor::AnyUniquePtr& p1,
+            job_stream::processor::AnyUniquePtr& p2);
+}
 
 namespace job_stream {
 namespace processor {
 
 /* Debug flag when testing library; 
   1 = basic messages (min output),
-  2 = very, very verbose */
+  2 = very, very verbose
+  3 = overly verbose */
 extern const int JOB_STREAM_DEBUG;
 
-
-/** Generic thread-safe queue class. */
+/** Generic thread-safe queue class with unique_ptrs. */
 template<typename T>
 class ThreadSafeQueue {
 public:
-    void push(const T& value) {
-        boost::mutex::scoped_lock lock(this->mutex);
-        this->queue.push_back(value);
+    void push(std::unique_ptr<T> value) {
+        Lock lock(this->mutex);
+        this->queue.push_back(std::move(value));
     }
 
-    bool pop(T& value) {
-        boost::mutex::scoped_lock lock(this->mutex);
+    bool pop(std::unique_ptr<T>& value) {
+        Lock lock(this->mutex);
         if (this->queue.empty()) {
             return false;
         }
-        value = this->queue.front();
+        value = std::move(this->queue.front());
         this->queue.pop_front();
         return true;
     }
 
     size_t size() {
-        boost::mutex::scoped_lock lock(this->mutex);
+        Lock lock(this->mutex);
         return this->queue.size();
     }
 
-    /** Walk through queue calling canSteal() on each element; if canSteal
-        returns true for any element, put that element in value, and remove
-        it from our queue.  Returns true if something was stolen, false 
-        otherwise.
+private:
+    std::deque<std::unique_ptr<T>> queue;
+    Mutex mutex;
+};
 
-        minCount - At least this many messages must be found in queue to
-                remove first.
-        */
-    bool steal(bool (*canSteal)(const T& value), int minCount, T& value) {
-        boost::mutex::scoped_lock lock(this->mutex);
 
-        int firstEl = -1;
-        int count = 0;
-        for (int i = 0, m = this->queue.size(); i < m; i++) {
-            if (canSteal(this->queue[i])) {
-                count += 1;
-                if (count == 1) {
-                    firstEl = i;
-                }
-                if (count >= minCount) {
-                    value = this->queue[firstEl];
-                    this->queue.erase(this->queue.begin() + firstEl);
-                    return true;
-                }
-            }
+
+/** A cheat for a unique_ptr to any class which can be retrieved later and is
+    properly deleted.  Application is responsible for keeping track of the type
+    though.  This just prevents you from needing to write a tricky destructor,
+    so you can focus on logic. */
+class AnyUniquePtr {
+public:
+    AnyUniquePtr() {}
+
+    template<class T>
+    AnyUniquePtr(std::unique_ptr<T> ptr) : 
+            _impl(new AnyPtrImpl<T>(std::move(ptr))) {}
+
+    AnyUniquePtr(AnyUniquePtr&& other) : _impl(std::move(other._impl)) {}
+
+    virtual ~AnyUniquePtr() {}
+
+    operator bool() const {
+        return (bool)this->_impl;
+    }
+
+    template<class T>
+    AnyUniquePtr& operator=(std::unique_ptr<T> ptr) {
+        this->_impl.reset(new AnyPtrImpl<T>(std::move(ptr)));
+    }
+
+    template<class T>
+    T* get() { 
+        if (!this->_impl) {
+            return 0;
         }
+        return (T*)this->_impl->get();
+    }
 
-        return false;
+    void reset() {
+        this->_impl.reset();
+    }
+
+    template<class T>
+    void reset(T* ptr) {
+        this->_impl.reset(new AnyPtrImpl<T>(std::unique_ptr<T>(ptr)));
+    }
+
+    void swapWith(AnyUniquePtr& other) {
+        std::swap(this->_impl, other._impl);
     }
 
 private:
-    std::deque<T> queue;
-    boost::mutex mutex;
+    struct AnyPtrImplBase {
+        AnyPtrImplBase(void* ptr) : void_ptr(ptr) {}
+        virtual ~AnyPtrImplBase() {}
+
+        void* get() { return void_ptr; }
+
+    protected:
+        void* void_ptr;
+    };
+
+    template<class T>
+    struct AnyPtrImpl : public AnyPtrImplBase {
+        AnyPtrImpl(std::unique_ptr<T> ptr) : AnyPtrImplBase((void*)ptr.get()), 
+                t_ptr(std::move(ptr)) {}
+
+        virtual ~AnyPtrImpl() {}
+    private:
+        std::unique_ptr<T> t_ptr;
+    };
+
+    std::unique_ptr<AnyPtrImplBase> _impl;
 };
 
 
@@ -90,32 +144,32 @@ struct MpiMessage {
     /** The MPI message tag that this message belongs to */
     int tag;
 
-    MpiMessage(int tag, void* data);
+    MpiMessage(int tag, AnyUniquePtr data);
 
     /** Kind of a factory method - depending on tag, deserialize message into
         the desired message class, and put it in data. */
     MpiMessage(int tag, std::string&& message);
 
-    MpiMessage(MpiMessage&& other) : tag(other.tag), data(0) {
+    MpiMessage(MpiMessage&& other) : tag(other.tag) {
         std::swap(this->data, other.data);
         std::swap(this->encodedMessage, other.encodedMessage);
     }
 
-    ~MpiMessage();
+    ~MpiMessage() {}
 
     std::string serialized() const;
 
     template<typename T>
     T* getTypedData() const {
         this->_ensureDecoded();
-        return (T*)this->data;
+        return this->data.get<T>();
     }
 
 private:
     /** An owned version of the data in this message - deleted manually in
         destructor.  We would use unique_ptr, but we don't know the type of our 
         data! */
-    mutable void* data;
+    mutable AnyUniquePtr data;
 
     /** The string representing this message, serialized. */
     mutable std::string encodedMessage;
@@ -132,7 +186,7 @@ struct ProcessorReduceInfo {
 
     /** Any messages waiting on this tag to resume (childTagCount != 0, waiting
         for 0). */
-    std::vector<std::shared_ptr<MpiMessage>> messagesWaiting;
+    std::vector<std::unique_ptr<MpiMessage>> messagesWaiting;
 
     /** The workCount from our reduction; used to tell when a ring is done
         processing and can be settled (marked done). */
@@ -167,6 +221,7 @@ struct ProcessorSendInfo {
 class Processor {
     friend class job::SharedBase;
     friend class module::Module;
+    friend class WorkerThread;
 
 public:
     /* MPI message tags */
@@ -185,6 +240,7 @@ public:
     /*  Profiler categories.  User time is the most important distinction; 
         others are internal. */
     enum ProcessorTimeType {
+        TIME_IDLE,
         TIME_USER,
         TIME_SYSTEM,
         TIME_COMM,
@@ -211,16 +267,21 @@ public:
     static void addReducer(const std::string& typeName, 
             std::function<job::ReducerBase* ()> allocator);
 
-    Processor(boost::mpi::communicator world, const YAML::Node& config);
+    Processor(std::unique_ptr<boost::mpi::environment> env, 
+            boost::mpi::communicator world, 
+            const YAML::Node& config);
     ~Processor();
 
 
     /** Add work to our workInQueue.  We now own wr. */
-    void addWork(message::WorkRecord* wr);
+    void addWork(std::unique_ptr<message::WorkRecord> wr);
     /** Allocate and return a new tag for reduction operations. */
     uint64_t getNextReduceTag();
     /** Return this Processor's rank */
     int getRank() const { return this->world.rank(); }
+    /** Get work for a Worker, or return a null unique_ptr if there is no 
+        work */
+    std::unique_ptr<MpiMessage> getWork();
     /** Run all modules defined in config; inputLine (already trimmed) 
         determines whether we are using one row of input (the inputLine) or 
         stdin (if empty) */
@@ -234,17 +295,18 @@ protected:
             const YAML::Node& config);
     job::ReducerBase* allocateReducer(module::Module* parent, 
             const YAML::Node& config);
-    /** Called in the middle of a job / reducer; update all asynchronous MPI
-        operations to ensure our buffers are full */
-    void checkMpi();
     /** Called to reduce a childTagCount on a ProcessorReduceInfo for a given
         reduceTag.  Optionally dispatch messages pending. */
     void decrReduceChildTag(uint64_t reduceTag);
     /** Called to handle a ring test message, possibly within tryReceive, or
         possibly in the main work loop. */
-    void handleRingTest(std::shared_ptr<MpiMessage> message, bool isWork);
+    void handleRingTest(std::unique_ptr<MpiMessage> message, bool isWork);
     /** If we have an input thread, join it */
     void joinThreads();
+    /** Initialize local timing info */
+    void localTimersInit();
+    /** Merge local timing info into globals */
+    void localTimersMerge();
     /** We got a steal message; decode it and maybe give someone work. */
     void maybeAllowSteal(const std::string& messageBuffer);
     /** Listen for input events and put them on workOutQueue.  When this thread 
@@ -252,7 +314,7 @@ protected:
     void processInputThread_main(const std::string& inputLine);
     /** Process a previously received mpi message.  Passed non-const so that it
         can be steal-constructored (rvalue) */
-    void process(std::shared_ptr<MpiMessage> message);
+    void process(std::unique_ptr<MpiMessage> message);
     /** Try to receive the current request, or make a new one */
     bool tryReceive();
 
@@ -269,16 +331,30 @@ private:
                     timeType(type) {}
     };
 
+    /** Our environment */
+    std::unique_ptr<boost::mpi::environment> env;
+    /** Global array; see localClksByType */
+    std::unique_ptr<uint64_t[]> globalClksByType;
+    std::unique_ptr<uint64_t[]> globalTimesByType;
     /** Array containing how many cpu clocks were spent in each type of 
         operation.  Indexed by ProcessorTimeType */
-    std::unique_ptr<uint64_t[]> clksByType;
+    static thread_local std::unique_ptr<uint64_t[]> localClksByType;
+    /** Array containing how much time was spent in each type of operation.
+        Indexed by ProcessorTimeType */
+    static thread_local std::unique_ptr<uint64_t[]> localTimesByType;
+    /** The main thread id - useful for verifying there aren't errors in where
+        certain functions are called (must be main) */
+    std::thread::id mainThreadId;
     /** Running count of messages by tag */
     std::unique_ptr<uint64_t[]> msgsByTag;
+    /** Locks shared resources - workInQueue, reduceInfoMap 
+        and reduceTagCount */
+    Mutex mutex;
     /* The stdin management thread; only runs on node 0 */
-    boost::thread* processInputThread;
-    /* The current message receiving buffer */
-    std::string recvBuffer;
-    /* THe current message receiving request */
+    std::unique_ptr<std::thread> processInputThread;
+    /* Buffers corresponding to requests */
+    message::_Message recvBuffer;
+    /* The current message receiving requests (null when dead) */
     boost::optional<boost::mpi::request> recvRequest;
     /* The current number of assigned tags for reductions */
     uint64_t reduceTagCount;
@@ -295,33 +371,39 @@ private:
     bool sentEndRing0;
     /* True until quit message is received (ring 0 is completely closed). */
     bool shouldRun;
-    /** Array containing how much time was spent in each type of operation.
-        Indexed by ProcessorTimeType */
-    std::unique_ptr<uint64_t[]> timesByType;
-    //Any work waiting to be done on this Processor.  First element in queue
-    //is current work.  We use shared_ptr so we can pass it around and still
-    //read from first element for e.g. reduce tags.
-    std::list<std::shared_ptr<MpiMessage>> workInQueue;
+    std::vector<std::unique_ptr<WorkerThread>> workers;
+    //Any work waiting to be done on this Processor.
+    std::list<std::unique_ptr<MpiMessage>> workInQueue;
     /* workOutQueue gets redistributed to all workers; MPI is not implicitly
        thread-safe, that is why this queue exists.  Used for input only at
        the moment. */
-    ThreadSafeQueue<message::WorkRecord*> workOutQueue;
+    ThreadSafeQueue<message::WorkRecord> workOutQueue;
+    ThreadSafeQueue<message::_Message> messageQueue;
     int workTarget;
-    std::vector<_WorkTimerRecord> workTimers;
+    static thread_local std::vector<_WorkTimerRecord> workTimers;
     boost::mpi::communicator world;
 
-    /* Enqueue a line of input (stdin or argv) to system */
+    /** Raises a runtime_error if this is not the main thread */
+    void _assertMain();
+    /** Update all asynchronous MPI operations to ensure our buffers are full */
+    void _checkMpi();
+    /** Send work from workOutQueue to either our local workInQueue or send to
+        a remote source. */
+    void _distributeWork(std::unique_ptr<message::WorkRecord> wr);
+    /** Enqueue a line of input (stdin or argv) to system */
     void _enqueueInputWork(const std::string& line);
-    /* Return rank + 1, modulo world size */
+    /** Return cpu time for this thread in ms */
+    static uint64_t _getThreadCpuTimeMs();
+    /** Return rank + 1, modulo world size */
     int _getNextRank();
-    /* Increment and wrap workTarget, return new value */
+    /** Increment and wrap workTarget, return new value */
     int _getNextWorker();
     /** Send in a non-blocking manner (asynchronously, receiving all the while).
         reduceTags are any tags that should be kept alive by the fact that this
         is in the process of being sent.
         */
-    void _nonBlockingSend(int dest, int tag, const std::string& message,
-            std::vector<uint64_t> reduceTags);
+    void _nonBlockingSend(message::Header header, std::string payload);
+    void _nonBlockingSend(message::_Message&& msg);
     /** Push down a new timer section */
     void _pushWorkTimer(ProcessorTimeType userWork);
     /** Pop the last timer section */
