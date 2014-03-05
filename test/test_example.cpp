@@ -133,7 +133,7 @@ TEST_CASE("exampleRecur.yaml lots of rings") {
     string prog = "mpirun";
     string args = "example/job_stream_example ../example/exampleRecur.yaml";
     std::ostringstream input;
-    for (int i = 0; i < 100; i++) {
+    for (int i = 0; i < 10; i++) {
         input << i << "\n";
     }
     run(std::move(prog), std::move(args), input.str());
@@ -143,5 +143,9 @@ TEST_CASE("example/job_stream_example/example3.yaml") {
 }
 TEST_CASE("example/job_stream_example/example4.yaml") {
     testExample("example4.yaml", "1\n", "188", true);
+}
+TEST_CASE("example/job_stream_example/example5.yaml") {
+    testExample("example5.yaml", "abba\nkadoodle\nj", "98\n105\n107\n", false, 
+            false);
 }
 

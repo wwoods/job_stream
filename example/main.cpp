@@ -104,12 +104,48 @@ public:
 };
 
 
+/** Frames are useful for when you want to start a reduction with a different
+    type than the continuation.  For instance, here a string input (number of
+    trials to run and initial int values by char ordinal) is used to run a 
+    number of simulations in parallel that result in int values, which are 
+    aggregated into an array and averaged as a result. */
+class RunExperiments : public job_stream::Frame<std::vector<int>, std::string, 
+        int> {
+public:
+    static RunExperiments* make() { return new RunExperiments(); }
+
+    void handleFirst(std::vector<int>& current, unique_ptr<std::string> work) {
+        for (int i = 0; i < work->length(); i++) {
+            this->recur((int)(*work)[i]);
+        }
+    }
+
+    void handleWork(std::vector<int>& current, unique_ptr<int> work) {
+        current.push_back(*work);
+    }
+
+    void handleJoin(std::vector<int>& current, 
+            unique_ptr<std::vector<int>> other) {
+        current.insert(current.end(), other->begin(), other->end());
+    }
+
+    void handleDone(std::vector<int>& current) {
+        int sum = 0;
+        for (int i : current) {
+            sum += i;
+        }
+        this->emit(sum / current.size());
+    }
+};
+
+
 int main(int argc, char* argv []) {
     job_stream::addJob("addOne", AddOneJob::make);
     job_stream::addJob("duplicate", DuplicateJob::make);
     job_stream::addJob("getToTen", GetToTenJob::make);
     job_stream::addReducer("sum", SumReducer::make);
     job_stream::addReducer("getToValue", GetToValueReducer::make);
+    job_stream::addReducer("runExperiments", RunExperiments::make);
     job_stream::runProcessor(argc, argv);
     return 0;
 }

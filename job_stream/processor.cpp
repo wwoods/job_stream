@@ -421,7 +421,6 @@ void Processor::_distributeWork(std::unique_ptr<message::WorkRecord> wr) {
     }
 
     uint64_t reduceTagToFree = wr->getReduceTag();
-
     if (dest != rank) {
         std::vector<uint64_t> reduceTags;
         reduceTags.push_back(wr->getReduceTag());

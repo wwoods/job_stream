@@ -303,7 +303,7 @@ Roadmap
   attaching return values to a recur'd tuple and waiting for it to come back
   around.
 * Update README with serialization changes, clean up code.  Note that unique\_ptr
-  serialize() is specified in serialization.h.
+  serialize() is specified in serialization.h.  Also Frame needs doc.
 * Idle time tracking - show how much time is spent e.g. waiting on a reducer
 * Solve config problem - if e.g. all jobs need to fill in some globally shared
   information (tests to run, something not in YAML)

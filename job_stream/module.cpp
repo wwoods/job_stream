@@ -17,42 +17,79 @@ Module::Module() : level(0) {
 
 
 void Module::postSetup() {
-    if (!this->config["input"]) {
-        if (this->config["jobs"].IsSequence()) {
-            //Pipeline!  Since all of the code relies on named jobs, as they
-            //are more flexible, we have to replace the jobs node with a named
-            //version.
-            YAML::Node newJobs;
-            this->config["input"] = "1";
-            int jobId = 1;
-            for (int i = 0, m = this->config["jobs"].size(); i < m; i++) {
-                YAML::Node n = this->config["jobs"][i];
-                if (n["to"]) {
-                    std::ostringstream ss;
-                    ss << "Job " << jobId << " under " << this->getFullName();
-                    ss << " cannot have a 'to' configured.  If you need to";
-                    ss << " use 'to', you'll need to use named jobs instead";
-                    ss << " of a list.";
-                    throw std::runtime_error(ss.str());
-                }
-
-                if (i < m - 1) {
-                    n["to"] = boost::lexical_cast<std::string>(jobId + 1);
-                }
-                else {
-                    n["to"] = "output";
-                }
-                newJobs[boost::lexical_cast<std::string>(jobId)] = n;
-                jobId += 1;
-            }
-
-            this->config["jobs"] = newJobs;
+    //Sanity checks - jobs cannot be a sequence if input is defined.
+    if (this->config["jobs"].IsSequence()) {
+        if (this->config["input"]) {
+            std::ostringstream ss;
+            ss << "Module " << this->getFullName() << " has input defined but "
+                    "jobs is a list";
+            throw std::runtime_error(ss.str());
         }
-        else {
+    }
+    else if (!this->config["input"]) {
+        if (!this->config["jobs"].IsSequence()) {
             std::ostringstream ss;
             ss << "Module " << this->getFullName() << " has no input defined";
             throw std::runtime_error(ss.str());
         }
+    }
+
+    //Is this module framed?
+    if (this->config["frame"]) {
+        if (this->config["reducer"]) {
+            std::ostringstream ss;
+            ss << "Module " << this->getFullName() << " cannot define a "
+                    "reducer as it has a frame defined";
+            throw std::runtime_error(ss.str());
+        }
+
+        this->config["reducer"] = this->config["frame"];
+        if (this->config["input"]) {
+            this->config["reducer"]["recurTo"] = this->config["input"];
+        }
+        else {
+            this->config["reducer"]["recurTo"] = "0";
+        }
+
+        this->config["input"] = "output";
+        this->config.remove("frame");
+    }
+
+    if (this->config["jobs"].IsSequence()) {
+        //Pipeline!  Since all of the code relies on named jobs, as they
+        //are more flexible, we have to replace the jobs node with a named
+        //version.
+        YAML::Node newJobs;
+        
+        //If there is no input, then we need to set it to the first job in the
+        //sequence.
+        if (!this->config["input"]) {
+            this->config["input"] = "0";
+        }
+
+        int jobId = 0;
+        for (int i = 0, m = this->config["jobs"].size(); i < m; i++) {
+            YAML::Node n = this->config["jobs"][i];
+            if (n["to"]) {
+                std::ostringstream ss;
+                ss << "Job " << jobId << " under " << this->getFullName();
+                ss << " cannot have a 'to' configured.  If you need to";
+                ss << " use 'to', you'll need to use named jobs instead";
+                ss << " of a list.";
+                throw std::runtime_error(ss.str());
+            }
+
+            if (i < m - 1) {
+                n["to"] = boost::lexical_cast<std::string>(jobId + 1);
+            }
+            else {
+                n["to"] = "output";
+            }
+            newJobs[boost::lexical_cast<std::string>(jobId)] = n;
+            jobId += 1;
+        }
+
+        this->config["jobs"] = newJobs;
     }
 
     //Assign our level

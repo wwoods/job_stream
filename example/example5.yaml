@@ -1,0 +1,7 @@
+# example5.yaml
+# Using a frame, compute 1 more than the average value of each char in a string
+jobs:
+  - frame: 
+        type: runExperiments
+    jobs:
+      - type: addOne
