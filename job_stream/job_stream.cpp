@@ -1,4 +1,5 @@
 
+#include "death_handler/death_handler.h"
 #include "job_stream.h"
 #include "processor.h"
 #include "yaml.h"
@@ -25,6 +26,9 @@ void addReducer(const std::string& typeName,
 
 
 void runProcessor(int argc, char** argv) {
+    Debug::DeathHandler dh;
+    dh.set_color_output(false);
+
     std::unique_ptr<mpi::environment> env(new mpi::environment(argc, argv));
     mpi::communicator world;
 

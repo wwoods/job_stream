@@ -25,7 +25,7 @@ std::tuple<string, string> run(string prog, string args,
     es.close_in();
     std::ostringstream obuf, ebuf;
     uint64_t start = Location::getCurrentTimeMs();
-    while (es.is_alive() && Location::getCurrentTimeMs() <= start + 60000) {
+    while (es.is_alive() && Location::getCurrentTimeMs() <= start + 1000) {
         readall(es.out(), obuf);
         readall(es.err(), ebuf);
     }

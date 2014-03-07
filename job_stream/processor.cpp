@@ -198,6 +198,9 @@ std::unique_ptr<MpiMessage> Processor::getWork() {
                         ) {
                     fprintf(stderr, "::%s", s.c_str());
                 }
+                fprintf(stderr, " ON %lu WITH %i\n", 
+                        ptr->getTypedData<message::WorkRecord>()->getReduceTag(),
+                        this->reduceInfoMap[ptr->getTypedData<message::WorkRecord>()->getReduceTag()].workCount);
             }
             fprintf(stderr, "\n");
         }
@@ -458,6 +461,8 @@ void Processor::startRingTest(uint64_t reduceTag, uint64_t parentTag,
     if (parentTag != reduceTag) {
         //Stop the parent from being closed until the child is closed.
         this->reduceInfoMap[parentTag].childTagCount += 1;
+        //Ensure that first work finishes before the test proceeds
+        pri.childTagCount += 1;
     }
 
     if (JOB_STREAM_DEBUG) {
@@ -836,9 +841,9 @@ void Processor::handleRingTest(std::unique_ptr<MpiMessage> message,
             //it.  Otherwise, put it at the top of our queue so it
             //gets processed ASAP.  We can't process it here in
             //case dispatchDone() would be called.
-            dm.passWork += this->reduceInfoMap[dm.reduceTag].workCount;
             if (dm.sentryRank != this->getRank()) {
                 forward = true;
+                dm.passWork += this->reduceInfoMap[dm.reduceTag].workCount;
             }
             else if (!isWork) {
                 //We're not part of the main work loop, we're in a receive.
@@ -857,7 +862,8 @@ void Processor::handleRingTest(std::unique_ptr<MpiMessage> message,
                 }
 
                 forward = true;
-                if (dm.pass >= 10 && dm.allWork == dm.passWork) {
+                dm.passWork += this->reduceInfoMap[dm.reduceTag].workCount;
+                if (dm.pass >= 1 && dm.allWork == dm.passWork) {
                     //Now we might remove it, if there is no recurrence
                     if (dm.reduceTag == 0) {
                         //Global
@@ -941,7 +947,7 @@ void Processor::process(std::unique_ptr<MpiMessage> message) {
                     this->reduceInfoMap[wr.getReduceTag()].workCount);
         }
 
-        //A WorkRecord might get rerouted to a different reduce tag that it
+        //A WorkRecord might get rerouted to a different reduce tag than it
         //starts, so we'll need to remember the original tag to decrement
         uint64_t oldReduceTag = wr.getReduceTag();
 
@@ -997,8 +1003,8 @@ bool Processor::tryReceive() {
     { //Scope for processing the received message
         WorkTimer systemTimer(this, Processor::TIME_SYSTEM);
 
-        int tag = recv.tag();
         message::_Message& msg = this->recvBuffer;
+        int tag = msg.header.tag;
 
         //NOTE - The way boost::mpi receives into strings corrupts the 
         //string.  That's why we copy it here with a substr() call.

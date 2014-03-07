@@ -111,7 +111,7 @@ namespace job {
     class ReducerBase : public SharedBase {
     public:
         /** Dispatch to templated init */
-        virtual void dispatchInit(message::WorkRecord& work) = 0;
+        virtual bool dispatchInit(message::WorkRecord& work) = 0;
 
         /** Dispatch to templated add T_init to T_accum */
         virtual void dispatchAdd(message::WorkRecord& work) = 0;

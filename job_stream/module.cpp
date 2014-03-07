@@ -112,6 +112,12 @@ void Module::postSetup() {
 
 void Module::dispatchWork(message::WorkRecord& work) {
     this->currentRecord = &work;
+    //If we end up assigning this work to a new reduction, we need to decrement
+    //the placeholder childTagCount put on it in dispatchInit (after this work
+    //is handled, of course)
+    //Also make sure it's us that changed the ring, not some other reducer
+    uint64_t startedReduceTag = 0;
+    bool startedNewRing = false;
 
     if (processor::JOB_STREAM_DEBUG >= 2) {
         std::ostringstream ss;
@@ -124,8 +130,9 @@ void Module::dispatchWork(message::WorkRecord& work) {
         //We're the end goal (this work just started living in our module).  
         //If we have a reducer, we have to tag this work and create a new 
         //reduction context
-        if (this->reducer) {
-            this->reducer->dispatchInit(work);
+        if (this->reducer && this->reducer->dispatchInit(work)) {
+            startedNewRing = true;
+            startedReduceTag = work.getReduceTag();
         }
 
         //Then, pass to our input job.
@@ -168,7 +175,8 @@ void Module::dispatchWork(message::WorkRecord& work) {
             //reducer.
             if (processor::JOB_STREAM_DEBUG >= 2) {
                 std::ostringstream ss;
-                ss << "Passing to " << this->reducer->getFullName();
+                ss << "Passing to " << this->reducer->getFullName()
+                        << ", tag " << work.getReduceTag();
                 fprintf(stderr, "%s\n", ss.str().c_str());
             }
             this->reducer->dispatchAdd(work);
@@ -182,6 +190,10 @@ void Module::dispatchWork(message::WorkRecord& work) {
             fprintf(stderr, "%s\n", ss.str().c_str());
         }
         this->getJob(curTarget)->dispatchWork(work);
+    }
+
+    if (startedNewRing) {
+        this->processor->decrReduceChildTag(startedReduceTag);
     }
 
     this->currentRecord = 0;

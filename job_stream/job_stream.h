@@ -152,8 +152,10 @@ namespace job_stream {
 
 
         /** Called by system to call handleInit() with proper setup.  Also gets
-            the reduce ring started and sets up calculation done checks. */
-        virtual void dispatchInit(message::WorkRecord& work) {
+            the reduce ring started and sets up calculation done checks. 
+            Returns true if a new ring was started, false if one was continued.
+            */
+        virtual bool dispatchInit(message::WorkRecord& work) {
             uint64_t tag = 1;
             int homeRank = 0;
             bool reallyInit = true;
@@ -201,6 +203,7 @@ namespace job_stream {
             //Now that we've backed up the original work, overwrite the reduce
             //params.
             work.setReduce(homeRank, tag);
+            return reallyInit;
         }
 
 
