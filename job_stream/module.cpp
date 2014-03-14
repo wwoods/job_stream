@@ -45,7 +45,8 @@ void Module::postSetup() {
 
         this->config["reducer"] = this->config["frame"];
         if (this->config["input"]) {
-            this->config["reducer"]["recurTo"] = this->config["input"];
+            this->config["reducer"]["recurTo"] = this->config["input"].as<
+                    std::string>();
         }
         else {
             this->config["reducer"]["recurTo"] = "0";
