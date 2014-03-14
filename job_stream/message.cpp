@@ -79,9 +79,13 @@ std::string WorkRecord::getWorkAsString() const {
     TRY_TYPE(float);
     TRY_TYPE(double);
 
-    //All attempts failed; re-try string, which will print out the appropriate message
-    //(expected vs actual)
-    getAsString<std::string>(this->work);
+    //While we can't print this type of output, rather than raising an
+    //exception, print out the type
+    std::ostringstream ss;
+    ss << "<object of type ";
+    ss << serialization::getDecodedType(this->work);
+    ss << ">";
+    return ss.str();
 #undef TRY_TYPE
 }
 

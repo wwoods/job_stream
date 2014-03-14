@@ -36,6 +36,8 @@ template<typename T>
 void decode(const std::string& message, std::unique_ptr<T>& dest);
 template<typename T>
 std::string encode(const T& src);
+/** Extract the typeid(T).name() field from the given encoded message. */
+std::string getDecodedType(const std::string& message);
 /** Register a polymorphic base class or a derivative with its bases */
 template<class T, class Base1 = void, class Base2 = void, class Base3 = void,
         class Base4 = void, class Base5 = void, class Base6 = void>

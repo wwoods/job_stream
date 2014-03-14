@@ -19,6 +19,15 @@ void decode(const std::string& message, std::unique_ptr<AnyType>& dest) {
     dest.reset(new AnyType(message));
 }
 
+
+std::string getDecodedType(const std::string& message) {
+    std::istringstream ss(message);
+    IArchive ia(ss, boost::archive::no_header);
+    std::string type;
+    ia >> type;
+    return type;
+}
+
 } //serialization
 } //job_stream
 
