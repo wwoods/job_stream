@@ -20,13 +20,40 @@
 #include <sstream>
 #include <string>
 
-/** Helper functions for job_stream serialization */
-
+/** Forward declared typedefs */
 namespace job_stream {
 namespace serialization {
 
 typedef boost::archive::binary_oarchive OArchive;
 typedef boost::archive::binary_iarchive IArchive;
+
+} //serialization
+} //job_stream
+
+namespace boost {
+namespace serialization {
+
+/** Since job_stream supports smarter serialization of pointers with
+    polymorphic classes than boost... here's to it */
+template<class T>
+void serialize(job_stream::serialization::OArchive& a, std::unique_ptr<T>& ptr,
+        const unsigned int version);
+template<class T>
+void serialize(job_stream::serialization::IArchive& a, std::unique_ptr<T>& ptr,
+        const unsigned int version);
+template<class T>
+void serialize(job_stream::serialization::OArchive& a, std::shared_ptr<T>& ptr,
+        const unsigned int version);
+template<class T>
+void serialize(job_stream::serialization::IArchive& a, std::shared_ptr<T>& ptr,
+        const unsigned int version);
+
+} //serialization
+} //boost
+
+/** Helper functions for job_stream serialization */
+namespace job_stream {
+namespace serialization {
 
 //Actual public methods
 /** An example signature only.  Decode takes either a non-pointer or a unique_ptr */
@@ -35,22 +62,23 @@ void decode(const std::string& message, T& dest);
 template<typename T>
 void decode(const std::string& message, std::unique_ptr<T>& dest);
 template<typename T>
+void decode(const std::string& message, std::shared_ptr<T>& dest);
+template<typename T>
 std::string encode(const T& src);
+template<typename T>
+std::string encode(const std::unique_ptr<T>& src);
+template<typename T>
+std::string encode(const std::shared_ptr<T>& src);
 /** Extract the typeid(T).name() field from the given encoded message. */
 std::string getDecodedType(const std::string& message);
 /** Register a polymorphic base class or a derivative with its bases */
 template<class T, class Base1 = void, class Base2 = void, class Base3 = void,
         class Base4 = void, class Base5 = void, class Base6 = void>
 void registerType();
+/** Clear all registered types.  Used for testing. */
+void clearRegisteredTypes();
 /** Helper class for debugging registerType issues (unregistered class) */
 void printRegisteredTypes();
-
-/** Since job_stream supports smarter serialization of pointers with 
-    polymorphic classes than boost... here's to it */
-template<class T>
-void serialize(OArchive& a, std::unique_ptr<T>& ptr);
-template<class T>
-void serialize(IArchive& a, std::unique_ptr<T>& ptr);
 
 /** Fully polymorphic object copy - even if you specify the base pointer,
     the derived class will be copied. */
@@ -340,7 +368,8 @@ struct _SerialHelper<T*,
 };
 
 
-/** Non-pointer decode mechanism */
+/** Non-pointer decode mechanism.  Avoid memory leaks by explicitly disallowing
+    decoding to a raw pointer type. */
 template<class T, typename boost::enable_if<boost::mpl::not_<
         boost::is_pointer<T>>, int>::type = 0>
 void decode(const std::string& message, T& dest) {
@@ -353,6 +382,17 @@ void decode(const std::string& message, T& dest) {
 
 template<class T>
 void decode(const std::string& message, std::unique_ptr<T>& dest) {
+    typedef _SerialHelper<T*> sh;
+    std::istringstream ss(message);
+    IArchive ia(ss, boost::archive::no_header);
+    T* toAllocate;
+    sh::decodeTypeAndObject(ia, toAllocate);
+    dest.reset(toAllocate);
+}
+
+
+template<class T>
+void decode(const std::string& message, std::shared_ptr<T>& dest) {
     typedef _SerialHelper<T*> sh;
     std::istringstream ss(message);
     IArchive ia(ss, boost::archive::no_header);
@@ -376,6 +416,18 @@ std::string encode(const T& src) {
 }
 
 
+template<class T>
+std::string encode(const std::unique_ptr<T>& src) {
+    return encode(src.get());
+}
+
+
+template<class T>
+std::string encode(const std::shared_ptr<T>& src) {
+    return encode(src.get());
+}
+
+
 /** Lazy person's copy functionality */
 template<class T>
 void copy(const T& src, std::unique_ptr<T>& dest) {
@@ -391,15 +443,19 @@ void copy(const std::unique_ptr<T>& src, std::unique_ptr<T>& dest) {
 }//job_stream
 
 
-/** Global namespace capability to encode / decode std::unique_ptr */
+namespace boost {
+namespace serialization {
+
+/** Boost namespace capability to encode / decode std::unique_ptr */
 template<class T>
-void serialize(job_stream::serialization::OArchive& a, std::unique_ptr<T>& ptr, 
+void serialize(job_stream::serialization::OArchive& a, std::unique_ptr<T>& ptr,
         const unsigned int version) {
     std::string encoded = job_stream::serialization::encode(ptr.get());
     a << encoded;
 }
 
-/** Global namespace capability to encode / decode std::unique_ptr */
+
+/** Boost namespace capability to encode / decode std::unique_ptr */
 template<class T>
 void serialize(job_stream::serialization::IArchive& a, std::unique_ptr<T>& ptr, 
         const unsigned int version) {
@@ -407,5 +463,29 @@ void serialize(job_stream::serialization::IArchive& a, std::unique_ptr<T>& ptr,
     a >> decoded;
     job_stream::serialization::decode(decoded, ptr);
 }
+
+
+/** Boost namespace capability to encode / decode std::shared_ptr */
+template<class T>
+void serialize(job_stream::serialization::OArchive& a, std::shared_ptr<T>& ptr,
+        const unsigned int version) {
+    std::string encoded = job_stream::serialization::encode(ptr.get());
+    a << encoded;
+}
+
+
+/** Boost namespace capability to encode / decode std::shared_ptr */
+template<class T>
+void serialize(job_stream::serialization::IArchive& a, std::shared_ptr<T>& ptr,
+        const unsigned int version) {
+    std::string decoded;
+    a >> decoded;
+    std::unique_ptr<T> uptr;
+    job_stream::serialization::decode(decoded, uptr);
+    ptr.reset(uptr.release());
+}
+
+} //serialization
+} //boost
 
 #endif//JOB_STREAM_SERIALIZATION_H_

@@ -270,21 +270,31 @@ Job and reduction routines MUST be thread safe.  That is, do NOT create a shared
 Roadmap
 -------
 
-* Make a checkpoint, convert to server / worker model in a single process
-    * 32.25s for 1 worker 28 procs vs 29.031 for 4 worker 7 procs
-    * 15.36 cpus for 7 workers 4 threads, 11.89 cpus for 28 workers 1 thread... 8.49 for 28 workers old method.  YAY!  Full hardware concurrency 19.03 cpus :)
-    * Sleep 1ms faster than sleep 0ms, probably contention with Mpi thread context switches. Up to 22 cpus
-    * User time % seems suspicious (it's fine)
-    * ReduceTag issues.  I think it might be because isend() reports success
-      before the matching irecv() necessarily finishes, leaving a gap 
-      especially when sending to self where the queued messages (blocking on
-      the send) will be added to the work queue and handled before the recv
-      finishes...  Should probably set about proving that one.  Could solve
-      it (if that's the issue) by increasing workCount on a successful isend.
-      Implemented on line 785 to see...  Another thing to do would be, when
-      childTagCount hits zero, increase workCount to show that something.
-      That didn't work, trying pass >= 10
-    * pass >= 10 works, but of course it's ugly.  Need to find real reason.
+* Rather than rank, print host.
+* to: Should be a name or YAML reference, emit() or recur() should accept an
+  argument of const YAML::Node& so that we can use e.g. stepTo: *priorRef as
+  a normal config.  DO NOT overwrite to!  Allow it to be specified in pipes, e.g.
+
+    - to: *other
+      needsMoreTo: *next
+    - &next
+      type: ...
+      to: output
+    - &other
+      type: ...
+
+* Continuation checkpoints (auto continue?  With obvious stderr message / 5
+  second pause?)
+* Errors during a task should push the work back on the stack and trigger a
+  checkpoint before exiting.  That would be awesome.  Should probably be an
+  option though, since it would require "checkpointing" reduce accumulations
+  and holding onto emitted data throughout each work's processing
+* Prevent running code on very slow systems... maybe make a CPU / RAM sat
+  metric by running a 1-2 second test and see how many cycles of computation
+  we get, then compare across systems.  If we also share how many contexts each
+  machine has, then stealing code can balance such that machines 1/2 as capable
+  only keep half their cores busy maximum according to stealing.
+* Progress indicator, if possible...
 * Merge job\_stream\_inherit into job\_stream\_example (and test it)
 * TIME\_COMM should not include initial isend request, since we're not using
   primitive objects and that groups in the serialization time

@@ -5,6 +5,11 @@ namespace serialization {
 
 std::list<std::unique_ptr<RegisteredTypeBase>> registeredTypes;
 
+void clearRegisteredTypes() {
+    registeredTypes.clear();
+}
+
+
 void printRegisteredTypes() {
     printf("Printing job_stream::serialization::registeredTypes in order of "
             "resolution\n");
