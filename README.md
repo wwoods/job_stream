@@ -328,6 +328,8 @@ Roadmap
 
 Recent Changelog
 ----------------
+* 2014-4-24 - Fixed up shared_ptr serialization.  Fixed synchronization issue
+  in reduction rings.
 * 2014-2-19 - Added Frame specialization of Reducer.  Expects a different
   first work than subsequent.  Usage pattern is to do some initialization work
   and then recur() additional work as needed.

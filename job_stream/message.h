@@ -12,23 +12,17 @@ namespace message {
     struct Header {
         /** For boost */
         Header() {}
-        Header(Header&& other) : tag(other.tag), dest(other.dest), 
-                reduceTags(std::move(other.reduceTags)) {}
-        Header(int tag, int dest, 
-                std::vector<uint64_t> reduceTags = std::vector<uint64_t>())
-            : tag(tag), dest(dest), reduceTags(std::move(reduceTags)) {}
+        Header(Header&& other) : tag(other.tag), dest(other.dest) {}
+        Header(int tag, int dest) : tag(tag), dest(dest) {}
 
         int tag;
         int dest;
-        /** Reduce tags held up by the contained message; that is, deliberately
-            block completion of a ring with any of these tags. */
-        std::vector<uint64_t> reduceTags;
 
     private:
         friend class boost::serialization::access;
         template<class Archive>
         void serialize(Archive& ar, const unsigned int version) {
-            ar & tag & dest & reduceTags;
+            ar & tag & dest;
         }
     };
 
@@ -289,22 +283,26 @@ namespace message {
 
     class DeadRingTestMessage {
     public:
-        uint64_t allWork;
-        int pass;
-        uint64_t passWork;
         uint64_t reduceTag;
         int sentryRank;
+        int pass;
         uint64_t tsTestStarted;
+
+        uint64_t processed;
+        uint64_t created;
+        //Used to see if there is more work being generated.  While there is,
+        //we won't pronounce this ring as dead.
+        uint64_t createdLast;
 
         DeadRingTestMessage(const std::string& serialized) {
             serialization::decode(serialized, *this);
         }
 
 
-        DeadRingTestMessage(int rank, uint64_t reduceTag, uint64_t workCount)
-                : sentryRank(rank), pass(0), allWork(0), passWork(workCount), 
-                    reduceTag(reduceTag),  
-                    tsTestStarted(Location::getCurrentTimeMs()) {
+        DeadRingTestMessage(int rank, uint64_t reduceTag)
+                : reduceTag(reduceTag), sentryRank(rank), pass(0),
+                    tsTestStarted(Location::getCurrentTimeMs()),
+                    processed(0), created(0), createdLast(0) {
         }
 
 
@@ -316,12 +314,8 @@ namespace message {
         friend class boost::serialization::access;
         template<class Archive>
         void serialize(Archive& ar, const unsigned int version) {
-            ar & this->sentryRank;
-            ar & this->reduceTag;
-            ar & this->pass;
-            ar & this->allWork;
-            ar & this->passWork;
-            ar & this->tsTestStarted;
+            ar & reduceTag & sentryRank & pass & tsTestStarted;
+            ar & processed & created & createdLast;
         }
     };
 

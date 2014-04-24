@@ -194,7 +194,7 @@ void Module::dispatchWork(message::WorkRecord& work) {
     }
 
     if (startedNewRing) {
-        this->processor->decrReduceChildTag(startedReduceTag);
+        this->processor->decrReduceChildTag(startedReduceTag, true);
     }
 
     this->currentRecord = 0;

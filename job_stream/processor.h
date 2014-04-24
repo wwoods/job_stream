@@ -188,9 +188,11 @@ struct ProcessorReduceInfo {
         for 0). */
     std::vector<std::unique_ptr<MpiMessage>> messagesWaiting;
 
-    /** The workCount from our reduction; used to tell when a ring is done
-        processing and can be settled (marked done). */
-    uint64_t workCount;
+    /** The count of messages generated within this reduction. */
+    uint64_t countCreated;
+
+    /** The count of messages processed within this reduction. */
+    uint64_t countProcessed;
 
     /** The parent's reduceTag */
     uint64_t parentTag;
@@ -200,7 +202,7 @@ struct ProcessorReduceInfo {
     job::ReducerBase* reducer;
 
     ProcessorReduceInfo() : childTagCount(0), parentTag(0), reducer(0), 
-            workCount(0) {}
+            countCreated(0), countProcessed(0) {}
 };
 
 
@@ -208,11 +210,8 @@ struct ProcessorReduceInfo {
 /** Information tied to an in-progress send */
 struct ProcessorSendInfo {
     boost::mpi::request request;
-    std::vector<uint64_t> reduceTags;
 
-    ProcessorSendInfo(boost::mpi::request request,
-            std::vector<uint64_t> reduceTags) : request(request),
-                reduceTags(std::move(reduceTags)) {}
+    ProcessorSendInfo(boost::mpi::request request) : request(request) {}
 };
 
 
@@ -297,10 +296,11 @@ protected:
             const YAML::Node& config);
     /** Called to reduce a childTagCount on a ProcessorReduceInfo for a given
         reduceTag.  Optionally dispatch messages pending. */
-    void decrReduceChildTag(uint64_t reduceTag);
+    void decrReduceChildTag(uint64_t reduceTag, bool wasProcessed = false);
     /** Called to handle a ring test message, possibly within tryReceive, or
-        possibly in the main work loop. */
-    void handleRingTest(std::unique_ptr<MpiMessage> message, bool isWork);
+        possibly in the main work loop.  If we are the sentry for the message's
+        ring, we are called in work loop.  Otherwise in tryReceive. */
+    void handleRingTest(std::unique_ptr<MpiMessage> message);
     /** If we have an input thread, join it */
     void joinThreads();
     /** Initialize local timing info */
