@@ -15,12 +15,6 @@ namespace mpi = boost::mpi;
 namespace job_stream {
 
 
-void addReducer(const std::string& typeName,
-        std::function<job::ReducerBase* ()> allocator) {
-    processor::Processor::addReducer(typeName, allocator);
-}
-
-
 void runProcessor(int argc, char** argv) {
     Debug::DeathHandler dh;
     dh.set_color_output(false);

@@ -42,7 +42,7 @@ public:
 
 class SumReducer : public job_stream::Reducer<SumReducer, int> {
 public:
-    static SumReducer* make() { return new SumReducer(); }
+    static const char* NAME() { return "sum"; }
 
     /** Called to initialize the accumulator for this reduce.  May be called
         several times on different hosts, whose results will later be merged
@@ -71,7 +71,7 @@ public:
 
 class GetToValueReducer : public job_stream::Reducer<GetToValueReducer, int> {
 public:
-    static GetToValueReducer* make() { return new GetToValueReducer(); }
+    static const char* NAME() { return "getToValue"; }
 
     void handleInit(int& current) {
         current = 0;
@@ -112,7 +112,7 @@ public:
 class RunExperiments : public job_stream::Frame<RunExperiments,
         std::vector<int>, std::string, int> {
 public:
-    static RunExperiments* make() { return new RunExperiments(); }
+    static const char* NAME() { return "runExperiments"; }
 
     void handleFirst(std::vector<int>& current, unique_ptr<std::string> work) {
         for (int i = 0; i < work->length(); i++) {
@@ -153,9 +153,6 @@ public:
 
 
 int main(int argc, char* argv []) {
-    job_stream::addReducer("sum", SumReducer::make);
-    job_stream::addReducer("getToValue", GetToValueReducer::make);
-    job_stream::addReducer("runExperiments", RunExperiments::make);
     job_stream::runProcessor(argc, argv);
     return 0;
 }

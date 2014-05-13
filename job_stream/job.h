@@ -24,6 +24,8 @@ namespace processor {
 namespace job {
     void addJob(const std::string& typeName, 
             std::function<job::JobBase* ()> allocator);
+    void addReducer(const std::string& typeName, 
+            std::function<job::ReducerBase* ()> allocator);
 
     /** Unspecialized, internal job / reducer base class.  All jobs should 
         actually derive from job_stream::Job<WorkType>, and all reducers from

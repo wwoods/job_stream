@@ -21,6 +21,12 @@ void addJob(const std::string& typeName,
 }
 
 
+void addReducer(const std::string& typeName,
+        std::function<job::ReducerBase* ()> allocator) {
+    processor::Processor::addReducer(typeName, allocator);
+}
+
+
 SharedBase::SharedBase() {
 }
 

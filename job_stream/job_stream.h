@@ -114,11 +114,9 @@ namespace job_stream {
         struct _AutoRegister {
             //http://stackoverflow.com/questions/1819131/c-static-member-initalization-template-fun-inside
             _AutoRegister() {
-                printf("WOW.  %s\n", T_derived::NAME());
                 job_stream::job::addJob(T_derived::NAME(), _AutoRegister::make);
                 serialization::registerType<T_derived, Job<T_derived, T_input>,
                         job::JobBase, job::SharedBase>();
-                printf("OSNAP. %s\n", T_derived::NAME());
             }
 
             void doNothing() {}
@@ -141,11 +139,11 @@ namespace job_stream {
     template<typename T_derived, typename T_accum, typename T_input = T_accum>
     class Reducer : public job::ReducerBase {
     public:
-        /** Constructor; shouldn't be defined in derived classes.  Use
-            postSetup() instead */
-        Reducer() { serialization::registerType<T_derived,
-                Reducer<T_derived, T_accum, T_input>, job::ReducerBase,
-                job::SharedBase>(); }
+        /** Note - don't use a constructor.  Use postSetup() instead. */
+        Reducer() {
+            //Template static member instantiation.  Gotta reference it.
+            _autoRegister.doNothing();
+        }
 
         /** Called to initialize the accumulator for this reduce.  May be called
             several times on different hosts, whose results will later be merged
@@ -428,6 +426,23 @@ namespace job_stream {
             ar & boost::serialization::base_object<job::ReducerBase>(*this);
             ar & this->reduceMap;
         }
+
+        /* Auto class registration. */
+        struct _AutoRegister {
+            //http://stackoverflow.com/questions/1819131/c-static-member-initalization-template-fun-inside
+            _AutoRegister() {
+                job_stream::job::addReducer(T_derived::NAME(),
+                        _AutoRegister::make);
+                serialization::registerType<T_derived,
+                        Reducer<T_derived, T_accum, T_input>,
+                        job::ReducerBase, job::SharedBase>();
+            }
+
+            void doNothing() {}
+
+            static T_derived* make() { return new T_derived(); }
+        };
+        static _AutoRegister _autoRegister;
     };
 
     template<typename T_derived, typename T_accum, typename T_input>
@@ -445,6 +460,9 @@ namespace job_stream {
     template<typename T_derived, typename T_accum, typename T_input>
     thread_local bool Reducer<T_derived, T_accum, T_input>::hadRecurrence
             = false;
+    template<typename T_derived, typename T_accum, typename T_input>
+    typename Reducer<T_derived, T_accum, T_input>::_AutoRegister
+    Reducer<T_derived, T_accum, T_input>::_autoRegister;
 
 
     /** A Frame is a special type of Reducer that has special logic based on
@@ -455,17 +473,13 @@ namespace job_stream {
         of past trials) should be implemented as a Frame. */
     template<typename T_derived, typename T_accum, typename T_first,
             typename T_work = T_accum>
-    class Frame : public Reducer<Frame<T_derived, T_accum, T_first, T_work>,
-            T_accum, AnyType> {
+    class Frame : public Reducer<T_derived, T_accum, AnyType> {
     public:
-        /** Constructor; shouldn't be defined in derived classes.  Use
-            postSetup() instead */
-        Frame() { serialization::registerType<
-                T_derived,
-                Frame<T_derived, T_accum, T_first, T_work>,
-                Reducer<Frame<T_derived, T_accum, T_first, T_work>, T_accum, AnyType>,
-                job::ReducerBase,
-                job::SharedBase>(); }
+        /** Note - don't use a constructor.  Use postSetup() instead. */
+        Frame() {
+            //Template static member instantiation.  Gotta reference it.
+            _autoRegister.doNothing();
+        }
 
         /** Handles the first work that initiates the Reduce loop */
         virtual void handleFirst(T_accum& current, 
@@ -496,14 +510,32 @@ namespace job_stream {
         template<class Archive>
         void serialize(Archive& ar, const unsigned int version) {
             ar & boost::serialization::base_object<
-                    Reducer<Frame<T_derived, T_accum, T_first, T_work>, T_accum,
-                        AnyType>>(*this);
+                    Reducer<T_derived, T_accum, AnyType>>(*this);
         }
+
+        /* Auto class registration. */
+        struct _AutoRegister {
+            //http://stackoverflow.com/questions/1819131/c-static-member-initalization-template-fun-inside
+            _AutoRegister() {
+                //Frames inherit from Reducer, no need to addReducer.  We just
+                //need to set up the serialization inheritance chain
+                serialization::registerType<T_derived,
+                        Frame<T_derived, T_accum, T_first, T_work>,
+                        Reducer<T_derived, T_accum, AnyType>,
+                        job::ReducerBase, job::SharedBase>();
+            }
+
+            void doNothing() {}
+        };
+        static _AutoRegister _autoRegister;
     };
 
+    template<typename T_derived, typename T_accum, typename T_first,
+            typename T_work>
+    typename Frame<T_derived, T_accum, T_first, T_work>::_AutoRegister
+    Frame<T_derived, T_accum, T_first, T_work>::_autoRegister;
 
-    void addReducer(const std::string& typeName, 
-            std::function<job::ReducerBase* ()> allocator);
+
     void runProcessor(int argc, char** argv);
 }
 

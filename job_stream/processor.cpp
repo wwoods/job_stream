@@ -1152,7 +1152,10 @@ bool Processor::tryReceive() {
         }
         else if (tag == Processor::TAG_CHECKPOINT_NEXT) {
             //We must be in either CHECKPOINT_NONE or CHECKPOINT_SYNC
-            fprintf(stderr, "%i Got TAG_CHECKPOINT_NEXT\n", this->getRank());
+            if (JOB_STREAM_DEBUG >= 1) {
+                fprintf(stderr, "%i Got TAG_CHECKPOINT_NEXT\n",
+                        this->getRank());
+            }
             if (this->checkpointState == Processor::CHECKPOINT_NONE) {
                 this->checkpointState = Processor::CHECKPOINT_START;
             }
@@ -1165,11 +1168,16 @@ bool Processor::tryReceive() {
                         << this->checkpointState;
                 throw std::runtime_error(buf.str());
             }
-            fprintf(stderr, "%i checkpointState -> %i\n", this->getRank(),
-                    this->checkpointState);
+            if (JOB_STREAM_DEBUG >= 1) {
+                fprintf(stderr, "%i checkpointState -> %i\n", this->getRank(),
+                        this->checkpointState);
+            }
         }
         else if (tag == Processor::TAG_CHECKPOINT_READY) {
-            fprintf(stderr, "%i Got TAG_CHECKPOINT_READY\n", this->getRank());
+            if (JOB_STREAM_DEBUG >= 1) {
+                fprintf(stderr, "%i Got TAG_CHECKPOINT_READY\n",
+                        this->getRank());
+            }
             if (this->getRank() != 0) {
                 throw std::runtime_error(
                         "I'm not rank 0, got TAG_CHECKPOINT_READY?");
@@ -1177,7 +1185,10 @@ bool Processor::tryReceive() {
             this->_updateCheckpointSync(recv.source());
         }
         else if (tag == Processor::TAG_CHECKPOINT_DATA) {
-            fprintf(stderr, "%i Got TAG_CHECKPOINT_DATA\n", this->getRank());
+            if (JOB_STREAM_DEBUG >= 1) {
+                fprintf(stderr, "%i Got TAG_CHECKPOINT_DATA\n",
+                        this->getRank());
+            }
             if (this->getRank() != 0) {
                 throw std::runtime_error(
                         "I'm not rank 0, got TAG_CHECKPOINT_DATA?");
@@ -1351,8 +1362,10 @@ void Processor::_updateCheckpoints(int msDiff) {
                     Processor::TAG_CHECKPOINT_READY, 0), "");
             //Now we just wait for everyone to enter this state
             this->checkpointState = Processor::CHECKPOINT_SYNC;
-            fprintf(stderr, "%i checkpointState -> %i\n", this->getRank(),
-                    this->checkpointState);
+            if (JOB_STREAM_DEBUG >= 1) {
+                fprintf(stderr, "%i checkpointState -> %i\n", this->getRank(),
+                        this->checkpointState);
+            }
         }
     }
     else if (this->checkpointState == Processor::CHECKPOINT_SYNC) {
@@ -1380,8 +1393,10 @@ void Processor::_updateCheckpoints(int msDiff) {
                 serialization::encode(*this->checkpointAr,
                         serialization::encode(*this));
                 this->checkpointState = Processor::CHECKPOINT_GATHER;
-                fprintf(stderr, "%i checkpointState -> %i\n", this->getRank(),
-                        this->checkpointState);
+                if (JOB_STREAM_DEBUG >= 1) {
+                    fprintf(stderr, "%i checkpointState -> %i\n",
+                            this->getRank(), this->checkpointState);
+                }
             }
             else {
                 this->checkpointNext -= msDiff;
@@ -1390,8 +1405,10 @@ void Processor::_updateCheckpoints(int msDiff) {
     }
     else if (this->checkpointState == Processor::CHECKPOINT_SEND) {
         //Encode our state and transmit it to the root node.
-        fprintf(stderr, "%i checkpoint sending state, resuming computation\n",
-                this->getRank());
+        if (JOB_STREAM_DEBUG >= 1) {
+            fprintf(stderr, "%i checkpoint sending state, resuming "
+                    "computation\n", this->getRank());
+        }
         this->_nonBlockingSend(message::Header(Processor::TAG_CHECKPOINT_DATA,
                 0), "");
         //Begin working again.
