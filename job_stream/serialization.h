@@ -1,6 +1,22 @@
 #ifndef JOB_STREAM_SERIALIZATION_H_
 #define JOB_STREAM_SERIALIZATION_H_
 
+//Guard against boost default serializations, which do not support unique_ptr
+//correctly.
+
+#ifdef BOOST_SERIALIZATION_VECTOR_HPP
+#error Include job_stream serialization before boost/serialization/vector.hpp
+#endif
+#define BOOST_SERIALIZATION_VECTOR_HPP
+#ifdef BOOST_SERIALIZATION_LIST_HPP
+#error Include job_stream serialization before boost/serialization/list.hpp
+#endif
+#define BOOST_SERIALIZATION_LIST_HPP
+#ifdef BOOST_SERIALIZATION_MAP_HPP
+#error Include job_stream serialization before boost/serialization/map.hpp
+#endif
+#define BOOST_SERIALIZATION_MAP_HPP
+
 #include <boost/archive/binary_oarchive.hpp>
 #include <boost/archive/binary_iarchive.hpp>
 #include <boost/mpl/equal.hpp>
@@ -10,13 +26,17 @@
 #include <boost/serialization/extended_type_info_no_rtti.hpp>
 #include <boost/serialization/level.hpp>
 #include <boost/serialization/serialization.hpp>
-#include <boost/serialization/vector.hpp>
+//Bad unique_ptr support: #include <boost/serialization/list.hpp>
+//Bad unique_ptr support: #include <boost/serialization/map.hpp>
+//Bad unique_ptr support: #include <boost/serialization/vector.hpp>
+#include <boost/static_assert.hpp>
 #include <boost/type_traits/add_pointer.hpp>
 #include <boost/type_traits/is_polymorphic.hpp>
 #include <boost/type_traits/remove_const.hpp>
 #include <boost/type_traits/remove_pointer.hpp>
 #include <boost/utility/enable_if.hpp>
 #include <exception>
+#include <map>
 #include <sstream>
 #include <string>
 
@@ -33,8 +53,8 @@ typedef boost::archive::binary_iarchive IArchive;
 namespace boost {
 namespace serialization {
 
-/** Since job_stream supports smarter serialization of pointers with
-    polymorphic classes than boost... here's to it */
+/** Since job_stream supports smarter (type checked) serialization of pointers
+    with polymorphic classes than boost... here's to it */
 template<class T>
 void serialize(job_stream::serialization::OArchive& a, std::unique_ptr<T>& ptr,
         const unsigned int version);
@@ -48,6 +68,36 @@ template<class T>
 void serialize(job_stream::serialization::IArchive& a, std::shared_ptr<T>& ptr,
         const unsigned int version);
 
+/** job_stream map encoding supports maps of unique_ptr */
+template<class Archive, class U, class Allocator>
+inline void serialize(
+    Archive & ar,
+    std::list<U, Allocator> & t,
+    const unsigned int file_version
+){
+    boost::serialization::split_free(ar, t, file_version);
+}
+
+/** job_stream map encoding supports maps of unique_ptr */
+template<class Archive, class Type, class Key, class Compare, class Allocator >
+inline void serialize(
+    Archive & ar,
+    std::map<Key, Type, Compare, Allocator> &t,
+    const unsigned int file_version
+){
+    boost::serialization::split_free(ar, t, file_version);
+}
+
+/** job_stream map encoding supports maps of unique_ptr */
+template<class Archive, class U, class Allocator>
+inline void serialize(
+    Archive & ar,
+    std::vector<U, Allocator> & t,
+    const unsigned int file_version
+){
+    boost::serialization::split_free(ar, t, file_version);
+}
+
 } //serialization
 } //boost
 
@@ -55,20 +105,38 @@ void serialize(job_stream::serialization::IArchive& a, std::shared_ptr<T>& ptr,
 namespace job_stream {
 namespace serialization {
 
-//Actual public methods
-/** An example signature only.  Decode takes either a non-pointer or a unique_ptr */
-template<typename T, class ExampleOnly>
+/** Public encode-to-string method; dest can be non-pointer, unique_ptr, or
+    shared_ptr. Raw pointers are not allowed to discourage memory leaks. */
+template<typename T>
 void decode(const std::string& message, T& dest);
-template<typename T>
-void decode(const std::string& message, std::unique_ptr<T>& dest);
-template<typename T>
-void decode(const std::string& message, std::shared_ptr<T>& dest);
+/** Public encode-to-string method; src can be anything, but for decoding,
+    it's best to use non-pointer, unique_ptr, or shared_ptr.  Raw pointers are
+    not allowed to discourage memory leaks. */
 template<typename T>
 std::string encode(const T& src);
-template<typename T>
-std::string encode(const std::unique_ptr<T>& src);
-template<typename T>
-std::string encode(const std::shared_ptr<T>& src);
+/** Lets you encode a pointer directly to a string.  Note that this is not
+    recommended, as decode is asymmetric - you MUST decode into a unique_ptr or
+    shared_ptr.  Prefixed with an underscore to note this.  Used internally. */
+template<typename T, typename boost::enable_if<boost::mpl::not_<
+        boost::is_pointer<T>>, int>::type = 0>
+std::string encodeAsPtr(const T& src);
+
+/* Encode to archive */
+template<typename T, typename boost::enable_if<boost::mpl::not_<
+        boost::is_pointer<T>>, int>::type = 0>
+void decode(IArchive& a, T& dest);
+template<typename T, int = 0>
+void decode(IArchive& a, std::unique_ptr<T>& dest);
+template<typename T, int = 0>
+void decode(IArchive& a, std::shared_ptr<T>& dest);
+template<typename T, typename boost::enable_if<boost::mpl::not_<
+        boost::is_pointer<T>>, int>::type = 0>
+void encode(OArchive& a, const T& src);
+template<typename T, int = 0>
+void encode(OArchive& a, const std::unique_ptr<T>& src);
+template<typename T, int = 0>
+void encode(OArchive& a, const std::shared_ptr<T>& src);
+
 /** Extract the typeid(T).name() field from the given encoded message. */
 std::string getDecodedType(const std::string& message);
 /** Register a polymorphic base class or a derivative with its bases */
@@ -83,9 +151,7 @@ void printRegisteredTypes();
 /** Fully polymorphic object copy - even if you specify the base pointer,
     the derived class will be copied. */
 template<class T>
-void copy(const T& src, std::unique_ptr<T>& dest);
-template<class T>
-void copy(const std::unique_ptr<T>& src, std::unique_ptr<T>& dest);
+void copy(const T& src, T& dest);
 
 
 /** A special serializable type that will preserve whatever the original type
@@ -130,6 +196,10 @@ public:
     }
 };
 
+/** Returns list of registered types; put as a static in a function so that
+    instantiation order supports self-registering jobs and reducers. */
+std::list<std::unique_ptr<RegisteredTypeBase>>& registeredTypes();
+
 
 
 /** Relates a derivative type T to its base class B */
@@ -168,39 +238,49 @@ public:
 
 
 
-extern std::list<std::unique_ptr<RegisteredTypeBase>> registeredTypes;
-
 template<class T, class Base>
 class _RegisterType_impl {
 public:
     static void doRegister() {
         std::unique_ptr<RegisteredTypeBase> ptr(new RegisteredType<T, Base>());
-        auto it = registeredTypes.begin();
-        for (; it != registeredTypes.end(); it++) {
+        auto& registered = registeredTypes();
+        auto it = registered.begin();
+        //Prevent double registration
+        for (; it != registered.end(); it++) {
+            if ((*it)->isDerivedClass<T>() && (*it)->isBaseClass<Base>()) {
+                return;
+            }
+        }
+        //Register with boost (this is really hard to find in the docs, btw)
+        boost::serialization::void_cast_register<T, Base>();
+
+        //Register internally
+        it = registered.begin();
+        for (; it != registered.end(); it++) {
             /** Since we go through these in order, it is important that the
                 most-derived classes are encountered first.  Otherwise, encode()
                 will find a base class before a potential better match, and 
                 since dynamic_cast will return non-zero, encoding will stop. */
             if ((*it)->isDerivedClass<T>()) {
                 //put with our people
-                registeredTypes.insert(it, std::move(ptr));
+                registered.insert(it, std::move(ptr));
                 return;
             }
             else if ((*it)->isDerivedClass<Base>()) {
                 //We derive from this class, so go above its block, and move all
                 //of our other instances above it too
-                registeredTypes.insert(it, std::move(ptr));
+                registered.insert(it, std::move(ptr));
                 auto insertIt = it;
                 //it now points to one before the row that triggered this if
                 //condition, after this decr and the first incr
                 --it;
-                while (++it != registeredTypes.end()) {
+                while (++it != registered.end()) {
                     if ((*it)->isDerivedClass<T>()) {
                         auto toRemove = it++;
                         std::unique_ptr<RegisteredTypeBase> ptr = std::move(
                                 *toRemove);
-                        registeredTypes.erase(toRemove);
-                        registeredTypes.insert(insertIt, std::move(ptr));
+                        registered.erase(toRemove);
+                        registered.insert(insertIt, std::move(ptr));
                         --it;
                     }
                 }
@@ -208,7 +288,7 @@ public:
             }
         }
 
-        registeredTypes.insert(it, std::move(ptr));
+        registered.insert(it, std::move(ptr));
     }
 };
 
@@ -338,7 +418,7 @@ struct _SerialHelper<T*,
         //Any polymorphic class MUST be registered.  Otherwise, we can't guarantee
         //type safety, and might end up encoding a base class representation of a non
         //base class.
-        for (std::unique_ptr<RegisteredTypeBase>& m : registeredTypes) {
+        for (std::unique_ptr<RegisteredTypeBase>& m : registeredTypes()) {
             if (m->tryEncode(a, typeName(), (void*)obj)) {
                 return;
             }
@@ -353,7 +433,7 @@ struct _SerialHelper<T*,
     static void decodeTypeAndObject(IArchive& a, T*& obj) {
         std::string objTypeName;
         a >> objTypeName;
-        for (std::unique_ptr<RegisteredTypeBase>& m : registeredTypes) {
+        for (std::unique_ptr<RegisteredTypeBase>& m : registeredTypes()) {
             if (m->tryDecode(a, objTypeName, typeName(), (void**)&obj)) {
                 return;
             }
@@ -367,76 +447,136 @@ struct _SerialHelper<T*,
     }
 };
 
-
-/** Non-pointer decode mechanism.  Avoid memory leaks by explicitly disallowing
-    decoding to a raw pointer type. */
-template<class T, typename boost::enable_if<boost::mpl::not_<
-        boost::is_pointer<T>>, int>::type = 0>
-void decode(const std::string& message, T& dest) {
-    typedef _SerialHelper<T> sh;
-    std::istringstream ss(message);
-    IArchive ia(ss, boost::archive::no_header);
-    sh::decodeTypeAndObject(ia, dest);
-}
-
-
-template<class T>
-void decode(const std::string& message, std::unique_ptr<T>& dest) {
-    typedef _SerialHelper<T*> sh;
-    std::istringstream ss(message);
-    IArchive ia(ss, boost::archive::no_header);
-    T* toAllocate;
-    sh::decodeTypeAndObject(ia, toAllocate);
-    dest.reset(toAllocate);
-}
-
-
-template<class T>
-void decode(const std::string& message, std::shared_ptr<T>& dest) {
-    typedef _SerialHelper<T*> sh;
-    std::istringstream ss(message);
-    IArchive ia(ss, boost::archive::no_header);
-    T* toAllocate;
-    sh::decodeTypeAndObject(ia, toAllocate);
-    dest.reset(toAllocate);
-}
-
-
-template<>
-void decode(const std::string& message, std::unique_ptr<AnyType>& dest);
-
-
-template<class T>
+/** Encode to string */
+template<typename T>
 std::string encode(const T& src) {
-    typedef _SerialHelper<T> sh;
     std::ostringstream ss;
     OArchive oa(ss, boost::archive::no_header);
-    sh::encodeTypeAndObject(oa, src);
+    encode(oa, src);
     return ss.str();
 }
 
 
-template<class T>
-std::string encode(const std::unique_ptr<T>& src) {
-    return encode(src.get());
+/** Decode from string */
+template<typename T>
+void decode(const std::string& message, T& dest) {
+    std::istringstream ss(message);
+    IArchive ia(ss, boost::archive::no_header);
+    decode(ia, dest);
 }
 
 
+/** Encode reference to a string, but encode it as a pointer.  Useful when
+    you'll be decoding it to a unique_ptr or shared_ptr, as in a networking
+    protocol.  */
+template<typename T, typename boost::enable_if<boost::mpl::not_<
+        boost::is_pointer<T>>, int>::type>
+std::string encodeAsPtr(const T& src) {
+    std::ostringstream ss;
+    OArchive oa(ss, boost::archive::no_header);
+    _SerialHelper<T*>::encodeTypeAndObject(oa, const_cast<T* const>(&src));
+    return ss.str();
+}
+
+
+/** Non-pointer decode mechanism.  Avoid memory leaks by explicitly disallowing
+    decoding to a raw pointer type. */
+template<typename T, typename boost::enable_if<boost::mpl::not_<
+        boost::is_pointer<T>>, int>::type>
+void decode(IArchive& ia, T& dest) {
+    _SerialHelper<T>::decodeTypeAndObject(ia, dest);
+}
+
+
+/** Decode std::unique_ptr */
+template<typename T, int>
+void decode(IArchive& ia, std::unique_ptr<T>& dest) {
+    T* toAllocate;
+    _SerialHelper<T*>::decodeTypeAndObject(ia, toAllocate);
+    dest.reset(toAllocate);
+}
+
+
+/** Kludgey, but not sure how else to tell that reset_object_address hasn't
+    been called before.  Is a memory leak. */
 template<class T>
-std::string encode(const std::shared_ptr<T>& src) {
-    return encode(src.get());
+struct JobStreamSharedPtrSwipe {
+    uint64_t pattern;
+    //Use a raw ptr to not hold onto a reference.  This pointer will become
+    //invalid when the first loaded shared_ptr goes out of scope.  We are
+    //assuming this happens after archive load.  Limits our memory leak to just
+    //this structure.
+    std::shared_ptr<T>* base;
+};
+
+
+/** Decode std::shared_ptr */
+template<typename T, int>
+void decode(IArchive& ia, std::shared_ptr<T>& dest) {
+    typedef JobStreamSharedPtrSwipe<T> Swip;
+    const uint64_t SwipPat = 0x1234567887654321;
+
+    //IF THIS ASSERTION FAILS - you must wrap your shared type in a struct.
+    //Boost does not track primitives by default; we fix normal encoding and
+    //decoding, but cannot fix it for shared_ptr.
+    BOOST_STATIC_ASSERT(boost::serialization::tracking_level< T >::value
+            != boost::serialization::track_never);
+
+    T* pptr;
+    _SerialHelper<T*>::decodeTypeAndObject(ia, pptr);
+    if (((Swip*)pptr)->pattern == SwipPat) {
+        dest = *((Swip*)pptr)->base;
+    }
+    else {
+        Swip* s = new Swip();
+        s->pattern = SwipPat;
+        s->base = &dest;
+        dest.reset(pptr);
+        ia.reset_object_address(s, pptr);
+    }
+}
+
+
+/** Decode to a unique_ptr for AnyType.  Useful when you're not sure what
+    exactly will be decoded.  */
+template<>
+void decode(IArchive& ia, std::unique_ptr<AnyType>& dest);
+
+
+/** Encode anything that isn't a raw pointer. */
+template<typename T, typename boost::enable_if<boost::mpl::not_<
+        boost::is_pointer<T>>, int>::type>
+void encode(OArchive& oa, const T& src) {
+    _SerialHelper<T>::encodeTypeAndObject(oa, src);
+}
+
+
+template<typename T, int>
+void encode(OArchive& oa, const std::unique_ptr<T>& src) {
+    _SerialHelper<T*>::encodeTypeAndObject(oa, src.get());
+}
+
+
+template<typename T, int>
+void encode(OArchive& oa, const std::shared_ptr<T>& src) {
+    //Save the object as-is; multiple shared_ptrs pointing to the same object
+    //will be archived as the same object.  We'll resolve this when we load
+    //them.
+
+    //IF THIS ASSERTION FAILS - you must wrap your shared type in a struct.
+    //Boost does not track primitives by default; we fix normal encoding and
+    //decoding, but cannot fix it for shared_ptr.
+    BOOST_STATIC_ASSERT(boost::serialization::tracking_level< T >::value
+            != boost::serialization::track_never);
+
+    _SerialHelper<T*>::encodeTypeAndObject(oa, src.get());
 }
 
 
 /** Lazy person's copy functionality */
 template<class T>
-void copy(const T& src, std::unique_ptr<T>& dest) {
+void copy(const T& src, T& dest) {
     decode(encode(&src), dest);
-}
-
-template<class T>
-void copy(const std::unique_ptr<T>& src, std::unique_ptr<T>& dest) {
-    decode(encode(src.get()), dest);
 }
 
 }
@@ -450,18 +590,15 @@ namespace serialization {
 template<class T>
 void serialize(job_stream::serialization::OArchive& a, std::unique_ptr<T>& ptr,
         const unsigned int version) {
-    std::string encoded = job_stream::serialization::encode(ptr.get());
-    a << encoded;
+    job_stream::serialization::encode(a, ptr);
 }
 
 
 /** Boost namespace capability to encode / decode std::unique_ptr */
 template<class T>
-void serialize(job_stream::serialization::IArchive& a, std::unique_ptr<T>& ptr, 
+void serialize(job_stream::serialization::IArchive& a, std::unique_ptr<T>& ptr,
         const unsigned int version) {
-    std::string decoded;
-    a >> decoded;
-    job_stream::serialization::decode(decoded, ptr);
+    job_stream::serialization::decode(a, ptr);
 }
 
 
@@ -469,20 +606,156 @@ void serialize(job_stream::serialization::IArchive& a, std::unique_ptr<T>& ptr,
 template<class T>
 void serialize(job_stream::serialization::OArchive& a, std::shared_ptr<T>& ptr,
         const unsigned int version) {
-    std::string encoded = job_stream::serialization::encode(ptr.get());
-    a << encoded;
+    job_stream::serialization::encode(a, ptr);
 }
-
 
 /** Boost namespace capability to encode / decode std::shared_ptr */
 template<class T>
 void serialize(job_stream::serialization::IArchive& a, std::shared_ptr<T>& ptr,
         const unsigned int version) {
-    std::string decoded;
-    a >> decoded;
-    std::unique_ptr<T> uptr;
-    job_stream::serialization::decode(decoded, uptr);
-    ptr.reset(uptr.release());
+    job_stream::serialization::decode(a, ptr);
+}
+
+
+/** NOTE ABOUT WHY THIS USE job_stream::serialization::encode:
+    bool& has no templated serialize, bool does.  job_stream automatically
+    decodes all references as value types, which is what we want for these
+    STL containers. */
+
+template<class Archive, class U, class Allocator>
+inline void save(
+    Archive & ar,
+    const std::list<U, Allocator> & t,
+    const unsigned int file_version
+){
+    size_t sz = t.size();
+    ar & sz;
+    for (auto it = t.begin(); it != t.end(); it++) {
+        job_stream::serialization::encode(ar, *it);
+    }
+}
+
+
+template<class Archive, class U, class Allocator>
+inline void load(
+    Archive & ar,
+    std::list<U, Allocator> & t,
+    const unsigned int file_version
+){
+    size_t sz;
+    ar & sz;
+    //Ensure we're working with all default instances
+    t.clear();
+    t.resize(sz);
+
+    for (auto it = t.begin(); it != t.end(); it++) {
+        job_stream::serialization::decode(ar, *it);
+    }
+}
+
+
+template<class Archive, class Type, class Key, class Compare, class Allocator >
+inline void save(
+    Archive & ar,
+    const std::map<Key, Type, Compare, Allocator> &t,
+    const unsigned int /* file_version */
+){
+    size_t sz = t.size();
+    ar & sz;
+
+    for (auto it = t.begin(); it != t.end(); it++) {
+        job_stream::serialization::encode(ar, it->first);
+        job_stream::serialization::encode(ar, it->second);
+    }
+}
+
+template<class Archive, class Type, class Key, class Compare, class Allocator >
+inline void load(
+    Archive & ar,
+    std::map<Key, Type, Compare, Allocator> &t,
+    const unsigned int /* file_version */
+){
+    size_t sz;
+    ar & sz;
+    t.clear();
+
+    Key k;
+
+    for (size_t i = 0; i < sz; i++) {
+        job_stream::serialization::decode(ar, k);
+        job_stream::serialization::decode(ar, t[k]);
+    }
+}
+
+
+template<class Archive, class U, class Allocator>
+inline void save(
+    Archive & ar,
+    const std::vector<U, Allocator> & t,
+    const unsigned int file_version
+){
+    size_t sz = t.size();
+    ar & sz;
+    for (size_t i = 0; i < sz; i++) {
+        job_stream::serialization::encode(ar, t[i]);
+    }
+}
+
+
+template<class Archive, class U, class Allocator>
+inline void load(
+    Archive & ar,
+    std::vector<U, Allocator> & t,
+    const unsigned int file_version
+){
+    size_t sz;
+    ar & sz;
+    //Ensure we get default objects
+    t.clear();
+    t.resize(sz);
+
+    for (size_t i = 0; i < sz; i++) {
+        //Weird cast needed for e.g. bool, which has its own _Bit_reference
+        //reference type by default.
+        job_stream::serialization::decode(ar, t[i]);
+    }
+}
+
+
+/** bool has its own special override for vector. */
+template<class Archive, class Allocator>
+inline void save(Archive& ar, const std::vector<bool, Allocator>& t,
+        const unsigned int version) {
+    size_t sz = t.size();
+    ar & sz;
+
+    bool v;
+    for (size_t i = 0; i < sz; i++) {
+        //Weird cast needed for e.g. bool, which has its own _Bit_reference
+        //reference type by default.
+        v = t[i];
+        job_stream::serialization::encode(ar, v);
+    }
+}
+
+
+/** bool has its own special override for vector. */
+template<class Archive, class Allocator>
+inline void load(Archive& ar, std::vector<bool, Allocator>& t,
+        const unsigned int version) {
+    size_t sz;
+    ar & sz;
+    //Ensure we get default objects
+    t.clear();
+    t.resize(sz);
+
+    bool v;
+    for (size_t i = 0; i < sz; i++) {
+        //Weird cast needed for e.g. bool, which has its own _Bit_reference
+        //reference type by default.
+        job_stream::serialization::decode(ar, v);
+        t[i] = v;
+    }
 }
 
 } //serialization

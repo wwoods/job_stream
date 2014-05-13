@@ -13,11 +13,18 @@ namespace job_stream {
 namespace module {
     class Module;
 }
+namespace job {
+    class JobBase;
+    class ReducerBase;
+}
 namespace processor {
     class Processor;
 }
 
 namespace job {
+    void addJob(const std::string& typeName, 
+            std::function<job::JobBase* ()> allocator);
+
     /** Unspecialized, internal job / reducer base class.  All jobs should 
         actually derive from job_stream::Job<WorkType>, and all reducers from
         job_stream::Reducer<AccumulatorType[, WorkType]>. */
@@ -32,6 +39,10 @@ namespace job {
         /* Can override to check config / do something at setup() time. */
         virtual void postSetup() {}
 
+        /** Call this at any point to force a checkpoint after the current
+            work completes. */
+        void forceCheckpoint();
+
         const YAML::Node& getConfig() const { return this->config; }
 
         /* For debug; return double-colon delimited job id. */
@@ -45,6 +56,16 @@ namespace job {
                 const std::string& id,
                 const YAML::Node& config, 
                 const YAML::Node& globalConfig);
+
+        /** Used when restoring from a checkpoint, populate our and all
+            allocated child jobs / reducers based on config.  Also calls
+            postSetup, since that was not triggered during checkpoint restore.
+
+            Default behavior is just to call setup() with our extant parameters,
+            and then call postSetup.
+            */
+        virtual void populateAfterRestore(const YAML::Node& globalConfig,
+                const YAML::Node& config);
 
     protected:
         /* Our job's specific config, including "to", "id", and "type". */
@@ -92,6 +113,22 @@ namespace job {
         /** Take a line of stdin or argv input and convert it to the 
             appropriate type for this job (or module's first job). */
         std::string parseAndSerialize(const std::string& line);
+
+    private:
+        friend class boost::serialization::access;
+        /*  Serialization for checkpoints; only used bottom up.  You do not need
+            to register your own derived classes!  We just need to detect if
+            something is a Reducer, and if so, save its reduceMap. */
+        template<class Archive>
+        void serialize(Archive& ar, const unsigned int version) {
+            //NOTE - A LOT of links are NOT serialized.  The reason we serialize
+            //SharedBase (and jobs and reducers at all) is because ReduceInfo
+            //fingerprints need to link back to the correct objects.  So, we
+            //archive the tree's shape in general, but then fill it in from the
+            //config file.
+            ar & this->parent;
+            ar & this->id;
+        }
     };
 
 
@@ -103,6 +140,13 @@ namespace job {
 
         /** Pass work to see if it would start a new reduction. */
         virtual bool wouldReduce(message::WorkRecord& work) = 0;
+
+    private:
+        friend class boost::serialization::access;
+        template<class Archive>
+        void serialize(Archive& ar, const unsigned int version) {
+            ar & boost::serialization::base_object<SharedBase>(*this);
+        }
     };
 
 
@@ -122,6 +166,13 @@ namespace job {
         /** Dispatch to templated done.  Returns true if no recurrence occurred,
             and the ring is fully dead. */
         virtual bool dispatchDone(uint64_t reduceTag) = 0;
+
+    private:
+        friend class boost::serialization::access;
+        template<class Archive>
+        void serialize(Archive& ar, const unsigned int version) {
+            ar & boost::serialization::base_object<SharedBase>(*this);
+        }
     };
 
 
@@ -140,6 +191,13 @@ namespace job {
 
         /* Used for Frames, allows first work to be distinguished.... */
         bool gotFirstWork;
+
+    private:
+        friend class boost::serialization::access;
+        template<class Archive>
+        void serialize(Archive& ar, const unsigned int version) {
+            ar & this->originalWork & this->accumulator & this->gotFirstWork;
+        }
     };
 }
 }

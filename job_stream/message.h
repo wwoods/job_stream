@@ -152,7 +152,7 @@ namespace message {
         WorkRecord(const std::vector<std::string>& target,
                 void* work);
 
-        virtual ~WorkRecord() {}
+        ~WorkRecord() {}
 
         /* Fill in this WorkRecord as though it is a continuation of wr */
         void chainFrom(const WorkRecord& wr);
@@ -214,21 +214,23 @@ namespace message {
 
         /** Returns true if this WorkRecord is Typed (meaning it has its own
             allocated version of our work, no string necessary). */
-        virtual bool isTyped() {
+        bool isTyped() {
             return false;
         }
 
 
-        virtual void* getTypedWork() {
+        void* getTypedWork() {
             throw std::runtime_error("Default impl has no typed work");
         }
 
         
-        virtual void serializeTypedWork() const {
+        void serializeTypedWork() const {
             //Default impl has work string already encoded and ready to go
         }
 
     private:
+        WorkRecord() {}
+
         friend class boost::serialization::access;
         template<class Archive>
         void serialize(Archive& ar, const unsigned int version) {
@@ -243,40 +245,6 @@ namespace message {
             }
             ar & this->work;
         }
-    };
-
-
-
-    template<typename T>
-    class TypedWorkRecord : public WorkRecord {
-    public:
-        TypedWorkRecord(const std::vector<std::string>& target, T* work)
-                : WorkRecord(target, work), typedWork(work) {}
-        virtual ~TypedWorkRecord() {}
-
-    protected:
-        virtual bool isTyped() {
-            return true;
-        }
-
-
-        virtual void* getTypedWork() {
-            if (this->typedWork.get() == 0) {
-                throw std::runtime_error("Work already cast?");
-            }
-            return (void*)this->typedWork.release();
-        }
-
-
-        virtual void serializeTypedWork() const {
-            if (this->typedWork.get() == 0) {
-                throw std::runtime_error("Work already cast?");
-            }
-            this->work = serialization::encode(*this->typedWork);
-        }
-
-    private:
-        std::unique_ptr<T> typedWork;
     };
 
 

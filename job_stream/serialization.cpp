@@ -3,25 +3,32 @@
 namespace job_stream {
 namespace serialization {
 
-std::list<std::unique_ptr<RegisteredTypeBase>> registeredTypes;
+std::list<std::unique_ptr<RegisteredTypeBase>>& registeredTypes() {
+    static std::list<std::unique_ptr<RegisteredTypeBase>> result;
+    return result;
+}
+
 
 void clearRegisteredTypes() {
-    registeredTypes.clear();
+    registeredTypes().clear();
 }
 
 
 void printRegisteredTypes() {
     printf("Printing job_stream::serialization::registeredTypes in order of "
             "resolution\n");
-    for (auto it = registeredTypes.begin(); it != registeredTypes.end(); it++) {
+    auto& registered = registeredTypes();
+    for (auto it = registered.begin(); it != registered.end(); it++) {
         printf("%s from %s\n", (*it)->typeName(), (*it)->baseName());
     }
 }
 
 
 template<>
-void decode(const std::string& message, std::unique_ptr<AnyType>& dest) {
-    dest.reset(new AnyType(message));
+void decode(IArchive& ia, std::unique_ptr<AnyType>& dest) {
+    std::string encoded;
+    ia >> encoded;
+    dest.reset(new AnyType(encoded));
 }
 
 

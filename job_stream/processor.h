@@ -10,6 +10,7 @@
 
 #include <boost/mpi.hpp>
 #include <deque>
+#include <fstream>
 #include <functional>
 #include <memory>
 #include <list>
@@ -176,8 +177,28 @@ private:
 
     /** If data == 0, populate it by deserializing encodedMessage. */
     void _ensureDecoded() const;
+
+    /** For serialization only */
+    MpiMessage() {}
+
+    friend class boost::serialization::access;
+    template<class Archive>
+    void serialize(Archive& ar, const unsigned int version) {
+        ar & this->tag;
+        if (Archive::is_saving::value) {
+            //Ensure we're serialized
+            std::string msg = this->serialized();
+            ar & msg;
+        }
+        else {
+            ar & this->encodedMessage;
+            this->data.reset();
+        }
+    }
 };
 
+typedef std::unique_ptr<MpiMessage> MpiMessagePtr;
+typedef std::list<MpiMessagePtr> MpiMessageList;
 
 
 struct ProcessorReduceInfo {
@@ -186,7 +207,7 @@ struct ProcessorReduceInfo {
 
     /** Any messages waiting on this tag to resume (childTagCount != 0, waiting
         for 0). */
-    std::vector<std::unique_ptr<MpiMessage>> messagesWaiting;
+    std::vector<MpiMessagePtr> messagesWaiting;
 
     /** The count of messages generated within this reduction. */
     uint64_t countCreated;
@@ -203,6 +224,18 @@ struct ProcessorReduceInfo {
 
     ProcessorReduceInfo() : childTagCount(0), parentTag(0), reducer(0), 
             countCreated(0), countProcessed(0) {}
+
+private:
+    friend class boost::serialization::access;
+    template<class Archive>
+    void serialize(Archive& ar, const unsigned int version) {
+        ar & this->childTagCount & this->messagesWaiting;
+        ar & this->countCreated & this->countProcessed;
+        ar & this->parentTag;
+        //Note - boost pointer serialization takes care of matching up our
+        //reducer in this run with our reducer in a continuation.
+        ar & this->reducer;
+    }
 };
 
 
@@ -232,6 +265,14 @@ public:
         TAG_STEAL,
         /** A group of messages - tag, body, tag, body, etc. */
         TAG_GROUP,
+        /** Advance checkpoint to next state (either start or send) */
+        TAG_CHECKPOINT_NEXT,
+        /** Processor ready to submit checkpoint data */
+        TAG_CHECKPOINT_READY,
+        /** Processor's data required to resume operations. */
+        TAG_CHECKPOINT_DATA,
+        /** Force a checkpoint */
+        TAG_CHECKPOINT_FORCE,
         /** Placeholder for number of tags */
         TAG_COUNT,
     };
@@ -245,6 +286,18 @@ public:
         TIME_COMM,
         //Placeholder for number of types
         TIME_COUNT,
+    };
+
+    /** Checkpoint states. */
+    enum CheckpointState {
+        CHECKPOINT_NONE,
+        CHECKPOINT_START,
+        CHECKPOINT_SYNC,
+        /** Rank != 0 only; used to separate message logic from main checkpoint
+            logic */
+        CHECKPOINT_SEND,
+        /** Rank 0 only; waiting for everyone else to send */
+        CHECKPOINT_GATHER
     };
 
     /** Used to keep track of time spent not working (vs working). */
@@ -268,7 +321,7 @@ public:
 
     Processor(std::unique_ptr<boost::mpi::environment> env, 
             boost::mpi::communicator world, 
-            const YAML::Node& config);
+            const YAML::Node& config, const std::string& checkpointName);
     ~Processor();
 
 
@@ -279,8 +332,8 @@ public:
     /** Return this Processor's rank */
     int getRank() const { return this->world.rank(); }
     /** Get work for a Worker, or return a null unique_ptr if there is no 
-        work */
-    std::unique_ptr<MpiMessage> getWork();
+        work (or we're waiting on a checkpoint) */
+    MpiMessagePtr getWork();
     /** Run all modules defined in config; inputLine (already trimmed) 
         determines whether we are using one row of input (the inputLine) or 
         stdin (if empty) */
@@ -297,10 +350,12 @@ protected:
     /** Called to reduce a childTagCount on a ProcessorReduceInfo for a given
         reduceTag.  Optionally dispatch messages pending. */
     void decrReduceChildTag(uint64_t reduceTag, bool wasProcessed = false);
+    /** Force a checkpoint after current work completes */
+    void forceCheckpoint();
     /** Called to handle a ring test message, possibly within tryReceive, or
         possibly in the main work loop.  If we are the sentry for the message's
         ring, we are called in work loop.  Otherwise in tryReceive. */
-    void handleRingTest(std::unique_ptr<MpiMessage> message);
+    void handleRingTest(MpiMessagePtr message);
     /** If we have an input thread, join it */
     void joinThreads();
     /** Initialize local timing info */
@@ -314,7 +369,7 @@ protected:
     void processInputThread_main(const std::string& inputLine);
     /** Process a previously received mpi message.  Passed non-const so that it
         can be steal-constructored (rvalue) */
-    void process(std::unique_ptr<MpiMessage> message);
+    void process(MpiMessagePtr message);
     /** Try to receive the current request, or make a new one */
     bool tryReceive();
 
@@ -331,6 +386,24 @@ private:
                     timeType(type) {}
     };
 
+    static const int CHECKPOINT_SYNC_WAIT_MS = 10;
+
+    /** The file being used to write the current checkpoint. */
+    std::unique_ptr<std::ofstream> checkpointFile;
+    /** The archive writing to checkpointFile */
+    std::unique_ptr<serialization::OArchive> checkpointAr;
+    /** The name of the checkpoint file */
+    std::string checkpointFileName;
+    /** Time between checkpoints (ms).  Time from completion to start.  */
+    int checkpointInterval;
+    /** Time to next checkpoint (ms).  Negative means disabled. */
+    int checkpointNext;
+    /** Start time for checkpoint, just for stats tracking */
+    uint64_t tsCheckpointStart;
+    CheckpointState checkpointState;
+    /** Count of processors that we're waiting on information from.  Only used
+        on rank 0. */
+    int checkpointWaiting;
     /** Our environment */
     std::unique_ptr<boost::mpi::environment> env;
     /** Global array; see localClksByType */
@@ -371,9 +444,13 @@ private:
     bool sentEndRing0;
     /* True until quit message is received (ring 0 is completely closed). */
     bool shouldRun;
+    /* True if and only if this processor was restored from a checkpoint. */
+    bool wasRestored;
     std::vector<std::unique_ptr<WorkerThread>> workers;
+    //Number of workerThreads currently processing a message.
+    int workingCount;
     //Any work waiting to be done on this Processor.
-    std::list<std::unique_ptr<MpiMessage>> workInQueue;
+    MpiMessageList workInQueue;
     /* workOutQueue gets redistributed to all workers; MPI is not implicitly
        thread-safe, that is why this queue exists.  Used for input only at
        the moment. */
@@ -408,6 +485,31 @@ private:
     void _pushWorkTimer(ProcessorTimeType userWork);
     /** Pop the last timer section */
     void _popWorkTimer();
+
+    /** Update current checkpoint state, given # of ms difference from last
+        loop.
+
+        Essentially, CHECKPOINT_NONE -> CHECKPOINT_START -> worker stopped
+        and nothing left to send -> CHECKPOINT_SYNC -> all sync'd, plus a delay
+        -> CHECKPOINT_SEND -> send data to 0, resume operations.
+
+        */
+    void _updateCheckpoints(int msDiff);
+
+    /** During CHECKPOINT_START or CHECKPOINT_SYNC, indicates that a Processor
+        has achieved stability and is now in the CHECKPOINT_SYNC state. */
+    void _updateCheckpointSync(int rank);
+
+
+    friend class boost::serialization::access;
+    /** Either write a checkpoint or restore our state from one. */
+    template<class Archive>
+    void serialize(Archive& ar, const unsigned int version) {
+        ar & this->root;
+        ar & this->reduceTagCount & this->reduceInfoMap;
+        ar & this->workInQueue;
+        ar & this->sentEndRing0;
+    }
 };
 
 }//processor

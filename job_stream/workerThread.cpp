@@ -22,7 +22,7 @@ void WorkerThread::main() {
     std::unique_ptr<Processor::WorkTimer> outerTimer(new Processor::WorkTimer(
             this->processor, Processor::TIME_IDLE));
     while (this->shouldRun) {
-        std::unique_ptr<MpiMessage> work = this->processor->getWork();
+        MpiMessagePtr work = this->processor->getWork();
         if (work) {
             this->processor->process(std::move(work));
         }

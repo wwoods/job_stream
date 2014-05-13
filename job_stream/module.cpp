@@ -16,6 +16,23 @@ Module::Module() : level(0) {
 }
 
 
+void Module::populateAfterRestore(const YAML::Node& globalConfig,
+        const YAML::Node& config) {
+    job::JobBase::populateAfterRestore(globalConfig, config);
+
+    for (auto it = this->jobMap.begin(); it != this->jobMap.end(); it++) {
+        it->second->processor = this->processor;
+        it->second->populateAfterRestore(globalConfig,
+                config["jobs"][it->second->id]);
+    }
+
+    if (this->reducer) {
+        this->reducer->processor = this->processor;
+        this->reducer->populateAfterRestore(globalConfig, config["reducer"]);
+    }
+}
+
+
 void Module::postSetup() {
     //Sanity checks - jobs cannot be a sequence if input is defined.
     if (this->config["jobs"].IsSequence()) {
@@ -103,8 +120,8 @@ void Module::postSetup() {
         }
     }
 
-    //Set up reducer
-    if (this->config["reducer"]) {
+    //Set up reducer, unless we've started from a checkpoint
+    if (this->config["reducer"] && !this->reducer) {
         this->reducer.reset(this->processor->allocateReducer(this, 
                 this->config["reducer"]));
     }

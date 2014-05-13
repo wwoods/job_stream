@@ -20,9 +20,15 @@ namespace job_stream {
 
 
     /** Specialized Job base class. */
-    template<typename T_input>
+    template<typename T_derived, typename T_input>
     class Job : public job::JobBase {
     public:
+        /** Note - don't use a constructor.  Use postSetup() instead. */
+        Job() {
+            //Template static member instantiation.  Gotta reference it.
+            _autoRegister.doNothing();
+        }
+
         /** Function to override that actually processes work */
         virtual void handleWork(std::unique_ptr<T_input> work) = 0;
 
@@ -84,7 +90,7 @@ namespace job_stream {
 
             std::unique_ptr<message::WorkRecord> wr(new message::WorkRecord(
                     this->getTargetForJob(nextTarget),
-                    serialization::encode(&output)));
+                    serialization::encodeAsPtr(output)));
             wr->chainFrom(*this->currentRecord);
             this->processor->addWork(std::move(wr));
         }
@@ -95,17 +101,52 @@ namespace job_stream {
         virtual std::string getInputTypeName() {
             return typeid(T_input).name();
         }
+
+        friend class boost::serialization::access;
+        /*  Serialization for checkpoints; only used bottom up.  You do not need
+            to register your own derived classes! */
+        template<class Archive>
+        void serialize(Archive& ar, const unsigned int version) {
+            ar & boost::serialization::base_object<job::JobBase>(*this);
+        }
+
+        /* Auto class registration. */
+        struct _AutoRegister {
+            //http://stackoverflow.com/questions/1819131/c-static-member-initalization-template-fun-inside
+            _AutoRegister() {
+                printf("WOW.  %s\n", T_derived::NAME());
+                job_stream::job::addJob(T_derived::NAME(), _AutoRegister::make);
+                serialization::registerType<T_derived, Job<T_derived, T_input>,
+                        job::JobBase, job::SharedBase>();
+                printf("OSNAP. %s\n", T_derived::NAME());
+            }
+
+            void doNothing() {}
+
+            static T_derived* make() { return new T_derived(); }
+        };
+        static _AutoRegister _autoRegister;
     };
 
-    template<typename T_input> thread_local std::unique_ptr<T_input> 
-            Job<T_input>::currentWork;
+    template<typename T_derived, typename T_input>
+            thread_local std::unique_ptr<T_input>
+            Job<T_derived, T_input>::currentWork;
+    template<typename T_derived, typename T_input>
+            typename Job<T_derived, T_input>::_AutoRegister
+            Job<T_derived, T_input>::_autoRegister;
 
 
     /** Specialized reducer class.  Default implementation relies on operator+,
         so have it defined (into T_accum from both T_accum and T_input)  */
-    template<typename T_accum, typename T_input = T_accum>
+    template<typename T_derived, typename T_accum, typename T_input = T_accum>
     class Reducer : public job::ReducerBase {
     public:
+        /** Constructor; shouldn't be defined in derived classes.  Use
+            postSetup() instead */
+        Reducer() { serialization::registerType<T_derived,
+                Reducer<T_derived, T_accum, T_input>, job::ReducerBase,
+                job::SharedBase>(); }
+
         /** Called to initialize the accumulator for this reduce.  May be called
             several times on different hosts, whose results will later be merged
             in handleJoin(). */
@@ -265,7 +306,7 @@ namespace job_stream {
 
             std::unique_ptr<message::WorkRecord> wr(new message::WorkRecord(
                     this->getTargetForReducer(), 
-                    serialization::encode(&output)));
+                    serialization::encodeAsPtr(output)));
             wr->chainFrom(*this->currentRecord);
             this->processor->addWork(std::move(wr));
         }
@@ -324,7 +365,7 @@ namespace job_stream {
             }
 
             std::unique_ptr<message::WorkRecord> wr(new message::WorkRecord(
-                    ntarget, serialization::encode(&output)));
+                    ntarget, serialization::encodeAsPtr(output)));
             wr->chainFrom(*this->currentRecord);
             this->processor->addWork(std::move(wr));
 
@@ -374,24 +415,36 @@ namespace job_stream {
             this->currentReduce = 0;
         }
 
-        template<typename T1, typename T2, typename T3>
+        //I *think* partial specialization of friend class with our T_derived
+        //isn't allowed.  A pity.
+        template<typename Td, typename T1, typename T2, typename T3>
         friend class Frame;
+
+        friend class boost::serialization::access;
+        /*  Serialization for checkpoints; only used bottom up.  You do not need
+            to register your own derived classes! */
+        template<class Archive>
+        void serialize(Archive& ar, const unsigned int version) {
+            ar & boost::serialization::base_object<job::ReducerBase>(*this);
+            ar & this->reduceMap;
+        }
     };
 
-    template<typename T_accum, typename T_input>
-    thread_local uint64_t Reducer<T_accum, T_input>::currentReduceTag
+    template<typename T_derived, typename T_accum, typename T_input>
+    thread_local uint64_t Reducer<T_derived, T_accum, T_input>::currentReduceTag
             = (uint64_t)-1;
-    template<typename T_accum, typename T_input>
+    template<typename T_derived, typename T_accum, typename T_input>
     thread_local job::ReduceAccumulator<T_accum>* 
-            Reducer<T_accum, T_input>::currentReduce = 0;
-    template<typename T_accum, typename T_input>
+            Reducer<T_derived, T_accum, T_input>::currentReduce = 0;
+    template<typename T_derived, typename T_accum, typename T_input>
     thread_local std::unique_ptr<T_input> 
-            Reducer<T_accum, T_input>::currentWork;
-    template<typename T_accum, typename T_input>
+            Reducer<T_derived, T_accum, T_input>::currentWork;
+    template<typename T_derived, typename T_accum, typename T_input>
     thread_local std::unique_ptr<T_accum> 
-            Reducer<T_accum, T_input>::currentJoin;
-    template<typename T_accum, typename T_input>
-    thread_local bool Reducer<T_accum, T_input>::hadRecurrence = false;
+            Reducer<T_derived, T_accum, T_input>::currentJoin;
+    template<typename T_derived, typename T_accum, typename T_input>
+    thread_local bool Reducer<T_derived, T_accum, T_input>::hadRecurrence
+            = false;
 
 
     /** A Frame is a special type of Reducer that has special logic based on
@@ -400,9 +453,20 @@ namespace job_stream {
         instance, an algorithm that runs a simulation over and over until
         a dynamic number of trials have been completed (based on the results
         of past trials) should be implemented as a Frame. */
-    template<typename T_accum, typename T_first, typename T_work = T_accum>
-    class Frame : public Reducer<T_accum, AnyType> {
+    template<typename T_derived, typename T_accum, typename T_first,
+            typename T_work = T_accum>
+    class Frame : public Reducer<Frame<T_derived, T_accum, T_first, T_work>,
+            T_accum, AnyType> {
     public:
+        /** Constructor; shouldn't be defined in derived classes.  Use
+            postSetup() instead */
+        Frame() { serialization::registerType<
+                T_derived,
+                Frame<T_derived, T_accum, T_first, T_work>,
+                Reducer<Frame<T_derived, T_accum, T_first, T_work>, T_accum, AnyType>,
+                job::ReducerBase,
+                job::SharedBase>(); }
+
         /** Handles the first work that initiates the Reduce loop */
         virtual void handleFirst(T_accum& current, 
                 std::unique_ptr<T_first> first) = 0;
@@ -425,12 +489,19 @@ namespace job_stream {
         virtual std::string getInputTypeName() {
             return typeid(T_first).name();
         }
+
+        friend class boost::serialization::access;
+        /*  Serialization for checkpoints; only used bottom up.  You do not need
+            to register your own derived classes! */
+        template<class Archive>
+        void serialize(Archive& ar, const unsigned int version) {
+            ar & boost::serialization::base_object<
+                    Reducer<Frame<T_derived, T_accum, T_first, T_work>, T_accum,
+                        AnyType>>(*this);
+        }
     };
 
 
-
-    void addJob(const std::string& typeName, 
-            std::function<job::JobBase* ()> allocator);
     void addReducer(const std::string& typeName, 
             std::function<job::ReducerBase* ()> allocator);
     void runProcessor(int argc, char** argv);

@@ -13,7 +13,7 @@ project(job_stream)
 set(CMAKE_CXX_COMPILER mpicxx)
 
 # Enable c++11
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x -ftemplate-backtrace-limit=0")
 
 # Enable gprof
 #add_definitions(-g)

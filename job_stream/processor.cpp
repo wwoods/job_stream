@@ -27,9 +27,21 @@ namespace std {
 namespace job_stream {
 namespace processor {
 
-static std::map<std::string, std::function<job::JobBase* ()> > jobTypeMap;
-static std::map<std::string, std::function<job::ReducerBase* ()> > 
-        reducerTypeMap;
+typedef std::map<std::string, std::function<job::JobBase* ()>> JobTypeMapType;
+JobTypeMapType& jobTypeMap() {
+    //Ensure this gets instantiated when it needs to; if it were outside a
+    //function, it isn't ready for auto registration.
+    static JobTypeMapType result;
+    return result;
+}
+
+typedef std::map<std::string, std::function<job::ReducerBase* ()>> ReducerTypeMapType;
+ReducerTypeMapType& reducerTypeMap() {
+    //Ensure this gets instantiated when it needs to; if it were outside a
+    //function, it isn't ready for auto registration.
+    static ReducerTypeMapType result;
+    return result;
+}
 
 thread_local std::vector<Processor::_WorkTimerRecord> Processor::workTimers;
 thread_local std::unique_ptr<uint64_t[]> Processor::localClksByType;
@@ -68,30 +80,32 @@ private:
 /** STATICS **/
 void Processor::addJob(const std::string& typeName, 
         std::function<job::JobBase* ()> allocator) {
-    if (jobTypeMap.count("module") == 0) {
+    JobTypeMapType& jtm = jobTypeMap();
+    if (jtm.count("module") == 0) {
         //initialize map with values
-        jobTypeMap["module"] = module::Module::make;
+        jtm["module"] = module::Module::make;
     }
 
-    if (jobTypeMap.count(typeName) != 0) {
+    if (jtm.count(typeName) != 0) {
         std::ostringstream ss;
         ss << "Job type already defined: " << typeName;
         throw std::runtime_error(ss.str());
     }
 
-    jobTypeMap[typeName] = allocator;
+    jtm[typeName] = allocator;
 }
 
 
 void Processor::addReducer(const std::string& typeName, 
         std::function<job::ReducerBase* ()> allocator) {
-    if (reducerTypeMap.count(typeName) != 0) {
+    ReducerTypeMapType& rtm = reducerTypeMap();
+    if (rtm.count(typeName) != 0) {
         std::ostringstream ss;
         ss << "Reducer type already defined: " << typeName;
         throw std::runtime_error(ss.str());
     }
     
-    reducerTypeMap[typeName] = allocator;
+    rtm[typeName] = allocator;
 }
 /** END STATICS **/
 
@@ -149,15 +163,75 @@ void MpiMessage::_ensureDecoded() const {
 
 Processor::Processor(std::unique_ptr<mpi::environment> env, 
         mpi::communicator world, 
-        const YAML::Node& config) : reduceTagCount(0), 
-            env(std::move(env)), world(world) {
+        const YAML::Node& config, const std::string& checkpointFile)
+            : checkpointFileName(checkpointFile), reduceTagCount(0),
+                env(std::move(env)), wasRestored(0), world(world),
+                workingCount(0) {
     if (world.size() >= (1 << message::WorkRecord::TAG_ADDRESS_BITS)) {
         throw std::runtime_error("MPI world too large.  See TAG_ADDRESS_BITS "
                 "in message.h");
     }
 
-    //Assigns this->root
-    this->allocateJob(NULL, "root", config);
+    //Register our base types so that we can create checkpoints
+    serialization::registerType<job::SharedBase, job::SharedBase>();
+    serialization::registerType<job::JobBase, job::SharedBase>();
+    serialization::registerType<job::ReducerBase, job::SharedBase>();
+    serialization::registerType<module::Module, job::JobBase, job::SharedBase>();
+
+    if (!this->checkpointFileName.empty()) {
+        std::ifstream cf(this->checkpointFileName);
+        if (cf) {
+            //File exists, we should resume from last checkpoint!
+            std::ostringstream err;
+            serialization::IArchive ar(cf);
+            int wsize, bufferRank, i;
+            serialization::decode(ar, wsize);
+            if (wsize != this->world.size()) {
+                err << "MPI world wrong size for continuation; should be "
+                        << wsize;
+                throw std::runtime_error(err.str());
+            }
+
+            //File is (rank, encoded string) pairs
+            std::string buffer;
+            for (i = 0; i < wsize; i++) {
+                serialization::decode(ar, bufferRank);
+                serialization::decode(ar, buffer);
+                if (bufferRank == this->getRank()) {
+                    serialization::decode(buffer, *this);
+                    break;
+                }
+            }
+            if (i == wsize) {
+                err << "Could not find rank " << this->getRank() << " in "
+                        << "checkpoint file";
+                throw std::runtime_error(err.str());
+            }
+
+            //Populate config for all of our jobs
+            this->root->processor = this;
+            this->root->populateAfterRestore(config, config);
+
+            this->wasRestored = true;
+            fprintf(stderr, "%i resumed from checkpoint "
+                    "(%i pending messages)\n",
+                    this->getRank(), this->workInQueue.size());
+        }
+    }
+
+    if (!this->root) {
+        //Generate this->root from config
+        this->allocateJob(NULL, "root", config);
+    }
+
+    //Turn off checkpointing for all processors by default (re-enabled for
+    //processor 1 in run()).
+    this->checkpointNext = -1;
+    this->checkpointInterval = 600 * 1000;
+    if (this->checkpointFileName.empty()) {
+        this->checkpointInterval = -1;
+    }
+    this->checkpointState = Processor::CHECKPOINT_NONE;
 }
 
 
@@ -165,9 +239,14 @@ Processor::~Processor() {
 }
 
 
-std::unique_ptr<MpiMessage> Processor::getWork() {
-    std::unique_ptr<MpiMessage> ptr;
+MpiMessagePtr Processor::getWork() {
+    MpiMessagePtr ptr;
     Lock lock(this->mutex);
+
+    if (this->checkpointState != Processor::CHECKPOINT_NONE) {
+        //No work can be done during a checkpoint operation.
+        return ptr;
+    }
 
     if (!this->workInQueue.empty()) {
         ptr = std::move(this->workInQueue.front());
@@ -197,6 +276,9 @@ std::unique_ptr<MpiMessage> Processor::getWork() {
             }
             fprintf(stderr, "\n");
         }
+
+        //We had work, meaning that a thread is working on this
+        this->workingCount += 1;
     }
 
     return ptr;
@@ -249,15 +331,26 @@ void Processor::run(const std::string& inputLine) {
 
     this->workTarget = 1;
     if (this->world.rank() == 0) {
-        //The first work message MUST go to rank 0, so that ring 1 ends up there
-        this->workTarget = -1;
-        this->processInputThread.reset(new std::thread(std::bind(
-                &Processor::processInputThread_main, this, inputLine)));
+        if (!this->wasRestored) {
+            //The first work message MUST go to rank 0, so that ring 1 ends up
+            //there
+            this->workTarget = -1;
+            this->processInputThread.reset(new std::thread(std::bind(
+                    &Processor::processInputThread_main, this, inputLine)));
 
-        //The first processor also starts the steal ring
-        this->_nonBlockingSend(
-                message::Header(Processor::TAG_STEAL, this->_getNextRank()),
-                message::StealRing(this->world.size()).serialized());
+            //The first processor also starts the steal ring
+            this->_nonBlockingSend(
+                    message::Header(Processor::TAG_STEAL, this->_getNextRank()),
+                    message::StealRing(this->world.size()).serialized());
+        }
+        else {
+            this->sawEof = true;
+            //sentEndRing0 was serialized.  That way, if input was still open,
+            //we'll start the ring test for 0 properly on resume here.
+        }
+
+        //First processor is responsible for checkpointing
+        this->checkpointNext =  this->checkpointInterval;
     }
     else {
         this->sawEof = true;
@@ -276,7 +369,10 @@ void Processor::run(const std::string& inputLine) {
 
     int dest, tag;
     std::unique_ptr<message::WorkRecord> work;
+    uint64_t tsLastLoop = message::Location::getCurrentTimeMs();
     while (this->shouldRun) {
+        uint64_t tsThisLoop = message::Location::getCurrentTimeMs();
+
         //Update communications
         this->_checkMpi();
 
@@ -292,6 +388,11 @@ void Processor::run(const std::string& inputLine) {
         while (this->workOutQueue.pop(work)) {
             this->_distributeWork(std::move(work));
         }
+
+        //Check on checkpointing
+        this->_updateCheckpoints(tsThisLoop - tsLastLoop);
+
+        tsLastLoop = tsThisLoop;
 
         //Wait a bit
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
@@ -523,6 +624,7 @@ bool sortWorkBySize(std::list<std::shared_ptr<MpiMessage>>::iterator a,
 
 
 void Processor::maybeAllowSteal(const std::string& messageBuffer) {
+    WorkTimer stealTimer(this, Processor::TIME_SYSTEM);
     message::StealRing sr(messageBuffer);
     if (JOB_STREAM_DEBUG >= 3) {
         fprintf(stderr, "%i checking steal ring...\n", this->getRank());
@@ -532,7 +634,7 @@ void Processor::maybeAllowSteal(const std::string& messageBuffer) {
     Lock lock(this->mutex);
 
     //Go through our queue and see if we need work or can donate work.
-    std::deque<std::list<std::unique_ptr<MpiMessage>>::iterator> stealable;
+    std::deque<MpiMessageList::iterator> stealable;
     int unstealableWork = 0;
     auto iter = this->workInQueue.begin();
     for (; iter != this->workInQueue.end();
@@ -625,10 +727,18 @@ void Processor::maybeAllowSteal(const std::string& messageBuffer) {
 
 void Processor::_enqueueInputWork(const std::string& line) {
     //All input goes straight to the root module by default...
+    std::string data;
+
+    try {
+        data = this->root->parseAndSerialize(line);
+    }
+    catch (const std::exception& e) {
+        fprintf(stderr, "While processing %s\n", line.c_str());
+        throw e;
+    }
     std::vector<std::string> inputDest;
     this->addWork(std::unique_ptr<message::WorkRecord>(
-            new message::WorkRecord(inputDest, 
-                std::move(this->root->parseAndSerialize(line)))));
+            new message::WorkRecord(inputDest, std::move(data))));
 }
 
 
@@ -670,8 +780,8 @@ job::JobBase* Processor::allocateJob(module::Module* parent,
         type = config["type"].as<std::string>();
     }
 
-    auto allocatorIter = jobTypeMap.find(type);
-    if (allocatorIter == jobTypeMap.end()) {
+    auto allocatorIter = jobTypeMap().find(type);
+    if (allocatorIter == jobTypeMap().end()) {
         std::ostringstream msg;
         msg << "Unknown job type: " << type;
         throw std::runtime_error(msg.str());
@@ -708,8 +818,8 @@ job::ReducerBase* Processor::allocateReducer(module::Module* parent,
         type = config["type"].as<std::string>();
     }
 
-    auto allocatorIter = reducerTypeMap.find(type);
-    if (allocatorIter == reducerTypeMap.end()) {
+    auto allocatorIter = reducerTypeMap().find(type);
+    if (allocatorIter == reducerTypeMap().end()) {
         std::ostringstream msg;
         msg << "Unknown reducer type: " << type;
         throw std::runtime_error(msg.str());
@@ -770,7 +880,18 @@ void Processor::decrReduceChildTag(uint64_t reduceTag, bool wasProcessed) {
 }
 
 
-void Processor::handleRingTest(std::unique_ptr<MpiMessage> message) {
+void Processor::forceCheckpoint() {
+    if (this->checkpointFileName.empty()) {
+        throw std::runtime_error("Cannot forceCheckpoint() with no checkpoint "
+                "file specified!  Use -c");
+    }
+    this->messageQueue.push(std::unique_ptr<message::_Message>(
+            new message::_Message(message::Header(
+                Processor::TAG_CHECKPOINT_FORCE, 0), "")));
+}
+
+
+void Processor::handleRingTest(MpiMessagePtr message) {
     //Handle a ring test check in either tryReceive or the main work loop.
     message::DeadRingTestMessage& dm = *message->getTypedData<
             message::DeadRingTestMessage>();
@@ -875,7 +996,7 @@ void Processor::handleRingTest(std::unique_ptr<MpiMessage> message) {
 }
 
 
-void Processor::process(std::unique_ptr<MpiMessage> message) {
+void Processor::process(MpiMessagePtr message) {
     int tag = message->tag;
     if (tag == Processor::TAG_WORK || tag == Processor::TAG_REDUCE_WORK) {
         auto& wr = *message->getTypedData<message::WorkRecord>();
@@ -914,10 +1035,24 @@ void Processor::process(std::unique_ptr<MpiMessage> message) {
     else if (tag == Processor::TAG_DEAD_RING_TEST) {
         this->handleRingTest(std::move(message));
     }
+    else if (tag == Processor::TAG_STEAL) {
+        //This must be handled in the main thread; send it to ourselves.  It
+        //was probably laid over to a work thread so that a checkpoint could
+        //go through.
+        this->messageQueue.push(std::unique_ptr<message::_Message>(
+            new message::_Message(
+                message::Header(tag, this->getRank()), message->serialized())));
+    }
     else {
         std::ostringstream ss;
         ss << "Unrecognized tag: " << tag;
         throw std::runtime_error(ss.str());
+    }
+
+    //This thread is no longer working
+    {
+        Lock lock(this->mutex);
+        this->workingCount -= 1;
     }
 }
 
@@ -957,7 +1092,10 @@ bool Processor::tryReceive() {
         this->msgsByTag[tag] += 1;
 
         if (this->getRank() != msg.header.dest) {
-            //Forward it to the proper destination.
+            //Forward it to the proper destination.  This code isn't used, it
+            //is layover from some code for a different distribution method that
+            //was being trialed.  It's left in because dest is still a part of
+            //header.
             this->_nonBlockingSend(std::move(msg));
         }
         else if (tag == Processor::TAG_STEAL) {
@@ -978,12 +1116,13 @@ bool Processor::tryReceive() {
             }
         }
         else if (tag == Processor::TAG_DEAD_RING_TEST) {
-            std::unique_ptr<MpiMessage> mpiMessage(new MpiMessage(tag, 
+            MpiMessagePtr mpiMessage(new MpiMessage(tag,
                     std::move(msg.buffer)));
             //We'll handle it now if we're not the sentry, or put it in our
             //work queue if we are.
             if (mpiMessage->getTypedData<message::DeadRingTestMessage>()
-                    ->sentryRank != this->getRank()) {
+                    ->sentryRank != this->getRank()
+                    && this->checkpointState == Processor::CHECKPOINT_NONE) {
                 this->handleRingTest(std::move(mpiMessage));
             }
             else {
@@ -1011,6 +1150,66 @@ bool Processor::tryReceive() {
                         std::move(msg.buffer));
             }
         }
+        else if (tag == Processor::TAG_CHECKPOINT_NEXT) {
+            //We must be in either CHECKPOINT_NONE or CHECKPOINT_SYNC
+            fprintf(stderr, "%i Got TAG_CHECKPOINT_NEXT\n", this->getRank());
+            if (this->checkpointState == Processor::CHECKPOINT_NONE) {
+                this->checkpointState = Processor::CHECKPOINT_START;
+            }
+            else if (this->checkpointState == Processor::CHECKPOINT_SYNC) {
+                this->checkpointState = Processor::CHECKPOINT_SEND;
+            }
+            else {
+                std::ostringstream buf;
+                buf << "Got TAG_CHECKPOINT_NEXT out of step: "
+                        << this->checkpointState;
+                throw std::runtime_error(buf.str());
+            }
+            fprintf(stderr, "%i checkpointState -> %i\n", this->getRank(),
+                    this->checkpointState);
+        }
+        else if (tag == Processor::TAG_CHECKPOINT_READY) {
+            fprintf(stderr, "%i Got TAG_CHECKPOINT_READY\n", this->getRank());
+            if (this->getRank() != 0) {
+                throw std::runtime_error(
+                        "I'm not rank 0, got TAG_CHECKPOINT_READY?");
+            }
+            this->_updateCheckpointSync(recv.source());
+        }
+        else if (tag == Processor::TAG_CHECKPOINT_DATA) {
+            fprintf(stderr, "%i Got TAG_CHECKPOINT_DATA\n", this->getRank());
+            if (this->getRank() != 0) {
+                throw std::runtime_error(
+                        "I'm not rank 0, got TAG_CHECKPOINT_DATA?");
+            }
+            if (this->checkpointState != Processor::CHECKPOINT_GATHER) {
+                throw std::runtime_error(
+                        "Got TAG_CHECKPOINT_DATA info without being in state "
+                            "CHECKPOINT_GATHER");
+            }
+
+            fprintf(stderr, "%i knows all about %i!\n", this->getRank(),
+                    recv.source());
+            serialization::encode(*this->checkpointAr, (int)recv.source());
+            serialization::encode(*this->checkpointAr, msg.buffer);
+            this->checkpointWaiting -= 1;
+        }
+        else if (tag == Processor::TAG_CHECKPOINT_FORCE) {
+            if (this->getRank() != 0) {
+                throw std::runtime_error(
+                        "I'm not rank 0, got TAG_CHECKPOINT_FORCE?");
+            }
+
+            Lock lock(this->mutex);
+
+            //If we're not already checkpointing...
+            if (this->checkpointState == Processor::CHECKPOINT_NONE) {
+                this->checkpointNext = 0;
+                //Simulate a 1ms step to start the checkpoint
+                this->_updateCheckpoints(1);
+            }
+
+        }
         else {
             Lock lock(this->mutex);
             this->workInQueue.emplace_back(new MpiMessage(tag, 
@@ -1026,8 +1225,13 @@ bool Processor::tryReceive() {
             this->recvBuffer);
 
     if (wasSteal && this->shouldRun) {
-        WorkTimer stealTimer(this, Processor::TIME_SYSTEM);
-        this->maybeAllowSteal(stealBuffer);
+        if (this->checkpointState == Processor::CHECKPOINT_NONE) {
+            this->maybeAllowSteal(stealBuffer);
+        }
+        else {
+            this->workInQueue.emplace_front(new MpiMessage(Processor::TAG_STEAL,
+                    std::move(stealBuffer)));
+        }
     }
 
     return true;
@@ -1113,6 +1317,107 @@ uint64_t Processor::_getThreadCpuTimeMs() {
     getrusage(RUSAGE_THREAD, &clksTime);
     uint64_t val = clksTime.ru_utime.tv_sec * 1000 + clksTime.ru_utime.tv_usec / 1000;
     return val;
+}
+
+
+void Processor::_updateCheckpoints(int msDiff) {
+    Lock lock(this->mutex);
+
+    if (this->checkpointState == Processor::CHECKPOINT_NONE) {
+        if (this->checkpointNext >= 0) {
+            this->checkpointNext -= msDiff;
+            if (this->checkpointNext < 0) {
+                this->checkpointNext = -1;
+                fprintf(stderr, "%i Checkpoint starting\n", this->getRank());
+                for (int i = 1, m = this->world.size(); i < m; i++) {
+                    this->_nonBlockingSend(
+                            message::Header(Processor::TAG_CHECKPOINT_NEXT, i),
+                            "");
+                }
+                this->tsCheckpointStart = message::Location::getCurrentTimeMs();
+                //Waiting on all processors to sync up
+                this->checkpointWaiting = this->world.size();
+                this->checkpointState = Processor::CHECKPOINT_START;
+            }
+        }
+        //otherwise disabled
+    }
+    else if (this->checkpointState == Processor::CHECKPOINT_START) {
+        //We are a processor who has been asked to stop work and report our
+        //state to processor 0 in order to generate a checkpoint.
+        Lock lock(this->mutex);
+        if (this->workingCount == 0 && this->sendRequests.size() == 0) {
+            this->_nonBlockingSend(message::Header(
+                    Processor::TAG_CHECKPOINT_READY, 0), "");
+            //Now we just wait for everyone to enter this state
+            this->checkpointState = Processor::CHECKPOINT_SYNC;
+            fprintf(stderr, "%i checkpointState -> %i\n", this->getRank(),
+                    this->checkpointState);
+        }
+    }
+    else if (this->checkpointState == Processor::CHECKPOINT_SYNC) {
+        //Waiting for everyone to enter and stay in this state for 1 second;
+        //root node will inform us with a TAG_CHECKPOINT_NEXT message.
+        if (this->getRank() == 0 && this->checkpointWaiting == 0) {
+            if (this->checkpointNext < -Processor::CHECKPOINT_SYNC_WAIT_MS) {
+                //OK, everything's synced.  Get the checkpoint data
+                for (int i = 1, m = this->world.size(); i < m; i++) {
+                    this->_nonBlockingSend(message::Header(
+                            Processor::TAG_CHECKPOINT_NEXT, i), "");
+                }
+                this->checkpointWaiting = this->world.size() - 1;
+                this->checkpointFile.reset(new std::ofstream(
+                        this->checkpointFileName.c_str()));
+                this->checkpointAr.reset(new serialization::OArchive(
+                        *this->checkpointFile));
+                serialization::encode(*this->checkpointAr,
+                        (int)this->world.size());
+                serialization::encode(*this->checkpointAr,
+                        (int)this->getRank());
+                //Encode ourselves into a buffer, then put that in the file;
+                //this is analogous to how we receive messages from other
+                //processors.
+                serialization::encode(*this->checkpointAr,
+                        serialization::encode(*this));
+                this->checkpointState = Processor::CHECKPOINT_GATHER;
+                fprintf(stderr, "%i checkpointState -> %i\n", this->getRank(),
+                        this->checkpointState);
+            }
+            else {
+                this->checkpointNext -= msDiff;
+            }
+        }
+    }
+    else if (this->checkpointState == Processor::CHECKPOINT_SEND) {
+        //Encode our state and transmit it to the root node.
+        fprintf(stderr, "%i checkpoint sending state, resuming computation\n",
+                this->getRank());
+        this->_nonBlockingSend(message::Header(Processor::TAG_CHECKPOINT_DATA,
+                0), "");
+        //Begin working again.
+        this->checkpointState = Processor::CHECKPOINT_NONE;
+    }
+    else if (this->checkpointState == Processor::CHECKPOINT_GATHER) {
+        if (this->checkpointWaiting == 0) {
+            //Done
+            this->checkpointAr.reset();
+            this->checkpointFile.reset();
+            fprintf(stderr, "%i Checkpoint took %i ms, resuming computation\n",
+                    this->getRank(), message::Location::getCurrentTimeMs()
+                        - this->tsCheckpointStart);
+            //Begin the process again
+            this->checkpointState = Processor::CHECKPOINT_NONE;
+            this->checkpointNext = this->checkpointInterval;
+            //WHAT!?!??!
+            exit(12);
+        }
+    }
+}
+
+
+void Processor::_updateCheckpointSync(int rank) {
+    this->checkpointWaiting -= 1;
+    this->checkpointNext = -1;
 }
 
 } //processor

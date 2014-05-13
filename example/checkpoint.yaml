@@ -1,0 +1,7 @@
+# checkpoint.yaml
+jobs:
+    - type: checkpointTester
+    - type: checkpointTester
+    - type: checkpointTester
+    - type: checkpointTester
+    - type: checkpointTester

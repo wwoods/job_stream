@@ -4,30 +4,30 @@
 using std::unique_ptr;
 
 /** Add one to any integer we receive */
-class AddOneJob : public job_stream::Job<int> {
+class AddOneJob : public job_stream::Job<AddOneJob, int> {
 public:
-    static AddOneJob* make() { return new AddOneJob(); }
+    static const char* NAME() { return "addOne"; }
 
     void handleWork(unique_ptr<int> work) {
         this->emit(*work + 1);
     }
-};
+} addOneJob;
 
 
-class DuplicateJob : public job_stream::Job<int> {
+class DuplicateJob : public job_stream::Job<DuplicateJob, int> {
 public:
-    static DuplicateJob* make() { return new DuplicateJob(); }
+    static const char* NAME() { return "duplicate"; }
 
     void handleWork(unique_ptr<int> work) {
         this->emit(*work);
         this->emit(*work);
     }
-};
+} duplicateJob;
 
 
-class GetToTenJob : public job_stream::Job<int> {
+class GetToTenJob : public job_stream::Job<GetToTenJob, int> {
 public:
-    static GetToTenJob* make() { return new GetToTenJob(); }
+    static const char* NAME() { return "getToTen"; }
 
     void handleWork(unique_ptr<int> work) {
         if (*work < 10) {
@@ -37,10 +37,10 @@ public:
             this->emit(*work, "done");
         }
     }
-};
+} getToTenJob;
 
 
-class SumReducer : public job_stream::Reducer<int> {
+class SumReducer : public job_stream::Reducer<SumReducer, int> {
 public:
     static SumReducer* make() { return new SumReducer(); }
 
@@ -66,10 +66,10 @@ public:
     void handleDone(int& current) {
         this->emit(current);
     }
-};
+} sumReducer;
 
 
-class GetToValueReducer : public job_stream::Reducer<int> {
+class GetToValueReducer : public job_stream::Reducer<GetToValueReducer, int> {
 public:
     static GetToValueReducer* make() { return new GetToValueReducer(); }
 
@@ -101,7 +101,7 @@ public:
             this->recur(current);
         }
     }
-};
+} getToValueReducer;
 
 
 /** Frames are useful for when you want to start a reduction with a different
@@ -109,8 +109,8 @@ public:
     trials to run and initial int values by char ordinal) is used to run a 
     number of simulations in parallel that result in int values, which are 
     aggregated into an array and averaged as a result. */
-class RunExperiments : public job_stream::Frame<std::vector<int>, std::string, 
-        int> {
+class RunExperiments : public job_stream::Frame<RunExperiments,
+        std::vector<int>, std::string, int> {
 public:
     static RunExperiments* make() { return new RunExperiments(); }
 
@@ -136,13 +136,23 @@ public:
         }
         this->emit(sum / current.size());
     }
-};
+} runExperimentsInst;
+
+
+/** Example for testing / demonstrating checkpoints. */
+class CheckpointTester : public job_stream::Job<CheckpointTester, int> {
+public:
+    static const char* NAME() { return "checkpointTester"; }
+
+    void handleWork(unique_ptr<int> work) {
+        //Forces a checkpoint after this work's completion.
+        this->forceCheckpoint();
+        this->emit(*work + 1);
+    }
+} checkpointTesterInst;
 
 
 int main(int argc, char* argv []) {
-    job_stream::addJob("addOne", AddOneJob::make);
-    job_stream::addJob("duplicate", DuplicateJob::make);
-    job_stream::addJob("getToTen", GetToTenJob::make);
     job_stream::addReducer("sum", SumReducer::make);
     job_stream::addReducer("getToValue", GetToValueReducer::make);
     job_stream::addReducer("runExperiments", RunExperiments::make);

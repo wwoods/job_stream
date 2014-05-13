@@ -267,9 +267,31 @@ on performance.
 Job and reduction routines MUST be thread safe.  That is, do NOT create a shared buffer to do your work in as part of the class.  If you do, make sure you declare it thread\_local (which requires static).
 
 
+Known Memory Leaks
+------------------
+
+Decoding std::shared_ptr, while preserving the proper semantics, currently has
+a memory leak of a 64-bit integer plus a pointer.  Time constraints have
+prevented this from being worked around.
+
+
 Roadmap
 -------
 
+* Continuation checkpoints (auto continue?  With obvious stderr message / 5
+  second pause?)
+    * Working on encoding... cmake .. && make -j8 example/job_stream_example && example/job_stream_example ../example/exampleRecur.yaml < recurInput
+    * Need to populate config / globalConfig / etc for restored processor.
+    * Then test?
+
+    ** Reducer self-registration logic
+    ** Macro for job / reducer / frame
+    ** Auto registration / make() through static object in macro
+    ** Serialization should really, really Register N^2 / 2 (reg<A, B, C> also calls reg<B, C>; also if reg<B, C>
+        has already been called, reg<A, B> also reg's <A, C>
+    ** Tests for vector / map / list serialization
+    ** TODO - vector / map / list serialization of non-polymorphic types should
+       not encode type information, as vector template encodes that
 * Rather than rank, print host.
 * to: Should be a name or YAML reference, emit() or recur() should accept an
   argument of const YAML::Node& so that we can use e.g. stepTo: *priorRef as
@@ -283,8 +305,6 @@ Roadmap
     - &other
       type: ...
 
-* Continuation checkpoints (auto continue?  With obvious stderr message / 5
-  second pause?)
 * Errors during a task should push the work back on the stack and trigger a
   checkpoint before exiting.  That would be awesome.  Should probably be an
   option though, since it would require "checkpointing" reduce accumulations

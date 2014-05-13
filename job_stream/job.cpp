@@ -15,11 +15,22 @@ thread_local message::WorkRecord* SharedBase::currentRecord = 0;
 thread_local bool SharedBase::targetIsModule = false;
 
 
+void addJob(const std::string& typeName,
+        std::function<job::JobBase* ()> allocator) {
+    processor::Processor::addJob(typeName, allocator);
+}
+
+
 SharedBase::SharedBase() {
 }
 
 
 SharedBase::~SharedBase() {
+}
+
+
+void SharedBase::forceCheckpoint() {
+    this->processor->forceCheckpoint();
 }
 
 
@@ -39,6 +50,15 @@ void SharedBase::setup(processor::Processor* processor, module::Module* parent,
     this->id = id;
     this->config = config;
     this->globalConfig = globalConfig;
+}
+
+
+void SharedBase::populateAfterRestore(const YAML::Node& globalConfig,
+        const YAML::Node& config) {
+    //Parent and id were populated by serialization, processor by parent.
+    this->setup(this->processor, this->parent, this->id, config,
+            globalConfig);
+    this->postSetup();
 }
 
 
@@ -95,7 +115,7 @@ std::string SharedBase::parseAndSerialize(const std::string& line) {
     #define TRY_TYPE(T) \
             if (typeName == typeid(T).name()) { \
                 T val = boost::lexical_cast<T>(line); \
-                return serialization::encode(&val); \
+                return serialization::encodeAsPtr(val); \
             }
 
     TRY_TYPE(std::string);

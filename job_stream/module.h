@@ -26,10 +26,14 @@ public:
     /** Would the given work make a new reduction? */
     virtual bool wouldReduce(message::WorkRecord& work);
 
-    /* Get our module level */
+    /** Get our module level */
     int getLevel() const { return this->level; }
 
-    /* Ensure that our config keys are set */
+    /** Setup self, then any instantiated children. */
+    virtual void populateAfterRestore(const YAML::Node& globalConfig,
+            const YAML::Node& config);
+
+    /** Ensure that our config keys are set */
     virtual void postSetup();
 
 protected:
@@ -51,6 +55,14 @@ private:
 
     /* Our reducer, if any */
     std::unique_ptr<job::ReducerBase> reducer;
+
+    friend class boost::serialization::access;
+    template<class Archive>
+    void serialize(Archive& ar, const unsigned int version) {
+        ar & boost::serialization::base_object<SharedBase>(*this);
+        ar & this->jobMap;
+        ar & this->reducer;
+    }
 };
 
 }
