@@ -112,7 +112,7 @@ TEST_CASE("primitive types", "[serialization]") {
             float* f = new float(3.125);
             std::unique_ptr<float> f2;
 
-            decode(encode(f), f2);
+            decode(encodeAsPtr(*f), f2);
             REQUIRE(*f == *f2);
             REQUIRE(f != f2.get());
 
@@ -189,7 +189,7 @@ TEST_CASE("non-primitive non-polymorphic", "[serialization]") {
             a = new NonPrimitive();
             a->a = 99;
             a->b = 101;
-            decode(encode(a), b);
+            decode(encodeAsPtr(*a), b);
             REQUIRE(a != b.get());
             REQUIRE(a->a == b->a);
             REQUIRE(a->b == b->b);
@@ -260,7 +260,7 @@ TEST_CASE("polymorphic types", "[serialization]") {
             clearRegisteredTypes();
             std::unique_ptr<BaseClass> b;
             //Encoding fails because we know it's polymorphic, but it's unregistered
-            REQUIRE_THROWS(encode(&a));
+            REQUIRE_THROWS(encodeAsPtr(a));
         }
 
         registerType<BaseClass>();
@@ -268,7 +268,7 @@ TEST_CASE("polymorphic types", "[serialization]") {
 
         SECTION("Pointer") {
             std::unique_ptr<BaseClass> b;
-            decode(encode(&a), b);
+            decode(encodeAsPtr(a), b);
             REQUIRE(0 != dynamic_cast<DerivedClass*>(b.get()));
             REQUIRE(96 == b->b);
             REQUIRE(98 == b->func());
@@ -276,7 +276,7 @@ TEST_CASE("polymorphic types", "[serialization]") {
 
         SECTION("unique_ptr") {
             std::unique_ptr<BaseClass> b;
-            decode(encode(&a), b);
+            decode(encodeAsPtr(a), b);
             REQUIRE(a.a == b->a);
             REQUIRE(a.b == b->b);
             REQUIRE(0 != dynamic_cast<DerivedClass*>(b.get()));
@@ -296,7 +296,7 @@ TEST_CASE("polymorphic types", "[serialization]") {
 
         SECTION("shared_ptr") {
             std::shared_ptr<BaseClass> b;
-            decode(encode(&a), b);
+            decode(encodeAsPtr(a), b);
             REQUIRE(a.a == b->a);
             REQUIRE(a.b == b->b);
             REQUIRE(0 != dynamic_cast<DerivedClass*>(b.get()));
@@ -424,7 +424,7 @@ TEST_CASE("shared_ptr sharing", "[serialization]") {
             c1.ptr.reset(new DerivedClass());
             c1.ptr->a = 5;
             c1.ptr->b = 3;
-            ((DerivedClass*)c1.ptr.get())->c = 1;
+            dynamic_cast<DerivedClass*>(c1.ptr.get())->c = 1;
             c1.ptr2 = c1.ptr;
 
             decode(encode(c1), c2);

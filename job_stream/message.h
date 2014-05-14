@@ -164,6 +164,7 @@ namespace message {
 
         /** Get work as a printable string; used for output. */
         std::string getWorkAsString() const;
+        size_t getWorkSize() const { return this->work.size(); }
 
         void markStarted() {
             this->source.tsWorkStart = Location::getCurrentTimeMs();
@@ -189,12 +190,7 @@ namespace message {
 
         /** Steal our work away into an appropriately typed unique_ptr. */
         template<class T> void putWorkInto(std::unique_ptr<T>& dest) {
-            if (this->isTyped()) {
-                dest.reset((T*)this->getTypedWork());
-            }
-            else {
-                serialization::decode(this->work, dest);
-            }
+            serialization::decode(this->work, dest);
         }
 
 
@@ -209,24 +205,7 @@ namespace message {
         /** The tag assigned to this WorkRecord's current reduction */
         uint64_t reduceTag;
 
-        mutable std::string work;
-
-
-        /** Returns true if this WorkRecord is Typed (meaning it has its own
-            allocated version of our work, no string necessary). */
-        bool isTyped() {
-            return false;
-        }
-
-
-        void* getTypedWork() {
-            throw std::runtime_error("Default impl has no typed work");
-        }
-
-        
-        void serializeTypedWork() const {
-            //Default impl has work string already encoded and ready to go
-        }
+        std::string work;
 
     private:
         WorkRecord() {}
@@ -238,11 +217,6 @@ namespace message {
             ar & this->reduceHomeRank;
             ar & this->reduceTag;
             ar & this->route;
-
-            if (Archive::is_saving::value) {
-                //We're being saved out, so sync up work with our work
-                this->serializeTypedWork();
-            }
             ar & this->work;
         }
     };

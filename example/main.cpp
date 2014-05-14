@@ -124,11 +124,6 @@ public:
         current.push_back(*work);
     }
 
-    void handleJoin(std::vector<int>& current, 
-            unique_ptr<std::vector<int>> other) {
-        current.insert(current.end(), other->begin(), other->end());
-    }
-
     void handleDone(std::vector<int>& current) {
         int sum = 0;
         for (int i : current) {

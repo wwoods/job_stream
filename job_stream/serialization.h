@@ -39,6 +39,7 @@
 #include <map>
 #include <sstream>
 #include <string>
+#include <unordered_set>
 
 /** Forward declared typedefs */
 namespace job_stream {
@@ -116,7 +117,8 @@ template<typename T>
 std::string encode(const T& src);
 /** Lets you encode a pointer directly to a string.  Note that this is not
     recommended, as decode is asymmetric - you MUST decode into a unique_ptr or
-    shared_ptr.  Prefixed with an underscore to note this.  Used internally. */
+    shared_ptr.  However, this is needed when you have an object that will be
+    decoded into a pointer.  */
 template<typename T, typename boost::enable_if<boost::mpl::not_<
         boost::is_pointer<T>>, int>::type = 0>
 std::string encodeAsPtr(const T& src);
@@ -153,12 +155,84 @@ void printRegisteredTypes();
 template<class T>
 void copy(const T& src, T& dest);
 
+/** Base class for _SharedPtrs */
+struct _SharedPtrsBase {
+    virtual void clear() = 0;
+};
+
+/** Count of currently active decode() methods, so that we do not wipe the
+    table of decoded pointers when we still have an archive open. */
+extern thread_local int _activeDecodeCount;
+/** Currently used _SharedPtr classes that need to be cleared when we no longer
+    have an archive open; I'm using gcc 4.8, while the fix for extern
+    thread_local is in 4.9... */
+struct _activeSharedPtrs {
+    /** 4.8 workaround... */
+    static std::unordered_set<_SharedPtrsBase*>& set() {
+        static thread_local std::unordered_set<_SharedPtrsBase*> val;
+        return val;
+    }
+};
+
+inline void _activeDecodeIncr() {
+    _activeDecodeCount += 1;
+}
+
+inline void _activeDecodeDecr() {
+    _activeDecodeCount -= 1;
+    if (_activeDecodeCount < 0) {
+        throw std::runtime_error("_activeDecodeCount decr'd below 0?");
+    }
+    if (_activeDecodeCount == 0) {
+        for (auto* ptr : _activeSharedPtrs::set()) {
+            ptr->clear();
+        }
+        _activeSharedPtrs::set().clear();
+    }
+}
+
+/** shared_ptr tracking on a per-thread basis. */
+template<class T>
+struct _SharedPtrs : _SharedPtrsBase {
+    /** Our instance */
+    static _SharedPtrs<T> instance;
+
+    _SharedPtrs() {
+        this->_decoded.reset(new std::map<T*, std::shared_ptr<T>>());
+    }
+
+    /** Given a boost-decoded pptr, put it in our map and return the
+        corresponding shared_ptr. */
+    inline std::shared_ptr<T> decoded(T* pptr) {
+        _activeSharedPtrs::set().insert(this);
+        if (this->_decoded->count(pptr) == 0) {
+            this->_decoded->emplace(pptr, std::shared_ptr<T>(pptr));
+        }
+        return (*this->_decoded)[pptr];
+    }
+
+    void clear() {
+        //Free up OUR shared_ptr, leaving responsibility with application
+        this->_decoded->clear();
+    }
+
+private:
+    /** Map of pointer (boost managed) to shared_ptr (job_stream managed); due
+        to static initialization order, this is a unique_ptr which is
+        initialized in our constructor. */
+    static thread_local std::unique_ptr<std::map<T*, std::shared_ptr<T>>> _decoded;
+};
+
+template<class T>
+_SharedPtrs<T> _SharedPtrs<T>::instance;
+template<class T>
+thread_local std::unique_ptr<std::map<T*, std::shared_ptr<T>>> _SharedPtrs<T>::_decoded;
+
 
 /** A special serializable type that will preserve whatever the original type
     was. */
 class AnyType {
 public:
-    AnyType() {}
     AnyType(std::string message) : data(std::move(message)) {}
 
     template<typename T>
@@ -447,7 +521,8 @@ struct _SerialHelper<T*,
     }
 };
 
-/** Encode to string */
+/** Encode to string; note that directly encoding a pointer is invalid.  You
+    must use encodeAsPtr on a reference instead, and only if you're sure. */
 template<typename T>
 std::string encode(const T& src) {
     std::ostringstream ss;
@@ -460,9 +535,11 @@ std::string encode(const T& src) {
 /** Decode from string */
 template<typename T>
 void decode(const std::string& message, T& dest) {
+    _activeDecodeIncr();
     std::istringstream ss(message);
     IArchive ia(ss, boost::archive::no_header);
     decode(ia, dest);
+    _activeDecodeDecr();
 }
 
 
@@ -479,43 +556,37 @@ std::string encodeAsPtr(const T& src) {
 }
 
 
+/** Decode a previously encoded ANYTHING into AnyType. */
+template<>
+void decode(const std::string& message, std::unique_ptr<AnyType>& dest);
+
+
 /** Non-pointer decode mechanism.  Avoid memory leaks by explicitly disallowing
     decoding to a raw pointer type. */
 template<typename T, typename boost::enable_if<boost::mpl::not_<
         boost::is_pointer<T>>, int>::type>
 void decode(IArchive& ia, T& dest) {
+    _activeDecodeIncr();
     _SerialHelper<T>::decodeTypeAndObject(ia, dest);
+    _activeDecodeDecr();
 }
 
 
 /** Decode std::unique_ptr */
 template<typename T, int>
 void decode(IArchive& ia, std::unique_ptr<T>& dest) {
+    _activeDecodeIncr();
     T* toAllocate;
     _SerialHelper<T*>::decodeTypeAndObject(ia, toAllocate);
     dest.reset(toAllocate);
+    _activeDecodeDecr();
 }
-
-
-/** Kludgey, but not sure how else to tell that reset_object_address hasn't
-    been called before.  Is a memory leak. */
-template<class T>
-struct JobStreamSharedPtrSwipe {
-    uint64_t pattern;
-    //Use a raw ptr to not hold onto a reference.  This pointer will become
-    //invalid when the first loaded shared_ptr goes out of scope.  We are
-    //assuming this happens after archive load.  Limits our memory leak to just
-    //this structure.
-    std::shared_ptr<T>* base;
-};
 
 
 /** Decode std::shared_ptr */
 template<typename T, int>
 void decode(IArchive& ia, std::shared_ptr<T>& dest) {
-    typedef JobStreamSharedPtrSwipe<T> Swip;
-    const uint64_t SwipPat = 0x1234567887654321;
-
+    _activeDecodeIncr();
     //IF THIS ASSERTION FAILS - you must wrap your shared type in a struct.
     //Boost does not track primitives by default; we fix normal encoding and
     //decoding, but cannot fix it for shared_ptr.
@@ -524,23 +595,9 @@ void decode(IArchive& ia, std::shared_ptr<T>& dest) {
 
     T* pptr;
     _SerialHelper<T*>::decodeTypeAndObject(ia, pptr);
-    if (((Swip*)pptr)->pattern == SwipPat) {
-        dest = *((Swip*)pptr)->base;
-    }
-    else {
-        Swip* s = new Swip();
-        s->pattern = SwipPat;
-        s->base = &dest;
-        dest.reset(pptr);
-        ia.reset_object_address(s, pptr);
-    }
+    dest = _SharedPtrs<T>::instance.decoded(pptr);
+    _activeDecodeDecr();
 }
-
-
-/** Decode to a unique_ptr for AnyType.  Useful when you're not sure what
-    exactly will be decoded.  */
-template<>
-void decode(IArchive& ia, std::unique_ptr<AnyType>& dest);
 
 
 /** Encode anything that isn't a raw pointer. */

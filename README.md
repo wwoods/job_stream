@@ -267,14 +267,6 @@ on performance.
 Job and reduction routines MUST be thread safe.  That is, do NOT create a shared buffer to do your work in as part of the class.  If you do, make sure you declare it thread\_local (which requires static).
 
 
-Known Memory Leaks
-------------------
-
-Decoding std::shared_ptr, while preserving the proper semantics, currently has
-a memory leak of a 64-bit integer plus a pointer.  Time constraints have
-prevented this from being worked around.
-
-
 Roadmap
 -------
 

@@ -57,8 +57,6 @@ std::string getAsString(const std::string& payload) {
 
 
 std::string WorkRecord::getWorkAsString() const {
-    this->serializeTypedWork();
-
 #define TRY_TYPE(T) \
         try { \
             return getAsString<T>(this->work); \

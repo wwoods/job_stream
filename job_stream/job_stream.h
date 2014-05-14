@@ -499,6 +499,13 @@ namespace job_stream {
             }
         }
 
+        /** Frames don't have a handleJoin, since there is one authority, which
+            is the original processor to get the message. */
+        void handleJoin(T_accum& current, std::unique_ptr<T_accum> other) {
+            throw std::runtime_error("Unimplemented, should never be "
+                    "triggered (Frame::handleJoin).");
+        }
+
     private:
         virtual std::string getInputTypeName() {
             return typeid(T_first).name();

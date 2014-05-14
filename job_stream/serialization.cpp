@@ -3,6 +3,8 @@
 namespace job_stream {
 namespace serialization {
 
+thread_local int _activeDecodeCount = 0;
+
 std::list<std::unique_ptr<RegisteredTypeBase>>& registeredTypes() {
     static std::list<std::unique_ptr<RegisteredTypeBase>> result;
     return result;
@@ -25,10 +27,8 @@ void printRegisteredTypes() {
 
 
 template<>
-void decode(IArchive& ia, std::unique_ptr<AnyType>& dest) {
-    std::string encoded;
-    ia >> encoded;
-    dest.reset(new AnyType(encoded));
+void decode(const std::string& message, std::unique_ptr<AnyType>& dest) {
+    dest.reset(new AnyType(message));
 }
 
 

@@ -44,39 +44,43 @@ private:
 };
 
 
-class MakeLoaded : public job_stream::Job<int> {
+class MakeLoaded : public job_stream::Job<MakeLoaded, int> {
 public:
-    static MakeLoaded* make() { return new MakeLoaded(); }
+    static const char* NAME() { return "makeLoaded"; }
+
     void handleWork(unique_ptr<int> input) {
         this->emit(LoadedInt(*input, this->globalConfig["dataSize"].as<int>()));
     }
-};
+} makeLoaded;
 
 
-class UnmakeLoaded : public job_stream::Job<LoadedInt> {
+class UnmakeLoaded : public job_stream::Job<UnmakeLoaded, LoadedInt> {
 public:
-    static UnmakeLoaded* make() { return new UnmakeLoaded(); }
+    static const char* NAME() { return "unmakeLoaded"; }
+
     void handleWork(unique_ptr<LoadedInt> input) {
         this->emit(input->value);
     }
-};
+} unmakeLoaded;
 
 
-class MakeSystems : public job_stream::Job<LoadedInt> {
+class MakeSystems : public job_stream::Job<MakeSystems, LoadedInt> {
 public:
-    static MakeSystems* make() { return new MakeSystems(); }
+    static const char* NAME() { return "makeSystems"; }
+
     void handleWork(unique_ptr<LoadedInt> unused) {
         for (int i = 0; i < this->config["count"].as<int>(); i++) {
             this->emit(LoadedInt(this->globalConfig["sleepTime"].as<int>(),
                     this->globalConfig["dataSize"].as<int>()));
         }
     }
-};
+} makeSystems;
 
 
-class EvalSystem : public job_stream::Job<LoadedInt> {
+class EvalSystem : public job_stream::Job<EvalSystem, LoadedInt> {
 public:
-    static EvalSystem* make() { return new EvalSystem(); }
+    static const char* NAME() { return "evalSystem"; }
+
     void handleWork(unique_ptr<LoadedInt> sleepTime) {
         for (int j = 0; j < 10; j++) {
             //this->checkMpi();
@@ -86,12 +90,12 @@ public:
         }
         this->emit(sleepTime);
     }
-};
+} evalSystem;
 
 
-class CheckSystems : public job_stream::Reducer<SystemCheck, LoadedInt> {
+class CheckSystems : public job_stream::Reducer<CheckSystems, SystemCheck, LoadedInt> {
 public:
-    static CheckSystems* make() { return new CheckSystems(); }
+    static const char* NAME() { return "checkSystems"; }
 
     void handleAdd(SystemCheck& current, unique_ptr<LoadedInt> work) {
         current.works.push_back(*work);
@@ -119,15 +123,10 @@ public:
         //Wait for those to come through, maintain population size
         current.works.clear();
     }
-};
+} checkSystems;
 
 
 int main(int argc, char* argv[]) {
-    job_stream::addJob("makeLoaded", MakeLoaded::make);
-    job_stream::addJob("makeSystems", MakeSystems::make);
-    job_stream::addJob("evalSystem", EvalSystem::make);
-    job_stream::addJob("unmakeLoaded", UnmakeLoaded::make);
-    job_stream::addReducer("checkSystems", CheckSystems::make);
     job_stream::runProcessor(argc, argv);
     return 0;
 }

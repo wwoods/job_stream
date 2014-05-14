@@ -286,9 +286,10 @@ private:
 };
 
 
-class MakeNetworks : public job_stream::Job<int> {
+class MakeNetworks : public job_stream::Job<MakeNetworks, int> {
 public:
-    static MakeNetworks* make() { return new MakeNetworks(); }
+    static const char* NAME() { return "makeNetworks"; }
+
     void handleWork(unique_ptr<int> networkCount) {
         //Initialize networkCount networks
         for (int i = 0; i < *networkCount; i++) {
@@ -297,12 +298,13 @@ public:
                     this->config["numOutputs"].as<int>()));
         }
     }
-};
+} makeNetworks;
 
 
-class EvalNetwork : public job_stream::Job<NeuralNet> {
+class EvalNetwork : public job_stream::Job<EvalNetwork, NeuralNet> {
 public:
-    static EvalNetwork* make() { return new EvalNetwork(); }
+    static const char* NAME() { return "evalNetwork"; }
+
     void handleWork(unique_ptr<NeuralNet> network) {
         float score = 0.0;
         auto tests = this->globalConfig["tests"].as<std::vector<YAML::Node> >();
@@ -312,13 +314,13 @@ public:
         network->score = score;
         this->emit(*network);
     }
-};
+} evalNetwork;
 
 
-class CheckErrorAndBreed : public job_stream::Reducer<NetworkPopulace, 
+class CheckErrorAndBreed : public job_stream::Reducer<CheckErrorAndBreed, NetworkPopulace,
         NeuralNet> {
 public:
-    static CheckErrorAndBreed* make() { return new CheckErrorAndBreed(); }
+    static const char* NAME() { return "checkErrorAndBreed"; }
 
     void handleAdd(NetworkPopulace& current, unique_ptr<NeuralNet> work) {
         current.addNetwork(std::move(work));
@@ -362,14 +364,11 @@ public:
         //population size.
         current.clear();
     }
-};
+} checkErrorAndBreed;
 
 
 
 int main(int argc, char* argv[]) {
-    job_stream::addJob("evalNetwork", EvalNetwork::make);
-    job_stream::addJob("makeNetworks", MakeNetworks::make);
-    job_stream::addReducer("checkErrorAndBreed", CheckErrorAndBreed::make);
     job_stream::runProcessor(argc, argv);
     return 0;
 }
