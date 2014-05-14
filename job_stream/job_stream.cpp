@@ -39,8 +39,10 @@ void runProcessor(int argc, char** argv) {
     for (; inputStart < argc; inputStart++) {
         if (strcmp(argv[inputStart], "-c") == 0) {
             checkpoint = std::string(argv[inputStart + 1]);
-            fprintf(stderr, "Using %s as checkpoint file\n",
-                    checkpoint.c_str());
+            if (world.rank() == 0) {
+                fprintf(stderr, "Using %s as checkpoint file\n",
+                        checkpoint.c_str());
+            }
             inputStart++;
         }
         else if (argv[inputStart][0] == '-'

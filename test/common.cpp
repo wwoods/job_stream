@@ -15,11 +15,13 @@ void readall(std::istream& stream, std::ostringstream& ss) {
 
 
 std::tuple<string, string> run(string prog, string args, string input) {
-    return runRetval(0, prog, args, input);
+    auto r = runRetval(prog, args, input);
+    REQUIRE(0 == std::get<0>(r));
+    return std::tuple<string, string>(std::get<1>(r), std::get<2>(r));
 }
 
 
-std::tuple<string, string> runRetval(int expectedExit, string prog, string args,
+std::tuple<int, string, string> runRetval(string prog, string args,
         string input) {
     exec_stream_t es(prog, args);
     es.in() << input;
@@ -45,8 +47,8 @@ std::tuple<string, string> runRetval(int expectedExit, string prog, string args,
     INFO("Stderr: " << ebuf.str());
 
     REQUIRE(didExit);
-    REQUIRE(es.exit_code() == expectedExit);
-    return std::tuple<string, string>(obuf.str(), ebuf.str());
+    return std::tuple<int, string, string>(es.exit_code(), obuf.str(),
+            ebuf.str());
 }
 
 
@@ -95,13 +97,6 @@ void runWithExpectedOut(string prog, string args, string input, string output,
     }
     else {
         //Require all lines in output, but possibly out of order.
-        auto sorted1 = sortedLines(output);
-        auto sorted2 = sortedLines(out);
-
-        for (int i = 0, m = sorted1.size(); i < m; i++) {
-            REQUIRE(sorted2.size() > i);
-            REQUIRE(sorted1[i] == sorted2[i]);
-        }
-        REQUIRE(sorted1.size() == sorted2.size());
+        REQUIRE_UNORDERED_LINES(output, out);
     }
 }

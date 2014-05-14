@@ -1208,8 +1208,10 @@ bool Processor::tryReceive() {
                             "CHECKPOINT_GATHER");
             }
 
-            fprintf(stderr, "%i knows all about %i!\n", this->getRank(),
-                    recv.source());
+            if (JOB_STREAM_DEBUG >= 1) {
+                fprintf(stderr, "%i got checkpoint data from %i!\n", 
+                        this->getRank(), recv.source());
+            }
             serialization::encode(*this->checkpointAr, (int)recv.source());
             serialization::encode(*this->checkpointAr, msg.buffer);
             this->checkpointWaiting -= 1;
@@ -1424,7 +1426,7 @@ void Processor::_updateCheckpoints(int msDiff) {
                     "computation\n", this->getRank());
         }
         this->_nonBlockingSend(message::Header(Processor::TAG_CHECKPOINT_DATA,
-                0), "");
+                0), serialization::encode(*this));
         //Begin working again.
         this->checkpointState = Processor::CHECKPOINT_NONE;
     }
