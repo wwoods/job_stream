@@ -350,8 +350,10 @@ protected:
     /** Called to reduce a childTagCount on a ProcessorReduceInfo for a given
         reduceTag.  Optionally dispatch messages pending. */
     void decrReduceChildTag(uint64_t reduceTag, bool wasProcessed = false);
-    /** Force a checkpoint after current work completes */
-    void forceCheckpoint();
+    /** Force a checkpoint after current work completes.  Optionally, force
+        a quit (exit non-zero) after the checkpoint completes.
+        */
+    void forceCheckpoint(bool forceQuit = false);
     /** Called to handle a ring test message, possibly within tryReceive, or
         possibly in the main work loop.  If we are the sentry for the message's
         ring, we are called in work loop.  Otherwise in tryReceive. */
@@ -398,6 +400,8 @@ private:
     int checkpointInterval;
     /** Time to next checkpoint (ms).  Negative means disabled. */
     int checkpointNext;
+    /** Quit on a successful checkpoint?  Used for debugging */
+    bool checkpointQuit;
     /** Start time for checkpoint, just for stats tracking */
     uint64_t tsCheckpointStart;
     CheckpointState checkpointState;

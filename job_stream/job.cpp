@@ -35,8 +35,8 @@ SharedBase::~SharedBase() {
 }
 
 
-void SharedBase::forceCheckpoint() {
-    this->processor->forceCheckpoint();
+void SharedBase::forceCheckpoint(bool forceQuit) {
+    this->processor->forceCheckpoint(forceQuit);
 }
 
 

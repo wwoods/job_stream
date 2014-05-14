@@ -14,7 +14,12 @@ void readall(std::istream& stream, std::ostringstream& ss) {
 }
 
 
-std::tuple<string, string> run(string prog, string args,
+std::tuple<string, string> run(string prog, string args, string input) {
+    return runRetval(0, prog, args, input);
+}
+
+
+std::tuple<string, string> runRetval(int expectedExit, string prog, string args,
         string input) {
     exec_stream_t es(prog, args);
     es.in() << input;
@@ -40,7 +45,7 @@ std::tuple<string, string> run(string prog, string args,
     INFO("Stderr: " << ebuf.str());
 
     REQUIRE(didExit);
-    REQUIRE(es.exit_code() == 0);
+    REQUIRE(es.exit_code() == expectedExit);
     return std::tuple<string, string>(obuf.str(), ebuf.str());
 }
 

@@ -15,10 +15,19 @@ Building
 
 Create a build/ folder, cd into it, and run:
 
-    cmake .. && make
+    cmake .. && make -j8
 
 This will instruct you on how to configure the build environment, and then will
 build the library.
+
+
+Testing
+-------
+
+Making the "test" target (with optional ARGS passed to test executable) will
+make and run any tests packaged with job_stream:
+
+    cmake .. && make -j8 test [ARGS="[serialization]"]
 
 
 Basics

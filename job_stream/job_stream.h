@@ -19,6 +19,13 @@ namespace job_stream {
     typedef job_stream::serialization::AnyType AnyType;
 
 
+    /** Application exit codes for forced exits */
+    enum ApplicationRetval {
+        RETVAL_OK = 0,
+        RETVAL_CHECKPOINT_FORCED = 0x10,
+    };
+
+
     /** Specialized Job base class. */
     template<typename T_derived, typename T_input>
     class Job : public job::JobBase {

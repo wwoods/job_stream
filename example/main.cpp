@@ -140,8 +140,9 @@ public:
     static const char* NAME() { return "checkpointTester"; }
 
     void handleWork(unique_ptr<int> work) {
-        //Forces a checkpoint after this work's completion.
-        this->forceCheckpoint();
+        //Forces a checkpoint after this work's completion.  "true" makes the
+        //program exit after the checkpoint.
+        this->forceCheckpoint(true);
         this->emit(*work + 1);
     }
 } checkpointTesterInst;

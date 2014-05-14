@@ -1,5 +1,6 @@
 
 #include "job.h"
+#include "job_stream.h"
 #include "message.h"
 #include "module.h"
 #include "processor.h"
@@ -164,9 +165,9 @@ void MpiMessage::_ensureDecoded() const {
 Processor::Processor(std::unique_ptr<mpi::environment> env, 
         mpi::communicator world, 
         const YAML::Node& config, const std::string& checkpointFile)
-            : checkpointFileName(checkpointFile), reduceTagCount(0),
-                env(std::move(env)), wasRestored(0), world(world),
-                workingCount(0) {
+            : checkpointFileName(checkpointFile), checkpointQuit(false),
+                reduceTagCount(0), env(std::move(env)), sentEndRing0(false),
+                wasRestored(0), world(world), workingCount(0) {
     if (world.size() >= (1 << message::WorkRecord::TAG_ADDRESS_BITS)) {
         throw std::runtime_error("MPI world too large.  See TAG_ADDRESS_BITS "
                 "in message.h");
@@ -216,6 +217,11 @@ Processor::Processor(std::unique_ptr<mpi::environment> env,
             fprintf(stderr, "%i resumed from checkpoint "
                     "(%i pending messages)\n",
                     this->getRank(), this->workInQueue.size());
+            if (this->workInQueue.size() > 3) {
+                for (auto& mm : this->workInQueue) {
+                    fprintf(stderr, "%i\n", mm->tag);
+                }
+            }
         }
     }
 
@@ -311,7 +317,6 @@ struct ProcessorInfo {
 void Processor::run(const std::string& inputLine) {
     this->mainThreadId = std::this_thread::get_id();
     this->sawEof = false;
-    this->sentEndRing0 = false;
     this->shouldRun = true;
     this->localTimersInit();
     this->globalClksByType.reset(new uint64_t[Processor::TIME_COUNT]);
@@ -880,14 +885,18 @@ void Processor::decrReduceChildTag(uint64_t reduceTag, bool wasProcessed) {
 }
 
 
-void Processor::forceCheckpoint() {
+void Processor::forceCheckpoint(bool forceQuit) {
     if (this->checkpointFileName.empty()) {
         throw std::runtime_error("Cannot forceCheckpoint() with no checkpoint "
                 "file specified!  Use -c");
     }
+    std::string payload = "";
+    if (forceQuit) {
+        payload = "q";
+    }
     this->messageQueue.push(std::unique_ptr<message::_Message>(
             new message::_Message(message::Header(
-                Processor::TAG_CHECKPOINT_FORCE, 0), "")));
+                Processor::TAG_CHECKPOINT_FORCE, 0), payload)));
 }
 
 
@@ -1220,6 +1229,11 @@ bool Processor::tryReceive() {
                 this->_updateCheckpoints(1);
             }
 
+            //Force quit?
+            if (msg.buffer.size() != 0 && msg.buffer[0] == 'q') {
+                this->checkpointQuit = true;
+            }
+
         }
         else {
             Lock lock(this->mutex);
@@ -1425,8 +1439,9 @@ void Processor::_updateCheckpoints(int msDiff) {
             //Begin the process again
             this->checkpointState = Processor::CHECKPOINT_NONE;
             this->checkpointNext = this->checkpointInterval;
-            //WHAT!?!??!
-            exit(12);
+            if (this->checkpointQuit) {
+                exit(RETVAL_CHECKPOINT_FORCED);
+            }
         }
     }
 }

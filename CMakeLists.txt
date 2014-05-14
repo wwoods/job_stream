@@ -98,7 +98,11 @@ add_dependencies(example
 FILE(GLOB TEST_SOURCES "job_stream/test/*.cpp" "test/*.cpp")
 add_executable(test_job_stream ${TEST_SOURCES} 
         test/libexecstream/exec-stream.cpp)
-target_link_libraries(test_job_stream job_stream ${REQ_LIB})
+target_link_libraries(test_job_stream
+        job_stream
+        ${REQ_LIB}
+        # std::regex is horribly, horribly broken in gcc 4.8.  @&#^%&
+        ${BOOST_LIB}/libboost_regex.a)
 target_include_directories(test_job_stream PUBLIC 
         "include/" 
         "./"
@@ -107,5 +111,5 @@ add_dependencies(test_job_stream example)
 
 add_custom_target(test DEPENDS test_job_stream)
 add_custom_command(TARGET test
-        POST_BUILD COMMAND test_job_stream)
+        POST_BUILD COMMAND test_job_stream "\${ARGS}")
 

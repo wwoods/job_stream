@@ -43,7 +43,7 @@ namespace job {
 
         /** Call this at any point to force a checkpoint after the current
             work completes. */
-        void forceCheckpoint();
+        void forceCheckpoint(bool forceQuit = false);
 
         const YAML::Node& getConfig() const { return this->config; }
 
