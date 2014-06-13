@@ -24,17 +24,18 @@ void runProcessor(int argc, char** argv) {
 
     if (argc < 2) {
         std::ostringstream ss;
-        ss << "Usage: " << argv[0] 
+        ss << "Usage: " << argv[0]
                 << " path/to/config [-c checkpointFile] [seed line; if omitted, stdin]";
         printf("%s\n\n", ss.str().c_str());
         printf("If -c is specified and the file exists, stdin will be "
                 "ignored.\n");
         exit(-1);
     }
-    std::string configPath = argv[1];
-    YAML::Node config = YAML::LoadFile(configPath);
 
-    int inputStart = 2;
+    bool configLoaded = false;
+    YAML::Node config;
+
+    int inputStart = 1;
     std::string checkpoint;
     for (; inputStart < argc; inputStart++) {
         if (strcmp(argv[inputStart], "-c") == 0) {
@@ -52,10 +53,19 @@ void runProcessor(int argc, char** argv) {
             ss << "Unrecognized flag: " << argv[inputStart];
             throw std::runtime_error(ss.str());
         }
+        else if (!configLoaded) {
+            //We have input that's not a flag, it's our config file
+            config = YAML::LoadFile(argv[inputStart]);
+            configLoaded = true;
+        }
         else {
             //Unrecognized input that's not a flag; use as input line
             break;
         }
+    }
+
+    if (!configLoaded) {
+        throw std::runtime_error("Config file not specified?");
     }
 
     std::string inputLine;

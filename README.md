@@ -30,6 +30,25 @@ make and run any tests packaged with job_stream:
     cmake .. && make -j8 test [ARGS="[serialization]"]
 
 
+Running
+-------
+
+A typical job_stream application would be run like this:
+
+    mpirun -np 4 my_application path/to/config.yaml [-c checkpointFile] Initial work string (or int or float or whatever)
+
+If a checkpointFile is provided, then the file will be used if it exists.  If it
+does not exist, it will be created and updated periodically to allow resume.  It
+is trivial to write a script that will execute the application until success:
+
+    for i in {1..5} do
+        mpirun -np 4 my_application config.yaml -c checkpoint.chkpt blahblah
+        if [ $? -eq 0 ];
+            break
+        fi
+    done
+
+
 Basics
 ------
 
@@ -170,7 +189,7 @@ And run it!
         7
         !
     56
-    $ 
+    $
 
 Want to get a little more complicated?  You can embed modules:
 
@@ -219,9 +238,9 @@ And then you set up example3.yaml:
 
     # example3.yaml
     # Note that our module now has an "input" field - this determines the first
-    # job to receive work.  Our "jobs" field is now a map instead of a list, 
+    # job to receive work.  Our "jobs" field is now a map instead of a list,
     # with the key being the id of each job.  "to" determines where emitted
-    # work goes - if "to" is a mapping, the job uses "emit" with a second 
+    # work goes - if "to" is a mapping, the job uses "emit" with a second
     # argument to guide each emitted work.
     input: checkValue
     jobs:
@@ -246,7 +265,7 @@ Run it:
     10
     $
 
-Note that the "12" is output first, since it got routed to output almost 
+Note that the "12" is output first, since it got routed to output almost
 immediately rather than having to pass through many AddOneJobs.
 
 You can also have recurrence in your reducers - that is, if a reduction finishes
@@ -255,7 +274,7 @@ in the same reduction:
 
     # example4.yaml
     # Reducer recurrence
-    reducer: 
+    reducer:
         type: getToValue
         value: 100
     jobs:
@@ -279,20 +298,6 @@ Job and reduction routines MUST be thread safe.  That is, do NOT create a shared
 Roadmap
 -------
 
-* Continuation checkpoints (auto continue?  With obvious stderr message / 5
-  second pause?)
-    * Working on encoding... cmake .. && make -j8 example/job_stream_example && example/job_stream_example ../example/exampleRecur.yaml < recurInput
-    * Need to populate config / globalConfig / etc for restored processor.
-    * Then test?
-
-    ** Reducer self-registration logic
-    ** Macro for job / reducer / frame
-    ** Auto registration / make() through static object in macro
-    ** Serialization should really, really Register N^2 / 2 (reg<A, B, C> also calls reg<B, C>; also if reg<B, C>
-        has already been called, reg<A, B> also reg's <A, C>
-    ** Tests for vector / map / list serialization
-    ** TODO - vector / map / list serialization of non-polymorphic types should
-       not encode type information, as vector template encodes that
 * re-nice certain processors to use lab machines.
 * depth-first iteration
 * Rather than rank, print host.
@@ -329,7 +334,7 @@ Roadmap
 * Consider attachToNext() paired w/ emit and recur; attachments have their own
   getAttached<type>("label") retriever that returns a modifiable version of the
   attachment.  removeAttached("label").  Anyway, attachments go to all child
-  reducers but are not transmitted via emitted() work from reducers.  Would 
+  reducers but are not transmitted via emitted() work from reducers.  Would
   greatly simplify trainer / maximize code... though, if something is required,
   passing it in a struct is probably a better idea as it's a compile-time error.
   Then again, it wouldn't work for return values, but it would work for
@@ -351,22 +356,23 @@ Roadmap
 
 Recent Changelog
 ----------------
+* 2014-6-13 - Finalized checkpoint code for initial release.  A slew of new
+  tests.  
 * 2014-4-24 - Fixed up shared_ptr serialization.  Fixed synchronization issue
   in reduction rings.
 * 2014-2-19 - Added Frame specialization of Reducer.  Expects a different
   first work than subsequent.  Usage pattern is to do some initialization work
   and then recur() additional work as needed.
 * 2014-2-12 - Serialization is now via pointer, and supports polymorphic classes
-  completely unambiguously via dynamic_cast and 
+  completely unambiguously via dynamic_cast and
   job_stream::serialization::registerType.  User cpu % updated to be in terms of
-  user time (quality measure) for each processor, and cumulative CPUs for 
+  user time (quality measure) for each processor, and cumulative CPUs for
   cumulative time.  
 * 2014-2-5 - In terms of user ticks / wall clock ms, less_serialization is on
   par with master (3416 vs 3393 ticks / ms, 5% error), in addition
   to all of the other fixes that branch has.  Merged in.
-* 2014-2-4 - Got rid of needed istream specialization; use an if and a 
+* 2014-2-4 - Got rid of needed istream specialization; use an if and a
   runtime\_exception.
-* 2014-2-4 - handleWork, handleAdd, and handleJoin all changed to take a 
-  unique\_ptr rather than references.  This allows preventing more memory 
+* 2014-2-4 - handleWork, handleAdd, and handleJoin all changed to take a
+  unique\_ptr rather than references.  This allows preventing more memory
   allocations and copies.  Default implementation with += removed.
-

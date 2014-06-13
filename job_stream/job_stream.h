@@ -46,7 +46,7 @@ namespace job_stream {
             input.putWorkInto(this->currentWork);
 
             { //timer scope
-                processor::Processor::WorkTimer timer(this->processor, 
+                processor::Processor::WorkTimer timer(this->processor,
                         processor::Processor::TIME_USER);
                 this->handleWork(std::move(this->currentWork));
             }
@@ -81,9 +81,9 @@ namespace job_stream {
         }
 
 
-        template<class T_output> void emit(T_output&& output, 
+        template<class T_output> void emit(T_output&& output,
                 const std::string& target = "") {
-            processor::Processor::WorkTimer timer(this->processor, 
+            processor::Processor::WorkTimer timer(this->processor,
                     processor::Processor::TIME_SYSTEM);
 
             std::string nextTarget;
@@ -126,6 +126,7 @@ namespace job_stream {
                         job::JobBase, job::SharedBase>();
             }
 
+            /** Called by constructor to force static member instantiation. */
             void doNothing() {}
 
             static T_derived* make() { return new T_derived(); }
@@ -158,15 +159,15 @@ namespace job_stream {
         virtual void handleInit(T_accum& current) {}
 
         /** Used to add a new output to this accumulator */
-        virtual void handleAdd(T_accum& current, 
+        virtual void handleAdd(T_accum& current,
                 std::unique_ptr<T_input> work) = 0;
 
         /** Called to join this Reducer with the accumulator from another */
-        virtual void handleJoin(T_accum& current, 
+        virtual void handleJoin(T_accum& current,
                 std::unique_ptr<T_accum> other) = 0;
 
-        /** Called when the reduction is complete, or nearly - recur() may be 
-            used to keep the reduction alive (inject new work into this 
+        /** Called when the reduction is complete, or nearly - recur() may be
+            used to keep the reduction alive (inject new work into this
             reduction). */
         virtual void handleDone(T_accum& current) = 0;
 
@@ -179,7 +180,7 @@ namespace job_stream {
             this->targetIsModule = true;
 
             { //timer scope
-                processor::Processor::WorkTimer timer(this->processor, 
+                processor::Processor::WorkTimer timer(this->processor,
                         processor::Processor::TIME_USER);
                 this->handleDone(*this->currentReduce->accumulator);
             }
@@ -198,7 +199,7 @@ namespace job_stream {
 
 
         /** Called by system to call handleInit() with proper setup.  Also gets
-            the reduce ring started and sets up calculation done checks. 
+            the reduce ring started and sets up calculation done checks.
             Returns true if a new ring was started, false if one was continued.
             */
         virtual bool dispatchInit(message::WorkRecord& work) {
@@ -211,7 +212,7 @@ namespace job_stream {
             //So this is a tiny hack (for elegance though!), but essentially
             //if our work's target is the root module, that means root has
             //a reducer.  But since init work can go anywhere, and is not
-            //part of a closed system in that it originates from a single 
+            //part of a closed system in that it originates from a single
             //WorkRecord, we have to use reserved tagId 1 to refer to a top
             //level reducer (whose parent is 0, which stops the program from
             //prematurely exiting).
@@ -237,7 +238,7 @@ namespace job_stream {
                 record.gotFirstWork = false;
 
                 { //timer scope
-                    processor::Processor::WorkTimer timer(this->processor, 
+                    processor::Processor::WorkTimer timer(this->processor,
                             processor::Processor::TIME_USER);
                     this->handleInit(*record.accumulator);
                 }
@@ -260,9 +261,9 @@ namespace job_stream {
             work.putWorkInto(this->currentWork);
 
             { //timer scope
-                processor::Processor::WorkTimer timer(this->processor, 
+                processor::Processor::WorkTimer timer(this->processor,
                         processor::Processor::TIME_USER);
-                this->handleAdd(*this->currentReduce->accumulator, 
+                this->handleAdd(*this->currentReduce->accumulator,
                         std::move(this->currentWork));
             }
 
@@ -278,9 +279,9 @@ namespace job_stream {
             work.putWorkInto(this->currentJoin);
 
             { //timer scope
-                processor::Processor::WorkTimer timer(this->processor, 
+                processor::Processor::WorkTimer timer(this->processor,
                         processor::Processor::TIME_USER);
-                this->handleJoin(*this->currentReduce->accumulator, 
+                this->handleJoin(*this->currentReduce->accumulator,
                         std::move(this->currentJoin));
             }
 
@@ -306,11 +307,11 @@ namespace job_stream {
 
         /** Output some work from this module */
         template<class T_output> void emit(T_output&& output) {
-            processor::Processor::WorkTimer timer(this->processor, 
+            processor::Processor::WorkTimer timer(this->processor,
                     processor::Processor::TIME_SYSTEM);
 
             std::unique_ptr<message::WorkRecord> wr(new message::WorkRecord(
-                    this->getTargetForReducer(), 
+                    this->getTargetForReducer(),
                     serialization::encodeAsPtr(output)));
             wr->chainFrom(*this->currentRecord);
             this->processor->addWork(std::move(wr));
@@ -336,14 +337,14 @@ namespace job_stream {
 
 
         /** Output some work back into this module at job named under config
-            recurTo.target.  If target is empty (default), send back to 
+            recurTo.target.  If target is empty (default), send back to
             module input. */
-        template<class T_output> void recur(T_output&& output, 
+        template<class T_output> void recur(T_output&& output,
                 const std::string& target = "") {
-            processor::Processor::WorkTimer timer(this->processor, 
+            processor::Processor::WorkTimer timer(this->processor,
                     processor::Processor::TIME_SYSTEM);
 
-            //Make sure the chain takes... bit of a hack, but we need the 
+            //Make sure the chain takes... bit of a hack, but we need the
             //currentRecord (tuple that caused our reduce) to maintain its
             //original reduce tag and information in case it itself is part of
             //a reduce.
@@ -403,7 +404,7 @@ namespace job_stream {
             auto iter = this->reduceMap.find(reduceTag);
             if (iter == this->reduceMap.end()) {
                 std::ostringstream ss;
-                ss << "ReduceTag " << reduceTag << " not found on " 
+                ss << "ReduceTag " << reduceTag << " not found on "
                         << this->processor->getRank() << "!";
                 throw std::runtime_error(ss.str());
             }
@@ -445,6 +446,7 @@ namespace job_stream {
                         job::ReducerBase, job::SharedBase>();
             }
 
+            /** Called by constructor to force static member instantiation. */
             void doNothing() {}
 
             static T_derived* make() { return new T_derived(); }
@@ -456,13 +458,13 @@ namespace job_stream {
     thread_local uint64_t Reducer<T_derived, T_accum, T_input>::currentReduceTag
             = (uint64_t)-1;
     template<typename T_derived, typename T_accum, typename T_input>
-    thread_local job::ReduceAccumulator<T_accum>* 
+    thread_local job::ReduceAccumulator<T_accum>*
             Reducer<T_derived, T_accum, T_input>::currentReduce = 0;
     template<typename T_derived, typename T_accum, typename T_input>
-    thread_local std::unique_ptr<T_input> 
+    thread_local std::unique_ptr<T_input>
             Reducer<T_derived, T_accum, T_input>::currentWork;
     template<typename T_derived, typename T_accum, typename T_input>
-    thread_local std::unique_ptr<T_accum> 
+    thread_local std::unique_ptr<T_accum>
             Reducer<T_derived, T_accum, T_input>::currentJoin;
     template<typename T_derived, typename T_accum, typename T_input>
     thread_local bool Reducer<T_derived, T_accum, T_input>::hadRecurrence
@@ -473,7 +475,7 @@ namespace job_stream {
 
 
     /** A Frame is a special type of Reducer that has special logic based on
-        the first type of data it receives.  If T_first == T_recur, you 
+        the first type of data it receives.  If T_first == T_recur, you
         probably don't need a Frame, you probably want a Reducer.  But, for
         instance, an algorithm that runs a simulation over and over until
         a dynamic number of trials have been completed (based on the results
@@ -489,7 +491,7 @@ namespace job_stream {
         }
 
         /** Handles the first work that initiates the Reduce loop */
-        virtual void handleFirst(T_accum& current, 
+        virtual void handleFirst(T_accum& current,
                 std::unique_ptr<T_first> first) = 0;
         /** Handles any subsequent work in this Reduce loop (from recur) */
         virtual void handleWork(T_accum& current,
@@ -539,6 +541,7 @@ namespace job_stream {
                         job::ReducerBase, job::SharedBase>();
             }
 
+            /** Called by constructor to force static member instantiation. */
             void doNothing() {}
         };
         static _AutoRegister _autoRegister;
