@@ -283,7 +283,7 @@ public:
     const char* typeName() { return typeid(T*).name(); }
     const char* baseName() { return typeid(B*).name(); }
 
-    bool tryDecode(IArchive& a, const std::string& archTypeName, 
+    bool tryDecode(IArchive& a, const std::string& archTypeName,
             const char* destTypeName, void** dest) {
         if ((strcmp(destTypeName, typeName()) != 0
                 && strcmp(destTypeName, baseName()) != 0)
@@ -333,7 +333,7 @@ public:
         for (; it != registered.end(); it++) {
             /** Since we go through these in order, it is important that the
                 most-derived classes are encountered first.  Otherwise, encode()
-                will find a base class before a potential better match, and 
+                will find a base class before a potential better match, and
                 since dynamic_cast will return non-zero, encoding will stop. */
             if ((*it)->isDerivedClass<T>()) {
                 //put with our people
@@ -407,9 +407,9 @@ struct _SerialHelperUtility {
 };
 
 
-/** To support encoding / decoding derived classes (virtual inheritance), we 
+/** To support encoding / decoding derived classes (virtual inheritance), we
     serialize pointers.  But primitive types don't support that (as a pointer).
-    So we use this to get around it.  Non-specialized is for non pointers or 
+    So we use this to get around it.  Non-specialized is for non pointers or
     pointers to non-polymorphic and non-primitive types. */
 template<typename T, class Enable = void>
 struct _SerialHelper {
@@ -440,7 +440,7 @@ struct _SerialHelper {
 };
 
 
-/** Pointers to primitive types have different handling because boost doesn't 
+/** Pointers to primitive types have different handling because boost doesn't
     allow serializing pointers to primitives by default. */
 template<typename T>
 struct _SerialHelper<T*, typename boost::enable_if<boost::mpl::bool_<
@@ -480,10 +480,10 @@ struct _SerialHelper<T*, typename boost::enable_if<boost::mpl::bool_<
 
 /** Polymorphic type specialization.  We have to look through registeredTypes on
     both encode and decode to ensure that we encode the most specific class, and
-    decode the correct derived class (and a class that is a derivative at all). 
+    decode the correct derived class (and a class that is a derivative at all).
     */
 template<typename T>
-struct _SerialHelper<T*, 
+struct _SerialHelper<T*,
         typename boost::enable_if<boost::is_polymorphic<T>>::type> {
     typedef typename boost::remove_const<T>::type T_noconst;
     static const char* typeName() { return typeid(T_noconst*).name(); }
@@ -633,7 +633,7 @@ void encode(OArchive& oa, const std::shared_ptr<T>& src) {
 /** Lazy person's copy functionality */
 template<class T>
 void copy(const T& src, T& dest) {
-    decode(encode(&src), dest);
+    decode(encode(src), dest);
 }
 
 }
