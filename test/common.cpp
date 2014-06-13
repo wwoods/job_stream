@@ -76,6 +76,24 @@ std::vector<std::string> sortedLines(std::string input) {
 }
 
 
+std::vector<std::string> sortedLinesLimited(std::string input,
+        const std::vector<std::string>& onlyIncludeIfMatching) {
+    std::vector<std::string> result;
+    std::istringstream ss(input);
+    std::string line;
+    while (std::getline(ss, line, '\n')) {
+        for (int i = 0, m = onlyIncludeIfMatching.size(); i < m; i++) {
+            if (onlyIncludeIfMatching[i] == line) {
+                result.push_back(line);
+                break;
+            }
+        }
+    }
+    std::sort(result.begin(), result.end());
+    return result;
+}
+
+
 void runWithExpectedOut(string prog, string args, string input, string output,
         bool lastOnly, bool ordered) {
     if (lastOnly && !ordered) {

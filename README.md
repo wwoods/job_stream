@@ -293,6 +293,8 @@ Roadmap
     ** Tests for vector / map / list serialization
     ** TODO - vector / map / list serialization of non-polymorphic types should
        not encode type information, as vector template encodes that
+* re-nice certain processors to use lab machines.
+* depth-first iteration
 * Rather than rank, print host.
 * to: Should be a name or YAML reference, emit() or recur() should accept an
   argument of const YAML::Node& so that we can use e.g. stepTo: *priorRef as

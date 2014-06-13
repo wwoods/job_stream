@@ -52,15 +52,15 @@ extern const int JOB_STREAM_DEBUG = 0;
 
 class _Z_impl {
 public:
-    _Z_impl(std::string s) { 
+    _Z_impl(std::string s) {
         if (s.size() > 40) {
             s = s.substr(s.size() - 40);
         }
         this->s = std::move(s);
-        printf("%i %s BEGIN\n", getpid(), this->s.c_str()); 
+        printf("%i %s BEGIN\n", getpid(), this->s.c_str());
     }
     _Z_impl(int line) { printf("%i   %i CONTINUE\n", getpid(), line); }
-    ~_Z_impl() { if (!this->s.empty()) printf("%i %s END\n", getpid(), 
+    ~_Z_impl() { if (!this->s.empty()) printf("%i %s END\n", getpid(),
             this->s.c_str()); }
 
     std::string s;
@@ -79,7 +79,7 @@ private:
 #endif
 
 /** STATICS **/
-void Processor::addJob(const std::string& typeName, 
+void Processor::addJob(const std::string& typeName,
         std::function<job::JobBase* ()> allocator) {
     JobTypeMapType& jtm = jobTypeMap();
     if (jtm.count("module") == 0) {
@@ -97,7 +97,7 @@ void Processor::addJob(const std::string& typeName,
 }
 
 
-void Processor::addReducer(const std::string& typeName, 
+void Processor::addReducer(const std::string& typeName,
         std::function<job::ReducerBase* ()> allocator) {
     ReducerTypeMapType& rtm = reducerTypeMap();
     if (rtm.count(typeName) != 0) {
@@ -105,14 +105,14 @@ void Processor::addReducer(const std::string& typeName,
         ss << "Reducer type already defined: " << typeName;
         throw std::runtime_error(ss.str());
     }
-    
+
     rtm[typeName] = allocator;
 }
 /** END STATICS **/
 
 
 
-MpiMessage::MpiMessage(int tag, AnyUniquePtr data) : tag(tag), 
+MpiMessage::MpiMessage(int tag, AnyUniquePtr data) : tag(tag),
         data(std::move(data)) {}
 
 
@@ -162,8 +162,8 @@ void MpiMessage::_ensureDecoded() const {
 
 
 
-Processor::Processor(std::unique_ptr<mpi::environment> env, 
-        mpi::communicator world, 
+Processor::Processor(std::unique_ptr<mpi::environment> env,
+        mpi::communicator world,
         const YAML::Node& config, const std::string& checkpointFile)
             : checkpointFileName(checkpointFile), checkpointQuit(false),
                 reduceTagCount(0), env(std::move(env)), sentEndRing0(false),
@@ -259,7 +259,7 @@ MpiMessagePtr Processor::getWork() {
         this->workInQueue.pop_front();
         //Before letting others get work, we want to ensure that a ring test
         //knows we're in progress.  This is just an optimization.
-        if (ptr->tag == Processor::TAG_WORK 
+        if (ptr->tag == Processor::TAG_WORK
                 || ptr->tag == Processor::TAG_REDUCE_WORK) {
             uint64_t reduceTag = ptr->getTypedData<message::WorkRecord>()
                     ->getReduceTag();
@@ -268,11 +268,11 @@ MpiMessagePtr Processor::getWork() {
             rim.childTagCount += 1;
         }
         if (JOB_STREAM_DEBUG >= 1) {
-            fprintf(stderr, "%i %lu processing %i ", this->getRank(), 
+            fprintf(stderr, "%i %lu processing %i ", this->getRank(),
                     message::Location::getCurrentTimeMs(), ptr->tag);
-            if (ptr->tag == Processor::TAG_WORK 
+            if (ptr->tag == Processor::TAG_WORK
                     || ptr->tag == Processor::TAG_REDUCE_WORK) {
-                for (const std::string& s 
+                for (const std::string& s
                         : ptr->getTypedData<message::WorkRecord>()->getTarget()
                         ) {
                     fprintf(stderr, "::%s", s.c_str());
@@ -361,7 +361,7 @@ void Processor::run(const std::string& inputLine) {
         this->sawEof = true;
         this->sentEndRing0 = true;
     }
-    
+
     //Start up our workers
     unsigned int compute = std::max(1u, std::thread::hardware_concurrency());
     for (unsigned int i = 0; i < compute; i++) {
@@ -369,7 +369,7 @@ void Processor::run(const std::string& inputLine) {
     }
 
     //Begin tallying time spent in system vs user functionality.
-    std::unique_ptr<WorkTimer> outerTimer(new WorkTimer(this, 
+    std::unique_ptr<WorkTimer> outerTimer(new WorkTimer(this,
             Processor::TIME_IDLE));
 
     int dest, tag;
@@ -474,12 +474,12 @@ void Processor::run(const std::string& inputLine) {
             totalCpuTime += pi.pctUserCpu * pi.pctUserTime;
             fprintf(stderr,
                     "%i %i%% user time (%i%% mpi), %i%% user cpu, "
-                        "%lu messages (%i%% user)\n", 
-                    i, pi.pctUserTime / 10, pi.pctMpiTime / 10, 
+                        "%lu messages (%i%% user)\n",
+                    i, pi.pctUserTime / 10, pi.pctMpiTime / 10,
                     pi.pctUserCpu / 10, pi.msgsTotal, pi.pctUserMsgs / 10);
         }
         fprintf(stderr, "C %i%% user time, %i%% user cpu, "
-                "quality %.2f cpus, ran %.3fs\n", 
+                "quality %.2f cpus, ran %.3fs\n",
                 totalTime / 10, totalCpuTime / 10000,
                 (double)totalCpu / timesTotal, timesTotal * 0.001);
     }
@@ -533,7 +533,7 @@ void Processor::_distributeWork(std::unique_ptr<message::WorkRecord> wr) {
 }
 
 
-void Processor::startRingTest(uint64_t reduceTag, uint64_t parentTag, 
+void Processor::startRingTest(uint64_t reduceTag, uint64_t parentTag,
         job::ReducerBase* reducer) {
     Lock lock(this->mutex);
 
@@ -566,7 +566,7 @@ void Processor::startRingTest(uint64_t reduceTag, uint64_t parentTag,
             reduceTag);
     this->messageQueue.push(std::unique_ptr<message::_Message>(
             new message::_Message(
-                message::Header(Processor::TAG_DEAD_RING_TEST, 
+                message::Header(Processor::TAG_DEAD_RING_TEST,
                     this->_getNextRank()), m.serialized())));
 }
 
@@ -774,7 +774,7 @@ void Processor::processInputThread_main(const std::string& inputLine) {
 }
 
 
-job::JobBase* Processor::allocateJob(module::Module* parent, 
+job::JobBase* Processor::allocateJob(module::Module* parent,
         const std::string& id, const YAML::Node& config) {
     std::string type;
     if (!config["type"]) {
@@ -831,7 +831,7 @@ job::ReducerBase* Processor::allocateReducer(module::Module* parent,
     }
 
     auto reducer = allocatorIter->second();
-    reducer->setup(this, parent, "output", *realConfig, 
+    reducer->setup(this, parent, "output", *realConfig,
             this->root->getConfig());
     reducer->postSetup();
     return reducer;
@@ -1091,7 +1091,7 @@ bool Processor::tryReceive() {
         message::_Message& msg = this->recvBuffer;
         int tag = msg.header.tag;
 
-        //NOTE - The way boost::mpi receives into strings corrupts the 
+        //NOTE - The way boost::mpi receives into strings corrupts the
         //string.  That's why we copy it here with a substr() call.
         if (JOB_STREAM_DEBUG >= 3) {
             fprintf(stderr, "%i got message len %lu\n", this->getRank(),
@@ -1155,7 +1155,7 @@ bool Processor::tryReceive() {
                 //Forward so it dies on all ranks
                 this->_nonBlockingSend(
                         message::Header(Processor::TAG_DEAD_RING_IS_DEAD,
-                            _getNextRank()), 
+                            _getNextRank()),
                         std::move(msg.buffer));
             }
         }
@@ -1209,7 +1209,7 @@ bool Processor::tryReceive() {
             }
 
             if (JOB_STREAM_DEBUG >= 1) {
-                fprintf(stderr, "%i got checkpoint data from %i!\n", 
+                fprintf(stderr, "%i got checkpoint data from %i!\n",
                         this->getRank(), recv.source());
             }
             serialization::encode(*this->checkpointAr, (int)recv.source());
@@ -1239,7 +1239,7 @@ bool Processor::tryReceive() {
         }
         else {
             Lock lock(this->mutex);
-            this->workInQueue.emplace_back(new MpiMessage(tag, 
+            this->workInQueue.emplace_back(new MpiMessage(tag,
                     std::move(msg.buffer)));
         }
     }
@@ -1248,7 +1248,7 @@ bool Processor::tryReceive() {
     //sure that the next payload has a new home
     std::string nextBuffer;
     std::swap(nextBuffer, this->recvBuffer.buffer);
-    this->recvRequest = this->world.irecv(mpi::any_source, mpi::any_tag, 
+    this->recvRequest = this->world.irecv(mpi::any_source, mpi::any_tag,
             this->recvBuffer);
 
     if (wasSteal && this->shouldRun) {
