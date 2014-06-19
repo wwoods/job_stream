@@ -6,7 +6,7 @@ project(job_stream)
 # Note -- I had to compile boost by editing project-config.jam to include:
 #
 # using mpi : mpicxx.openmpi ;
-# 
+#
 # And then running ./b2 --with-mpi to build the library.
 
 # Have to use the OpenMPI compiler...
@@ -50,6 +50,7 @@ endif()
 include_directories("include/")
 
 SET(REQ_LIB
+        ${BOOST_LIB}/libboost_filesystem.a
         ${BOOST_LIB}/libboost_system.a
         ${BOOST_LIB}/libboost_thread.a
         ${BOOST_LIB}/libboost_serialization.a
@@ -58,7 +59,7 @@ SET(REQ_LIB
         # rt must be last
         rt)
 
-add_library(job_stream 
+add_library(job_stream
         job_stream/job_stream.cpp
         job_stream/job.cpp
         job_stream/message.cpp
@@ -89,22 +90,22 @@ target_link_libraries(example/job_stream_stable job_stream ${REQ_LIB})
 target_include_directories(example/job_stream_stable PUBLIC .)
 
 add_custom_target(example)
-add_dependencies(example 
+add_dependencies(example
         example/job_stream_example
         example/job_stream_neuron
         example/job_stream_stable)
 
 # Tests
 FILE(GLOB TEST_SOURCES "job_stream/test/*.cpp" "test/*.cpp")
-add_executable(test_job_stream ${TEST_SOURCES} 
+add_executable(test_job_stream ${TEST_SOURCES}
         test/libexecstream/exec-stream.cpp)
 target_link_libraries(test_job_stream
         job_stream
         ${REQ_LIB}
         # std::regex is horribly, horribly broken in gcc 4.8.  @&#^%&
         ${BOOST_LIB}/libboost_regex.a)
-target_include_directories(test_job_stream PUBLIC 
-        "include/" 
+target_include_directories(test_job_stream PUBLIC
+        "include/"
         "./"
         "test/libexecstream/")
 add_dependencies(test_job_stream example)
@@ -112,4 +113,3 @@ add_dependencies(test_job_stream example)
 add_custom_target(test DEPENDS test_job_stream)
 add_custom_command(TARGET test
         POST_BUILD COMMAND test_job_stream "\${ARGS}")
-

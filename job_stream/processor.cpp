@@ -7,6 +7,7 @@
 #include "workerThread.h"
 
 #include <boost/algorithm/string.hpp>
+#include <boost/filesystem.hpp>
 #include <boost/lexical_cast.hpp>
 #include <chrono>
 #include <ctime>
@@ -16,6 +17,7 @@
 #include <string>
 #include <sys/resource.h>
 
+namespace fs = boost::filesystem;
 namespace mpi = boost::mpi;
 
 namespace std {
@@ -217,11 +219,6 @@ Processor::Processor(std::unique_ptr<mpi::environment> env,
             fprintf(stderr, "%i resumed from checkpoint "
                     "(%i pending messages)\n",
                     this->getRank(), this->workInQueue.size());
-            if (this->workInQueue.size() > 3) {
-                for (auto& mm : this->workInQueue) {
-                    fprintf(stderr, "%i\n", mm->tag);
-                }
-            }
         }
     }
 
@@ -1396,7 +1393,7 @@ void Processor::_updateCheckpoints(int msDiff) {
                 }
                 this->checkpointWaiting = this->world.size() - 1;
                 this->checkpointFile.reset(new std::ofstream(
-                        this->checkpointFileName.c_str()));
+                        (this->checkpointFileName + ".new").c_str()));
                 this->checkpointAr.reset(new serialization::OArchive(
                         *this->checkpointFile));
                 serialization::encode(*this->checkpointAr,
@@ -1435,6 +1432,11 @@ void Processor::_updateCheckpoints(int msDiff) {
             //Done
             this->checkpointAr.reset();
             this->checkpointFile.reset();
+
+            //File rename now that we have a completed checkpoint
+            fs::rename((this->checkpointFileName + ".new").c_str(),
+                    this->checkpointFileName.c_str());
+
             fprintf(stderr, "%i Checkpoint took %i ms, resuming computation\n",
                     this->getRank(), message::Location::getCurrentTimeMs()
                         - this->tsCheckpointStart);
