@@ -41,7 +41,7 @@ If a checkpointFile is provided, then the file will be used if it exists.  If it
 does not exist, it will be created and updated periodically to allow resume.  It
 is trivial to write a script that will execute the application until success:
 
-    for i in {1..5} do
+    for i in {1..10}; do
         mpirun -np 4 my_application config.yaml -c checkpoint.chkpt blahblah
         if [ $? -eq 0 ];
             break
@@ -298,6 +298,7 @@ Job and reduction routines MUST be thread safe.  That is, do NOT create a shared
 Roadmap
 -------
 
+* update README with new setup (template arguments, instantiate a copy, NAME())
 * re-nice certain processors to use lab machines.
 * depth-first iteration
 * Rather than rank, print host.
