@@ -35,7 +35,7 @@ Running
 
 A typical job_stream application would be run like this:
 
-    mpirun -np 4 my_application path/to/config.yaml [-c checkpointFile] Initial work string (or int or float or whatever)
+    mpirun -np 4 my_application path/to/config.yaml [-c checkpointFile] [-t hoursBetweenCheckpoints] Initial work string (or int or float or whatever)
 
 If a checkpointFile is provided, then the file will be used if it exists.  If it
 does not exist, it will be created and updated periodically to allow resume.  It
@@ -47,6 +47,10 @@ is trivial to write a script that will execute the application until success:
             break
         fi
     done
+
+If -t is not specified, checkpoints will be taken every 10 minutes.  Sometimes
+checkpointing is a very slow process though; -t 24 will only checkpoint once
+per day, for instance.
 
 
 Basics

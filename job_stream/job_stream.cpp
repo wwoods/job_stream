@@ -5,6 +5,7 @@
 #include "yaml.h"
 
 #include <boost/algorithm/string.hpp>
+#include <boost/lexical_cast.hpp>
 #include <boost/mpi.hpp>
 #include <boost/thread.hpp>
 #include <cstdio>
@@ -37,6 +38,7 @@ void runProcessor(int argc, char** argv) {
 
     int inputStart = 1;
     std::string checkpoint;
+    int checkpointMs = 600 * 1000;
     for (; inputStart < argc; inputStart++) {
         if (strcmp(argv[inputStart], "-c") == 0) {
             checkpoint = std::string(argv[inputStart + 1]);
@@ -45,6 +47,11 @@ void runProcessor(int argc, char** argv) {
                         checkpoint.c_str());
             }
             inputStart++;
+        }
+        else if (strcmp(argv[inputStart], "-t") == 0) {
+            checkpointMs = (int)(
+                    boost::lexical_cast<float>(argv[inputStart + 1])
+                    * 3600 * 1000);
         }
         else if (argv[inputStart][0] == '-'
                 //Cheap hack to allow negative numbers
@@ -78,6 +85,7 @@ void runProcessor(int argc, char** argv) {
     boost::algorithm::trim(inputLine);
 
     processor::Processor p(std::move(env), world, config, checkpoint);
+    p.setCheckpointInterval(checkpointMs);
     p.run(inputLine);
 
     //If we get here, there were no errors.  If there were no errors, we should

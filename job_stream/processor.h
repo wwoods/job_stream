@@ -30,7 +30,7 @@ namespace std {
 namespace job_stream {
 namespace processor {
 
-/* Debug flag when testing library; 
+/* Debug flag when testing library;
   1 = basic messages (min output),
   2 = very, very verbose
   3 = overly verbose */
@@ -76,7 +76,7 @@ public:
     AnyUniquePtr() {}
 
     template<class T>
-    AnyUniquePtr(std::unique_ptr<T> ptr) : 
+    AnyUniquePtr(std::unique_ptr<T> ptr) :
             _impl(new AnyPtrImpl<T>(std::move(ptr))) {}
 
     AnyUniquePtr(AnyUniquePtr&& other) : _impl(std::move(other._impl)) {}
@@ -93,7 +93,7 @@ public:
     }
 
     template<class T>
-    T* get() { 
+    T* get() {
         if (!this->_impl) {
             return 0;
         }
@@ -126,7 +126,7 @@ private:
 
     template<class T>
     struct AnyPtrImpl : public AnyPtrImplBase {
-        AnyPtrImpl(std::unique_ptr<T> ptr) : AnyPtrImplBase((void*)ptr.get()), 
+        AnyPtrImpl(std::unique_ptr<T> ptr) : AnyPtrImplBase((void*)ptr.get()),
                 t_ptr(std::move(ptr)) {}
 
         virtual ~AnyPtrImpl() {}
@@ -168,7 +168,7 @@ struct MpiMessage {
 
 private:
     /** An owned version of the data in this message - deleted manually in
-        destructor.  We would use unique_ptr, but we don't know the type of our 
+        destructor.  We would use unique_ptr, but we don't know the type of our
         data! */
     mutable AnyUniquePtr data;
 
@@ -218,11 +218,11 @@ struct ProcessorReduceInfo {
     /** The parent's reduceTag */
     uint64_t parentTag;
 
-    /* The ReduceBase that contains our tag.  We track this so we can call 
+    /* The ReduceBase that contains our tag.  We track this so we can call
        done on it.  NULL for global ring, of course.*/
     job::ReducerBase* reducer;
 
-    ProcessorReduceInfo() : childTagCount(0), parentTag(0), reducer(0), 
+    ProcessorReduceInfo() : childTagCount(0), parentTag(0), reducer(0),
             countCreated(0), countProcessed(0) {}
 
 private:
@@ -277,7 +277,7 @@ public:
         TAG_COUNT,
     };
 
-    /*  Profiler categories.  User time is the most important distinction; 
+    /*  Profiler categories.  User time is the most important distinction;
         others are internal. */
     enum ProcessorTimeType {
         TIME_IDLE,
@@ -314,13 +314,13 @@ public:
         Processor* processor;
     };
 
-    static void addJob(const std::string& typeName, 
+    static void addJob(const std::string& typeName,
             std::function<job::JobBase* ()> allocator);
-    static void addReducer(const std::string& typeName, 
+    static void addReducer(const std::string& typeName,
             std::function<job::ReducerBase* ()> allocator);
 
-    Processor(std::unique_ptr<boost::mpi::environment> env, 
-            boost::mpi::communicator world, 
+    Processor(std::unique_ptr<boost::mpi::environment> env,
+            boost::mpi::communicator world,
             const YAML::Node& config, const std::string& checkpointName);
     ~Processor();
 
@@ -331,21 +331,26 @@ public:
     uint64_t getNextReduceTag();
     /** Return this Processor's rank */
     int getRank() const { return this->world.rank(); }
-    /** Get work for a Worker, or return a null unique_ptr if there is no 
+    /** Get work for a Worker, or return a null unique_ptr if there is no
         work (or we're waiting on a checkpoint) */
     MpiMessagePtr getWork();
-    /** Run all modules defined in config; inputLine (already trimmed) 
-        determines whether we are using one row of input (the inputLine) or 
+    /** Run all modules defined in config; inputLine (already trimmed)
+        determines whether we are using one row of input (the inputLine) or
         stdin (if empty) */
     void run(const std::string& inputLine);
+    /** Sets the checkpointInterval on this processor; if called after
+        instantiation and before run(), affects the first checkpoint as well.
+        Otherwise, only takes effect after the next checkpoint. */
+    void setCheckpointInterval(int intervalMs) {
+            this->checkpointInterval = intervalMs; }
     /** Start a dead ring test for the given reduceTag */
-    void startRingTest(uint64_t reduceTag, uint64_t parentTag, 
+    void startRingTest(uint64_t reduceTag, uint64_t parentTag,
             job::ReducerBase* reducer);
 
 protected:
-    job::JobBase* allocateJob(module::Module* parent, const std::string& id, 
+    job::JobBase* allocateJob(module::Module* parent, const std::string& id,
             const YAML::Node& config);
-    job::ReducerBase* allocateReducer(module::Module* parent, 
+    job::ReducerBase* allocateReducer(module::Module* parent,
             const YAML::Node& config);
     /** Called to reduce a childTagCount on a ProcessorReduceInfo for a given
         reduceTag.  Optionally dispatch messages pending. */
@@ -366,7 +371,7 @@ protected:
     void localTimersMerge();
     /** We got a steal message; decode it and maybe give someone work. */
     void maybeAllowSteal(const std::string& messageBuffer);
-    /** Listen for input events and put them on workOutQueue.  When this thread 
+    /** Listen for input events and put them on workOutQueue.  When this thread
         is finished, it emits a TAG_DEAD_RING_TEST message for 0. */
     void processInputThread_main(const std::string& inputLine);
     /** Process a previously received mpi message.  Passed non-const so that it
@@ -383,7 +388,7 @@ private:
         uint64_t clksChild;
         int timeType;
 
-        _WorkTimerRecord(uint64_t start, uint64_t clock, int type) 
+        _WorkTimerRecord(uint64_t start, uint64_t clock, int type)
                 : tsStart(start), clkStart(clock), timeChild(0), clksChild(0),
                     timeType(type) {}
     };
@@ -413,7 +418,7 @@ private:
     /** Global array; see localClksByType */
     std::unique_ptr<uint64_t[]> globalClksByType;
     std::unique_ptr<uint64_t[]> globalTimesByType;
-    /** Array containing how many cpu clocks were spent in each type of 
+    /** Array containing how many cpu clocks were spent in each type of
         operation.  Indexed by ProcessorTimeType */
     static thread_local std::unique_ptr<uint64_t[]> localClksByType;
     /** Array containing how much time was spent in each type of operation.
@@ -424,7 +429,7 @@ private:
     std::thread::id mainThreadId;
     /** Running count of messages by tag */
     std::unique_ptr<uint64_t[]> msgsByTag;
-    /** Locks shared resources - workInQueue, reduceInfoMap 
+    /** Locks shared resources - workInQueue, reduceInfoMap
         and reduceTagCount */
     Mutex mutex;
     /* The stdin management thread; only runs on node 0 */
@@ -436,7 +441,7 @@ private:
     /* The current number of assigned tags for reductions */
     uint64_t reduceTagCount;
     std::map<uint64_t, ProcessorReduceInfo> reduceInfoMap;
-    /* We have to keep track of how many 
+    /* We have to keep track of how many
     /* The root module defined by the main config file */
     std::unique_ptr<job::JobBase> root;
     /* Set when eof is reached on stdin (or input line), or if our index is not
