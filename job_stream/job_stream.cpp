@@ -52,6 +52,7 @@ void runProcessor(int argc, char** argv) {
             checkpointMs = (int)(
                     boost::lexical_cast<float>(argv[inputStart + 1])
                     * 3600 * 1000);
+            inputStart++;
         }
         else if (argv[inputStart][0] == '-'
                 //Cheap hack to allow negative numbers
