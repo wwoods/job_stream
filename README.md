@@ -39,14 +39,19 @@ A typical job_stream application would be run like this:
 
 If a checkpointFile is provided, then the file will be used if it exists.  If it
 does not exist, it will be created and updated periodically to allow resume.  It
-is trivial to write a script that will execute the application until success:
+is fairly simple to write a script that will execute the application until
+success:
 
-    for i in {1..10}; do
+    RESULT=1
+    for i in `seq 1 10`; do
         mpirun -np 4 my_application config.yaml -c checkpoint.chkpt blahblah
-        if [ $? -eq 0 ];
+        RESULT=$?
+        if [ $RESULT -eq 0 ]; then
             break
         fi
     done
+
+    exit $RESULT
 
 If -t is not specified, checkpoints will be taken every 10 minutes.  Sometimes
 checkpointing is a very slow process though; -t 24 will only checkpoint once
