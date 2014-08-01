@@ -231,9 +231,6 @@ Processor::Processor(std::unique_ptr<mpi::environment> env,
     //processor 1 in run()).
     this->checkpointNext = -1;
     this->checkpointInterval = 600 * 1000;
-    if (this->checkpointFileName.empty()) {
-        this->checkpointInterval = -1;
-    }
     this->checkpointState = Processor::CHECKPOINT_NONE;
 }
 
@@ -352,6 +349,9 @@ void Processor::run(const std::string& inputLine) {
         }
 
         //First processor is responsible for checkpointing
+        if (this->checkpointFileName.empty()) {
+            this->checkpointInterval = -1;
+        }
         this->checkpointNext =  this->checkpointInterval;
     }
     else {
