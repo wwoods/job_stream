@@ -78,7 +78,7 @@ void Module::postSetup() {
         //are more flexible, we have to replace the jobs node with a named
         //version.
         YAML::Node newJobs;
-        
+
         //If there is no input, then we need to set it to the first job in the
         //sequence.
         if (!this->config["input"]) {
@@ -122,7 +122,7 @@ void Module::postSetup() {
 
     //Set up reducer, unless we've started from a checkpoint
     if (this->config["reducer"] && !this->reducer) {
-        this->reducer.reset(this->processor->allocateReducer(this, 
+        this->reducer.reset(this->processor->allocateReducer(this,
                 this->config["reducer"]));
     }
 }
@@ -145,8 +145,8 @@ void Module::dispatchWork(message::WorkRecord& work) {
 
     const std::vector<std::string>& target = work.getTarget();
     if (this->level == target.size()) {
-        //We're the end goal (this work just started living in our module).  
-        //If we have a reducer, we have to tag this work and create a new 
+        //We're the end goal (this work just started living in our module).
+        //If we have a reducer, we have to tag this work and create a new
         //reduction context
         if (this->reducer && this->reducer->dispatchInit(work)) {
             startedNewRing = true;
@@ -189,7 +189,7 @@ void Module::dispatchWork(message::WorkRecord& work) {
             }
         }
         else {
-            //When a reducer is active, output is just a JobBase that is the 
+            //When a reducer is active, output is just a JobBase that is the
             //reducer.
             if (processor::JOB_STREAM_DEBUG >= 2) {
                 std::ostringstream ss;
@@ -257,13 +257,13 @@ job::JobBase* Module::getJob(const std::string& id) {
     }
     else if (!this->config["jobs"][id]) {
         std::ostringstream msg;
-        msg << "Unrecognized job id: '" << this->getFullName() << "::" << id 
+        msg << "Unrecognized job id: '" << this->getFullName() << "::" << id
                 << "'";
         throw std::runtime_error(msg.str());
     }
 
     const YAML::Node& config = this->config["jobs"][id];
-    job::JobBase* job = this->processor->allocateJob(this, id, 
+    job::JobBase* job = this->processor->allocateJob(this, id,
             config);
     this->jobMap[id].reset(job);
     return job;
