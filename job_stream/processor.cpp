@@ -735,8 +735,8 @@ void Processor::_enqueueInputWork(const std::string& line) {
         data = this->root->parseAndSerialize(line);
     }
     catch (const std::exception& e) {
-        fprintf(stderr, "While processing %s\n", line.c_str());
-        throw e;
+        fprintf(stderr, "While processing input line: %s\n", line.c_str());
+        throw;
     }
     std::vector<std::string> inputDest;
     this->addWork(std::unique_ptr<message::WorkRecord>(
@@ -785,7 +785,7 @@ job::JobBase* Processor::allocateJob(module::Module* parent,
     auto allocatorIter = jobTypeMap().find(type);
     if (allocatorIter == jobTypeMap().end()) {
         std::ostringstream msg;
-        msg << "Unknown job type: " << type;
+        msg << "Unknown job type (did you instantiate an instance?): " << type;
         throw std::runtime_error(msg.str());
     }
 
