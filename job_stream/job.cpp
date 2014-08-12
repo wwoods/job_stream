@@ -49,7 +49,7 @@ std::string SharedBase::getFullName() const {
 
 
 void SharedBase::setup(processor::Processor* processor, module::Module* parent,
-        const std::string& id, const YAML::Node& config, 
+        const std::string& id, const YAML::Node& config,
         const YAML::Node& globalConfig) {
     this->processor = processor;
     this->parent = parent;
@@ -71,7 +71,7 @@ void SharedBase::populateAfterRestore(const YAML::Node& globalConfig,
 std::vector<std::string> SharedBase::getTargetForJob(std::string target) {
     std::vector<std::string> targetNew = this->currentRecord->getTarget();
     //On our first send, target includes the job (it already did).  We
-    //want to redirect to targetList based on the module level.  So we 
+    //want to redirect to targetList based on the module level.  So we
     //always pop the last part of target.
     //...unless it's the root module (recur on top-level reducer)
     if (!this->targetIsModule) {
@@ -106,7 +106,7 @@ std::vector<std::string> SharedBase::getTargetForReducer() {
         targetNew.push_back(parentTo.as<std::string>());
     }
     else {
-        //Final output (that is, this is the top module, and we are final 
+        //Final output (that is, this is the top module, and we are final
         //output).
         targetNew.push_back("output");
         targetNew.push_back("reduced");
@@ -125,6 +125,8 @@ std::string SharedBase::parseAndSerialize(const std::string& line) {
             }
 
     TRY_TYPE(std::string);
+    TRY_TYPE(float);
+    TRY_TYPE(double);
     TRY_TYPE(uint64_t);
     TRY_TYPE(int64_t);
     TRY_TYPE(unsigned int);

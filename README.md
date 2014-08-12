@@ -1,7 +1,8 @@
 Job Stream
 ==========
 
-A tiny C library based on OpenMPI for distributing streamed batch processing.
+A tiny C library based on OpenMPI for distributing streamed batch processing
+across multi-threaded workers.
 
 
 Requirements
@@ -35,16 +36,17 @@ Running
 
 A typical job_stream application would be run like this:
 
-    mpirun -np 4 my_application path/to/config.yaml [-c checkpointFile] [-t hoursBetweenCheckpoints] Initial work string (or int or float or whatever)
+    mpirun -host a,b,c my_application path/to/config.yaml [-c checkpointFile] [-t hoursBetweenCheckpoints] Initial work string (or int or float or whatever)
 
-If a checkpointFile is provided, then the file will be used if it exists.  If it
-does not exist, it will be created and updated periodically to allow resume.  It
-is fairly simple to write a script that will execute the application until
-success:
+Note that -np to specify parallelism is not needed, as job_stream implicitly
+multi-threads your application.  If a checkpointFile is provided, then the file
+will be used if it exists.  If it does not exist, it will be created and updated
+periodically to allow resume.  It is fairly simple to write a script that will
+execute the application until success:
 
     RESULT=1
-    for i in `seq 1 10`; do
-        mpirun -np 4 my_application config.yaml -c checkpoint.chkpt blahblah
+    for i in `seq 1 100`; do
+        mpirun my_application config.yaml -c checkpoint.chkpt blahblah
         RESULT=$?
         if [ $RESULT -eq 0 ]; then
             break
@@ -60,6 +62,254 @@ per day, for instance.
 
 Basics
 ------
+
+job_stream works by allowing you to specify various "streams" through your
+application's logic.  The most basic unit of work in job_stream is the job,
+which takes some input work and transforms it into zero or more outputs:
+
+![A job_stream job takes some input, transforms it, and emits zero or more outputs](doc/readme/01_basic.png)
+
+That is, some input work is required for a job to do anything.  However, the
+job may choose to not pass anything forward (perhaps save something to a file
+instead), or it might apply some transformation(s) to the input and then output
+the changed data.  For our first job, supppose we wanted to make a basic job
+that takes an integer and increments it, forwarding on the result:
+
+![A job that adds one to the input and emits it](doc/readme/02_addOne.png)
+
+The corresponding code for this job follows:
+
+    #include <job_stream/job_stream.h>
+    //All work comes into job_stream jobs as a unique_ptr; this can be used
+    //to optimize memory bandwidth locally.
+    using std::unique_ptr;
+
+    /** Add one to the integer input and forward it. */
+    class AddOneJob : public job_stream::Job<AddOneJob, int> {
+    public:
+        /** The name used to describe this job in a YAML file */
+        static const char* NAME() { return "addOne"; }
+        void handleWork(unique_ptr<int> work) {
+            this->emit(*work + 1);
+        }
+    } addOneJob;
+
+The parts of note are:
+
+* Template arguments to job_stream::Job - the class being defined, and the
+  expected type of input,
+* NAME() method, which returns a string that we'll use to refer to this
+  type of job,
+* handleWork() method, which is called for each input work generated,
+* this->emit() call, which is used to pass some serializable object forward as
+  output, and
+* this->emit() can take any type of argument - the output's type and content do
+  not need to have any relation to the input.
+* There MUST be a global instance allocated after the class definition.  This
+  instance is not ever used in code, but C++ requires a instance for certain
+  templated code to be generated.
+
+*NOTE - all methods in a job_stream job must be thread-safe!*
+
+In order to use this job, we would need to define a simple `adder.yaml` file:
+
+    jobs:
+      - type: addOne
+
+Running this with some input produces the expected result:
+
+    local$ pwd
+    /.../dev/job_stream
+    local$ cd build
+    local$ cmake .. && make -j8 example
+    ...
+    # Any arguments after the YAML file and any flags mean to run the job stream
+    # with precisely one input, interpreted from the arguments
+    local$ example/job_stream_example ../example/adder.yaml 1
+    2
+    (some stats will be printed on termination)
+    # If no arguments exist, then stdin will be used.
+    local$ example/job_stream_example ../example/adder.yaml <<!
+    3
+    8
+    !
+    # Results - note that when you run this, the 9 might print before the 4!
+    # This depends on how the thread scheduling works out.
+    4
+    9
+    (some stats will be printed on termination)
+    local$
+
+Reducers and Frames
+-------------------
+Of course, if we could only transform and potentially duplicate input then
+job_stream wouldn't be very powerful.  job_stream has two mechanisms that make
+it much more useful - reducers, which allow several independently processed
+work streams to be merged, and recursion, which allows a reducer to pass work
+back into itself.  Frames are a job_stream idiom to make the combination of
+reducers and recursion more natural.
+
+To see how this fits, we'll calculate pi experimentally to a desired precision.
+We'll be using the area calculation - since A = R*pi^2, pi = sqrt(A / R).  
+Randomly distributing points in a 1x1 grid and testing if they lie within the
+unit circle, we can estimate the area:
+
+![Estimating pi](doc/readme/03_calculatePi.png)
+
+The job_stream part of this will take as its input a floating point number which
+is the percentage of error that we want to reach, and will emit the number of
+experimental points evaluated in order to reach that accuracy.  The network
+looks like this:
+
+![Estimating pi](doc/readme/04_piPipeline.png)
+
+As an aside, the "literally anything" that the piCalculator needs to feed to
+piEstimate is because we'll have piEstimate decide which point to evaluate.  
+This is an important part of designing a job_stream pipeline - generality.  If,
+for instance, we were to pass the point that needs evaluating to piEstimate,
+then we have locked our piCalculator into working with only one method of
+evaluating pi.  With the architecture shown, we can substitute any number of
+pi estimators and compare their relative efficiencies.
+
+Before coding our jobs, let's set up the YAML file `pi.yaml`:
+
+    jobs:
+      - frame:
+            type: piCalculator
+        jobs:
+            - type: piEstimate
+
+This means that our pipe will consist of one top-level job, which itself has no
+type and a stream of "jobs" it will use to transform data.  Wrapped around its
+stream is a "frame" of type piCalculator.  This corresponds to our above
+diagram.
+
+piCalculator being a frame means that it will take an initial work,
+recur into itself, and then aggregate results (which may be of a different type
+than the initial work) until it stops recurring.  The code for it looks like
+this:
+
+    struct PiCalculatorState {
+        float precision;
+        float piSum;
+        int trials;
+
+    private:
+        //All structures used for storage or emit()'d must be serializable
+        friend class boost::serialization::access;
+        template<class Archive>
+        void serialize(Archive& ar, const unsigned int version) {
+            ar & precision & piSum & trials;
+        }
+    };
+
+    /** Calculates pi to the precision passed as the first work.  The template
+        arguments for a Frame are: the Frame's class, the storage type, the
+        first work's type, and subsequent (recurred) work's type. */
+    class PiCalculator : public job_stream::Frame<PiCalculator,
+            PiCalculatorState, float, float> {
+    public:
+        static const char* NAME() { return "piCalculator"; }
+
+        void handleFirst(PiCalculatorState& current, unique_ptr<float> work) {
+            current.precision = *work * 0.01;
+            current.piSum = 0.0f;
+            current.trials = 0;
+            //Put work back into this Frame.  This will trigger whatever method
+            //of pi approximation is defined in our YAML.  We'll pass the
+            //current trial index as debug information.
+            this->recur(current.trials++);
+        }
+
+        void handleWork(PiCalculatorState& current, unique_ptr<float> work) {
+            current.piSum += *work;
+        }
+
+        void handleDone(PiCalculatorState& current) {
+            //Are we done?
+            float piCurrent = current.piSum / current.trials;
+            if (fabsf((piCurrent - M_PI) / M_PI) < current.precision) {
+                //We're within desired precision, emit trials count
+                fprintf(stderr, "Pi found to be %f, +- %.1f%%\n", piCurrent,
+                        current.precision * 100.f);
+                this->emit(current.trials);
+            }
+            else {
+                //We need more iterations.  Double our trial count
+                for (int i = 0, m = current.trials; i < m; i++) {
+                    this->recur(current.trials++);
+                }
+            }
+        }
+    } piCalculator;
+
+Similar to our first addOne job, but we've added a few extra methods -
+handleFirst and handleDone.  handleFirst is called for the work that starts
+a reduction and should initialize the state of the current reduction.  
+handleWork is called whenever a recur'd work finishes its loop and ends up back
+at the Frame.  Its result should be integrated into the current state somehow.
+handleDone is called when there is no more pending work in the frame, at which
+point the frame may either emit its current result or recur more work.  If
+nothing is recur'd, the reduction is terminated.
+
+Our piEstimate job is much simpler:
+
+    class PiEstimate : public job_stream::Job<PiEstimate, int> {
+    public:
+        static const char* NAME() { return "piEstimate"; }
+        void handleWork(unique_ptr<int> work) {
+            float x = rand() / (float)RAND_MAX;
+            float y = rand() / (float)RAND_MAX;
+            if (x * x + y * y <= 1.0) {
+                //Estimate area as full circle
+                this->emit(4.0f);
+            }
+            else {
+                //Estimate area as nothing
+                this->emit(0.0f);
+            }
+        }
+    } piEstimate;
+
+So, let's try it!
+
+    local$ cd build
+    local$ cmake .. && make -j8 example
+    local$ example/job_stream_example ../example/pi.yaml 10
+    Pi found to be 3.000000, +- 10.0%
+    4
+    (debug info as well)
+
+So, it took 4 samples to arrive at a pi estimation of 3.00, which is within 10%
+of 3.14.  Hooray!  We can also run several tests concurrently:
+
+    local$ example/job_stream_exmaple ../example/pi.yaml <<!
+    10
+    1
+    0.1
+    !
+    Pi found to be 3.000000, +- 10.0%
+    4
+    Pi found to be 3.167969, +- 1.0%
+    Pi found to be 3.140625, +- 0.1%
+    1024
+    1024
+    0 4% user time (3% mpi), 1% user cpu, 977 messages (0% user)
+    C 4% user time, 0% user cpu, quality 0.00 cpus, ran 1.238s
+
+The example works!  Bear in mind that the efficiency ratings for a task like
+this are pretty poor.  Since each job only does a few floating point operations,
+he communication overhead well outweighs the potential benefits of parallelism.
+However, once your jobs start to do even a little more work, job_stream quickly
+becomes beneficial.  On our modest research cluster, I have jobs that routinely
+report a user-code quality of 200+ cpus.
+
+
+Unfriendly Examples
+-------------------
+
+*These are old and aren't laid out quite as nicely.  However, there is reasonably
+good information here that isn't covered above.  So, it's left here for now.*
 
 The following example is fully configured in the "example" subdirectory.
 
@@ -308,9 +558,19 @@ Roadmap
 -------
 
 * update README with new setup (template arguments, instantiate a copy, NAME())
-* re-nice certain processors to use lab machines.
-* depth-first iteration
+* update README with perhaps Calculate PI task (experimental parallelism)
+* re-nice certain processors to use lab machines (mention in README that you only
+  need to invoke mpirun -hostfile hostfile nice -n 19 path/to/program args
+* Smarter serialization....... maybe hash serialized entities, and store a dict
+  of hashes, so as to only write the same data once even if it is NOT a
+  duplicated pointer.
+* depth-first iteration as flag
+* Ability to let job_stream optimize work size.  That is, your program says
+  something like this->getChunk(__FILE__, __LINE__, 500) and then job_stream
+  tracks time spent on communicating vs processing and optimizes the size of
+  the work a bit...
 * Rather than rank, print host.
+* Fix timing statistics in continue'd runs from checkpoints
 * to: Should be a name or YAML reference, emit() or recur() should accept an
   argument of const YAML::Node& so that we can use e.g. stepTo: *priorRef as
   a normal config.  DO NOT overwrite to!  Allow it to be specified in pipes, e.g.

@@ -3,15 +3,92 @@
 
 using std::unique_ptr;
 
-/** Add one to any integer we receive */
+/** Add one to the integer input and forward it. */
 class AddOneJob : public job_stream::Job<AddOneJob, int> {
 public:
+    /** The name used to describe this job in a YAML file */
     static const char* NAME() { return "addOne"; }
-
     void handleWork(unique_ptr<int> work) {
         this->emit(*work + 1);
     }
 } addOneJob;
+
+
+
+struct PiCalculatorState {
+    float precision;
+    float piSum;
+    int trials;
+
+private:
+    //All structures used for storage or emit()'d must be serializable
+    friend class boost::serialization::access;
+    template<class Archive>
+    void serialize(Archive& ar, const unsigned int version) {
+        ar & precision & piSum & trials;
+    }
+};
+
+/** Calculates pi to the precision passed as the first work.  The template
+    arguments for a Frame are: the Frame's class, the storage type, the
+    first work's type, and subsequent (recurred) work's type. */
+class PiCalculator : public job_stream::Frame<PiCalculator,
+        PiCalculatorState, float, float> {
+public:
+    static const char* NAME() { return "piCalculator"; }
+
+    void handleFirst(PiCalculatorState& current, unique_ptr<float> work) {
+        current.precision = *work * 0.01;
+        current.piSum = 0.0f;
+        current.trials = 0;
+        //Put work back into this Frame.  This will trigger whatever method
+        //of pi approximation is defined in our YAML.  We'll pass the
+        //current trial index as debug information.
+        this->recur(current.trials++);
+    }
+
+    void handleWork(PiCalculatorState& current, unique_ptr<float> work) {
+        current.piSum += *work;
+    }
+
+    void handleDone(PiCalculatorState& current) {
+        //Are we done?
+        float piCurrent = current.piSum / current.trials;
+        if (fabsf((piCurrent - M_PI) / M_PI) < current.precision) {
+            //We're within desired precision, emit trials count
+            fprintf(stderr, "Pi found to be %f, +- %.1f%%\n", piCurrent,
+                    current.precision * 100.f);
+            this->emit(current.trials);
+        }
+        else {
+            //We need more iterations.  Double our trial count
+            for (int i = 0, m = current.trials; i < m; i++) {
+                this->recur(current.trials++);
+            }
+        }
+    }
+} piCalculator;
+
+
+
+class PiEstimate : public job_stream::Job<PiEstimate, int> {
+public:
+    static const char* NAME() { return "piEstimate"; }
+    void handleWork(unique_ptr<int> work) {
+        float x = rand() / (float)RAND_MAX;
+        float y = rand() / (float)RAND_MAX;
+        if (x * x + y * y <= 1.0) {
+            //Estimate area as full circle
+            this->emit(4.0f);
+        }
+        else {
+            //Estimate area as nothing
+            this->emit(0.0f);
+        }
+    }
+} piEstimate;
+
+
 
 
 class DuplicateJob : public job_stream::Job<DuplicateJob, int> {
@@ -106,8 +183,8 @@ public:
 
 /** Frames are useful for when you want to start a reduction with a different
     type than the continuation.  For instance, here a string input (number of
-    trials to run and initial int values by char ordinal) is used to run a 
-    number of simulations in parallel that result in int values, which are 
+    trials to run and initial int values by char ordinal) is used to run a
+    number of simulations in parallel that result in int values, which are
     aggregated into an array and averaged as a result. */
 class RunExperiments : public job_stream::Frame<RunExperiments,
         std::vector<int>, std::string, int> {

@@ -1,0 +1,5 @@
+jobs:
+  - frame:
+        type: piCalculator
+    jobs:
+        - type: piEstimate
