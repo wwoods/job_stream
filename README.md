@@ -557,8 +557,6 @@ Job and reduction routines MUST be thread safe.  That is, do NOT create a shared
 Roadmap
 -------
 
-* update README with new setup (template arguments, instantiate a copy, NAME())
-* update README with perhaps Calculate PI task (experimental parallelism)
 * re-nice certain processors to use lab machines (mention in README that you only
   need to invoke mpirun -hostfile hostfile nice -n 19 path/to/program args
 * Smarter serialization....... maybe hash serialized entities, and store a dict
