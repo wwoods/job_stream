@@ -21,8 +21,8 @@ void runProcessor(int argc, char** argv) {
     Debug::DeathHandler dh;
     dh.set_color_output(false);
 
-    std::unique_ptr<mpi::environment> env(new mpi::environment(argc, argv));
-    mpi::communicator world;
+    //Allow spawning (important that this happens before MPI initialization)
+    job_stream::invoke::_init();
 
     if (argc < 2) {
         std::ostringstream ss;
@@ -86,8 +86,9 @@ void runProcessor(int argc, char** argv) {
     }
     boost::algorithm::trim(inputLine);
 
-    //Allow spawning
-    job_stream::invoke::_init();
+    //Fire up MPI
+    std::unique_ptr<mpi::environment> env(new mpi::environment(argc, argv));
+    mpi::communicator world;
 
     processor::Processor p(std::move(env), world, config, checkpoint);
     p.setCheckpointInterval(checkpointMs);

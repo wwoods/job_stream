@@ -5,6 +5,7 @@
 #include "josuttis/fdstream.hpp"
 #include "libexecstream/exec-stream.h"
 
+#include <boost/asio/ip/host_name.hpp>
 #include <boost/lexical_cast.hpp>
 #include <memory>
 #include <sstream>
@@ -129,21 +130,21 @@ void _forkerHandleLine(const std::string& line) {
         _checkExists(req);
         auto& rec = running[req];
         auto& es = *rec.es;
-        if (!es.is_alive()) {
-            *forker_out << "D";
-        }
-        else {
-            *rec.stdout << es.out().rdbuf();
-            //Inefficient, copying buffer.  We don't want getline to
-            //block though
-            if (rec.stdout->str().find('\n') < 0) {
-                *forker_out << "N";
+        *rec.stdout << es.out().rdbuf();
+        //Inefficient, copying buffer.  We don't want getline to
+        //block though
+        if (rec.stdout->str().find('\n') < 0) {
+            if (!es.is_alive()) {
+                *forker_out << "D";
             }
             else {
-                std::string ll;
-                std::getline(*rec.stdout, ll);
-                *forker_out << "K" << ll;
+                *forker_out << "N";
             }
+        }
+        else {
+            std::string ll;
+            std::getline(*rec.stdout, ll);
+            *forker_out << "K" << ll;
         }
     }
     else if (line[0] == 'E') {
@@ -151,21 +152,21 @@ void _forkerHandleLine(const std::string& line) {
         _checkExists(req);
         auto& rec = running[req];
         auto& es = *rec.es;
-        if (!es.is_alive()) {
-            *forker_out << "D";
-        }
-        else {
-            *rec.stderr << es.err().rdbuf();
-            //Inefficient, copying buffer.  We don't want getline to
-            //block though
-            if (rec.stderr->str().find('\n') < 0) {
-                *forker_out << "N";
+        *rec.stderr << es.err().rdbuf();
+        //Inefficient, copying buffer.  We don't want getline to
+        //block though
+        if (rec.stderr->str().find('\n') < 0) {
+            if (!es.is_alive()) {
+                *forker_out << "D";
             }
             else {
-                std::string ll;
-                std::getline(*rec.stderr, ll);
-                *forker_out << "K" << ll;
+                *forker_out << "N";
             }
+        }
+        else {
+            std::string ll;
+            std::getline(*rec.stderr, ll);
+            *forker_out << "K" << ll;
         }
     }
     else if (line[0] == 'C') {
@@ -253,7 +254,8 @@ std::tuple<std::string, std::string> run(
     int code = boost::lexical_cast<int>(exitCode.substr(1));
     if (code != 0) {
         std::ostringstream ss;
-        ss << "Program " << progAndArgs[0] << " exited with code " << code;
+        ss << "Program " << progAndArgs[0] << " " << progAndArgs[1] << " exited with code " << code;
+        ss << " (on node " << boost::asio::ip::host_name() << ")";
         throw std::runtime_error(ss.str());
     }
 
