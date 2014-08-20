@@ -5,6 +5,7 @@
 #include "josuttis/fdstream.hpp"
 #include "libexecstream/exec-stream.h"
 
+#include <boost/lexical_cast.hpp>
 #include <memory>
 #include <sstream>
 
@@ -248,7 +249,14 @@ std::tuple<std::string, std::string> run(
             stderr << line.substr(1) << "\n";
         }
     }
-    forkerCmd("C" + pid);
+    std::string exitCode = forkerCmd("C" + pid);
+    int code = boost::lexical_cast<int>(exitCode.substr(1));
+    if (code != 0) {
+        std::ostringstream ss;
+        ss << "Program " << progAndArgs[0] << " exited with code " << code;
+        throw std::runtime_error(ss.str());
+    }
+
     return std::make_tuple(stdout.str(), stderr.str());
 }
 
