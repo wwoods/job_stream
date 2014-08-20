@@ -305,6 +305,22 @@ becomes beneficial.  On our modest research cluster, I have jobs that routinely
 report a user-code quality of 200+ cpus.
 
 
+Words of Warning
+----------------
+
+Sometimes, passing -bind-to-core to mpirun can have a profoundly positive impact
+on performance.
+
+fork()ing a child can be difficult in a threaded MPI application.  To work
+around these difficulties, it is suggested that your application use
+job_stream::invoke (which forwards commands to a properly controlled
+libexecstream).
+
+Job and reduction routines MUST be thread safe.  That is, do NOT create a shared
+buffer to do your work in as part of the class.  If you do, make sure you declare
+it thread\_local (which requires static).
+
+
 Unfriendly Examples
 -------------------
 
@@ -543,15 +559,6 @@ in the same reduction:
 Running this with 1 will yield 188 - essentially, since handleAdd() calls recur
 for each value less than 3, two additional "3" works get added into the system
 early on.  So handleDone() gets called with 20, 62, and finally 188.
-
-
-Words of Warning
-----------------
-
-Sometimes, passing -bind-to-core to mpirun can have a profoundly positive impact
-on performance.
-
-Job and reduction routines MUST be thread safe.  That is, do NOT create a shared buffer to do your work in as part of the class.  If you do, make sure you declare it thread\_local (which requires static).
 
 
 Roadmap

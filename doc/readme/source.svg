@@ -1,0 +1,555 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   width="744.09448819"
+   height="1052.3622047"
+   id="svg2"
+   version="1.1"
+   inkscape:version="0.48.4 r9939"
+   sodipodi:docname="New document 1">
+  <sodipodi:namedview
+     id="base"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageopacity="0.0"
+     inkscape:pageshadow="2"
+     inkscape:zoom="0.98994949"
+     inkscape:cx="317.55319"
+     inkscape:cy="306.61506"
+     inkscape:document-units="px"
+     inkscape:current-layer="layer1"
+     showgrid="false"
+     inkscape:window-width="1337"
+     inkscape:window-height="849"
+     inkscape:window-x="65"
+     inkscape:window-y="24"
+     inkscape:window-maximized="0" />
+  <defs
+     id="defs4">
+    <marker
+       style="overflow:visible;"
+       id="Arrow1Lend"
+       refX="0.0"
+       refY="0.0"
+       orient="auto"
+       inkscape:stockid="Arrow1Lend">
+      <path
+         transform="scale(0.8) rotate(180) translate(12.5,0)"
+         style="fill-rule:evenodd;stroke:#000000;stroke-width:1.0pt;"
+         d="M 0.0,0.0 L 5.0,-5.0 L -12.5,0.0 L 5.0,5.0 L 0.0,0.0 z "
+         id="path3784" />
+    </marker>
+    <marker
+       style="overflow:visible;"
+       id="Arrow1LendE"
+       refX="0.0"
+       refY="0.0"
+       orient="auto"
+       inkscape:stockid="Arrow1LendE">
+      <path
+         transform="scale(0.8) rotate(180) translate(12.5,0)"
+         style="stroke:#8f8f8f;stroke-width:1.0pt;fill:#8f8f8f;fill-rule:evenodd"
+         d="M 0.0,0.0 L 5.0,-5.0 L -12.5,0.0 L 5.0,5.0 L 0.0,0.0 z "
+         id="path4598" />
+    </marker>
+    <marker
+       style="overflow:visible;"
+       id="Arrow1Lendt"
+       refX="0.0"
+       refY="0.0"
+       orient="auto"
+       inkscape:stockid="Arrow1Lendt">
+      <path
+         transform="scale(0.8) rotate(180) translate(12.5,0)"
+         style="stroke:#8f8f8f;stroke-width:1.0pt;fill:#8f8f8f;fill-rule:evenodd"
+         d="M 0.0,0.0 L 5.0,-5.0 L -12.5,0.0 L 5.0,5.0 L 0.0,0.0 z "
+         id="path4646" />
+    </marker>
+    <marker
+       style="overflow:visible;"
+       id="Arrow1Lendn"
+       refX="0.0"
+       refY="0.0"
+       orient="auto"
+       inkscape:stockid="Arrow1Lendn">
+      <path
+         transform="scale(0.8) rotate(180) translate(12.5,0)"
+         style="stroke:#8f8f8f;stroke-width:1.0pt;fill:#8f8f8f;fill-rule:evenodd"
+         d="M 0.0,0.0 L 5.0,-5.0 L -12.5,0.0 L 5.0,5.0 L 0.0,0.0 z "
+         id="path4697" />
+    </marker>
+    <clipPath
+       clipPathUnits="userSpaceOnUse"
+       id="clipPath4768">
+      <rect
+         style="fill:none;stroke:#8f8f8f;stroke-width:1;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0"
+         id="rect4770"
+         width="85"
+         height="90"
+         x="270.17856"
+         y="432.71933" />
+    </clipPath>
+  </defs>
+  <metadata
+     id="metadata7">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title></dc:title>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <g
+     id="layer1"
+     inkscape:groupmode="layer"
+     inkscape:label="Layer 1">
+    <rect
+       inkscape:export-ydpi="90"
+       inkscape:export-xdpi="90"
+       inkscape:export-filename="/u/wwoods/dev/job_stream/doc/readme/01_basic.png"
+       y="159.28214"
+       x="52.634247"
+       height="54.731503"
+       width="107.58865"
+       id="rect2985"
+       style="fill:#ffffff;fill-opacity:1;fill-rule:evenodd;stroke:#a07cb4;stroke-width:1;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;stroke-miterlimit:4;stroke-dasharray:none" />
+    <text
+       inkscape:export-ydpi="90"
+       inkscape:export-xdpi="90"
+       inkscape:export-filename="/u/wwoods/dev/job_stream/doc/readme/01_basic.png"
+       sodipodi:linespacing="125%"
+       id="text3755"
+       y="190.81586"
+       x="105.64342"
+       style="font-size:15.64365005px;font-style:normal;font-weight:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
+       xml:space="preserve"><tspan
+         id="tspan4403"
+         style="font-size:16px;text-align:center;text-anchor:middle"
+         y="190.81586"
+         x="105.64342"
+         sodipodi:role="line">Input</tspan></text>
+    <rect
+       inkscape:export-ydpi="90"
+       inkscape:export-xdpi="90"
+       inkscape:export-filename="/u/wwoods/dev/job_stream/doc/readme/01_basic.png"
+       style="fill:#ffffff;fill-opacity:1;fill-rule:evenodd;stroke:#a07cb4;stroke-width:1;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none"
+       id="rect3759"
+       width="183.86969"
+       height="111.01254"
+       x="234.49373"
+       y="131.14162" />
+    <rect
+       inkscape:export-ydpi="90"
+       inkscape:export-xdpi="90"
+       inkscape:export-filename="/u/wwoods/dev/job_stream/doc/readme/01_basic.png"
+       style="fill:#ffffff;fill-opacity:1;fill-rule:evenodd;stroke:#a07cb4;stroke-width:1;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none"
+       id="rect3761"
+       width="107.58865"
+       height="54.731503"
+       x="489.7771"
+       y="159.28214" />
+    <text
+       inkscape:export-ydpi="90"
+       inkscape:export-xdpi="90"
+       inkscape:export-filename="/u/wwoods/dev/job_stream/doc/readme/01_basic.png"
+       sodipodi:linespacing="125%"
+       id="text3763"
+       y="191.05414"
+       x="505.57922"
+       style="font-size:40px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
+       xml:space="preserve"><tspan
+         style="font-size:16px"
+         y="191.05414"
+         x="505.57922"
+         id="tspan3765"
+         sodipodi:role="line">Output(s)</tspan></text>
+    <text
+       inkscape:export-ydpi="90"
+       inkscape:export-xdpi="90"
+       inkscape:export-filename="/u/wwoods/dev/job_stream/doc/readme/01_basic.png"
+       sodipodi:linespacing="125%"
+       id="text3767"
+       y="178.26898"
+       x="327.67078"
+       style="font-size:40px;font-style:normal;font-weight:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
+       xml:space="preserve"><tspan
+         style="font-size:24px"
+         y="178.26898"
+         x="327.67078"
+         id="tspan3769"
+         sodipodi:role="line">job_stream</tspan><tspan
+         style="font-size:24px"
+         id="tspan3771"
+         y="208.26898"
+         x="327.67078"
+         sodipodi:role="line">job</tspan></text>
+    <path
+       inkscape:export-ydpi="90"
+       inkscape:export-xdpi="90"
+       inkscape:export-filename="/u/wwoods/dev/job_stream/doc/readme/01_basic.png"
+       inkscape:connector-curvature="0"
+       id="path3773"
+       d="m 159.6041,186.66145 73.74114,0"
+       style="fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-end:url(#Arrow1Lend)" />
+    <path
+       inkscape:export-ydpi="90"
+       inkscape:export-xdpi="90"
+       inkscape:export-filename="/u/wwoods/dev/job_stream/doc/readme/01_basic.png"
+       inkscape:connector-curvature="0"
+       id="path3775"
+       d="m 418.20315,186.66145 71.72083,0"
+       style="stroke-linejoin:miter;marker-end:url(#Arrow1Lendn);stroke-opacity:1;stroke-dashoffset:0;stroke:#8f8f8f;stroke-linecap:butt;stroke-miterlimit:4;stroke-dasharray:8,1;stroke-width:1;fill:none" />
+    <path
+       style="fill:none;stroke:#8f8f8f;stroke-width:1;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:8, 1;stroke-dashoffset:0;marker-end:url(#Arrow1Lendt)"
+       d="m 418.20315,171.54977 71.72083,0"
+       id="path4407"
+       inkscape:connector-curvature="0"
+       inkscape:export-filename="/u/wwoods/dev/job_stream/doc/readme/01_basic.png"
+       inkscape:export-xdpi="90"
+       inkscape:export-ydpi="90" />
+    <path
+       inkscape:export-ydpi="90"
+       inkscape:export-xdpi="90"
+       inkscape:export-filename="/u/wwoods/dev/job_stream/doc/readme/01_basic.png"
+       inkscape:connector-curvature="0"
+       id="path4409"
+       d="m 418.20315,202.78328 71.72083,0"
+       style="fill:none;stroke:#8f8f8f;stroke-width:1;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:8, 1;stroke-dashoffset:0;marker-end:url(#Arrow1LendE)" />
+    <text
+       xml:space="preserve"
+       style="font-size:16px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
+       x="116.06602"
+       y="347.27573"
+       id="text4740"
+       sodipodi:linespacing="125%"
+       inkscape:export-filename="/u/wwoods/dev/job_stream/doc/readme/02_addOne.png"
+       inkscape:export-xdpi="90"
+       inkscape:export-ydpi="90"><tspan
+         sodipodi:role="line"
+         id="tspan4742"
+         x="116.06602"
+         y="347.27573">4</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:16px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
+       x="461.59909"
+       y="347.16245"
+       id="text4744"
+       sodipodi:linespacing="125%"
+       inkscape:export-filename="/u/wwoods/dev/job_stream/doc/readme/02_addOne.png"
+       inkscape:export-xdpi="90"
+       inkscape:export-ydpi="90"><tspan
+         sodipodi:role="line"
+         id="tspan4746"
+         x="461.59909"
+         y="347.16245">5</tspan></text>
+    <path
+       style="fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-end:url(#Arrow1Lend)"
+       d="m 140.28937,341.4437 73.74114,0"
+       id="path4748"
+       inkscape:connector-curvature="0"
+       inkscape:export-filename="/u/wwoods/dev/job_stream/doc/readme/02_addOne.png"
+       inkscape:export-xdpi="90"
+       inkscape:export-ydpi="90" />
+    <rect
+       y="303.49692"
+       x="217.20293"
+       height="75.893578"
+       width="156.83195"
+       id="rect4750"
+       style="fill:#ffffff;fill-opacity:1;fill-rule:evenodd;stroke:#a07cb4;stroke-width:1;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none"
+       inkscape:export-filename="/u/wwoods/dev/job_stream/doc/readme/02_addOne.png"
+       inkscape:export-xdpi="90"
+       inkscape:export-ydpi="90" />
+    <text
+       xml:space="preserve"
+       style="font-size:16px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
+       x="251.88452"
+       y="345.92026"
+       id="text4752"
+       sodipodi:linespacing="125%"
+       inkscape:export-filename="/u/wwoods/dev/job_stream/doc/readme/02_addOne.png"
+       inkscape:export-xdpi="90"
+       inkscape:export-ydpi="90"><tspan
+         sodipodi:role="line"
+         id="tspan4754"
+         x="251.88452"
+         y="345.92026">AddOneJob</tspan></text>
+    <path
+       inkscape:export-ydpi="90"
+       inkscape:export-xdpi="90"
+       inkscape:export-filename="/u/wwoods/dev/job_stream/doc/readme/02_addOne.png"
+       inkscape:connector-curvature="0"
+       id="path4756"
+       d="m 375.65491,341.4437 73.74114,0"
+       style="fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-end:url(#Arrow1Lend)" />
+    <g
+       id="g4764"
+       clip-path="url(#clipPath4768)"
+       transform="translate(-6.0714286,-23.214286)"
+       inkscape:export-filename="/u/wwoods/dev/job_stream/doc/readme/03_calculatePi.png"
+       inkscape:export-xdpi="90"
+       inkscape:export-ydpi="90">
+      <rect
+         y="448.29095"
+         x="195.96959"
+         height="149.50258"
+         width="149.50258"
+         id="rect4758"
+         style="fill:#f12b2b;fill-opacity:1;stroke:none" />
+      <path
+         transform="matrix(1.0035836,0,0,1.0035836,-0.1647617,-1.5689689)"
+         d="m 344.46204,522.53717 c 0,41.00505 -33.24117,74.24622 -74.24622,74.24622 -41.00505,0 -74.24622,-33.24117 -74.24622,-74.24622 0,-41.00505 33.24117,-74.24622 74.24622,-74.24622 41.00505,0 74.24622,33.24117 74.24622,74.24622 z"
+         sodipodi:ry="74.246216"
+         sodipodi:rx="74.246216"
+         sodipodi:cy="522.53717"
+         sodipodi:cx="270.21582"
+         id="path4760"
+         style="fill:#44f12b;fill-opacity:1;stroke:none"
+         sodipodi:type="arc" />
+    </g>
+    <text
+       xml:space="preserve"
+       style="font-size:16px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
+       x="357.85715"
+       y="453.07648"
+       id="text4772"
+       sodipodi:linespacing="125%"><tspan
+         sodipodi:role="line"
+         id="tspan4774"
+         x="357.85715"
+         y="453.07648" /></text>
+    <rect
+       style="fill:#ffffff;fill-opacity:1;fill-rule:evenodd;stroke:#a07cb4;stroke-width:1;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none"
+       id="rect4776"
+       width="107.58865"
+       height="54.731503"
+       x="52.634247"
+       y="599.28217"
+       inkscape:export-filename="/u/wwoods/dev/job_stream/doc/readme/04_piPipeline.png"
+       inkscape:export-xdpi="90"
+       inkscape:export-ydpi="90" />
+    <text
+       xml:space="preserve"
+       style="font-size:15.64365005px;font-style:normal;font-weight:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
+       x="106.38951"
+       y="621.06195"
+       id="text4778"
+       sodipodi:linespacing="125%"
+       inkscape:export-filename="/u/wwoods/dev/job_stream/doc/readme/04_piPipeline.png"
+       inkscape:export-xdpi="90"
+       inkscape:export-ydpi="90"><tspan
+         sodipodi:role="line"
+         x="106.38951"
+         y="621.06195"
+         style="font-size:16px;text-align:center;text-anchor:middle"
+         id="tspan4780">Desired</tspan><tspan
+         sodipodi:role="line"
+         x="106.38951"
+         y="641.06195"
+         style="font-size:16px;text-align:center;text-anchor:middle"
+         id="tspan4782">precision</tspan></text>
+    <path
+       style="fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-end:url(#Arrow1Lend)"
+       d="m 159.6041,626.64792 73.74114,0"
+       id="path4784"
+       inkscape:connector-curvature="0"
+       inkscape:export-filename="/u/wwoods/dev/job_stream/doc/readme/04_piPipeline.png"
+       inkscape:export-xdpi="90"
+       inkscape:export-ydpi="90" />
+    <rect
+       inkscape:export-ydpi="90"
+       inkscape:export-xdpi="90"
+       inkscape:export-filename="/u/wwoods/dev/job_stream/doc/readme/04_piPipeline.png"
+       y="599.68488"
+       x="235.87456"
+       height="54.936268"
+       width="193.65637"
+       id="rect4786"
+       style="fill:#ffffff;fill-opacity:1;fill-rule:evenodd;stroke:#a07cb4;stroke-width:1;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none" />
+    <text
+       inkscape:export-ydpi="90"
+       inkscape:export-xdpi="90"
+       inkscape:export-filename="/u/wwoods/dev/job_stream/doc/readme/04_piPipeline.png"
+       sodipodi:linespacing="125%"
+       id="text4788"
+       y="631.56708"
+       x="331.98401"
+       style="font-size:15.64365005px;font-style:normal;font-weight:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
+       xml:space="preserve"><tspan
+         id="tspan4792"
+         style="font-size:16px;text-align:center;text-anchor:middle"
+         y="631.56708"
+         x="331.98401"
+         sodipodi:role="line">piCalculator</tspan></text>
+    <path
+       style="fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-end:url(#Arrow1Lend)"
+       d="m 383.85797,654.36208 c 24.24366,31.31473 35.35534,62.62946 35.35534,82.83251 0,20.20305 -19.1929,49.49747 -19.1929,49.49747"
+       id="path4796"
+       inkscape:connector-curvature="0"
+       inkscape:export-filename="/u/wwoods/dev/job_stream/doc/readme/04_piPipeline.png"
+       inkscape:export-xdpi="90"
+       inkscape:export-ydpi="90" />
+    <rect
+       style="fill:#ffffff;fill-opacity:1;fill-rule:evenodd;stroke:#a07cb4;stroke-width:1;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none"
+       id="rect4986"
+       width="193.65637"
+       height="54.936268"
+       x="234.78319"
+       y="788.58337"
+       inkscape:export-filename="/u/wwoods/dev/job_stream/doc/readme/04_piPipeline.png"
+       inkscape:export-xdpi="90"
+       inkscape:export-ydpi="90" />
+    <text
+       xml:space="preserve"
+       style="font-size:15.64365005px;font-style:normal;font-weight:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
+       x="331.6153"
+       y="810.46558"
+       id="text4988"
+       sodipodi:linespacing="125%"
+       inkscape:export-filename="/u/wwoods/dev/job_stream/doc/readme/04_piPipeline.png"
+       inkscape:export-xdpi="90"
+       inkscape:export-ydpi="90"><tspan
+         sodipodi:role="line"
+         x="334.16217"
+         y="810.46558"
+         style="font-size:16px;text-align:center;text-anchor:middle"
+         id="tspan4990">piEstimate </tspan><tspan
+         sodipodi:role="line"
+         x="331.6153"
+         y="830.46558"
+         style="font-size:16px;text-align:center;text-anchor:middle"
+         id="tspan4992">(based on one point)</tspan></text>
+    <path
+       style="fill:none;stroke:#000000;stroke-width:0.94012886px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-end:url(#Arrow1Lend)"
+       d="m 276.96738,787.73216 c -30.12909,-48.40306 -11.86904,-100.75737 -7.30403,-108.65991 4.56502,-7.90254 18.26006,-22.7198 18.26006,-22.7198"
+       id="path4994"
+       inkscape:connector-curvature="0"
+       inkscape:export-filename="/u/wwoods/dev/job_stream/doc/readme/04_piPipeline.png"
+       inkscape:export-xdpi="90"
+       inkscape:export-ydpi="90" />
+    <text
+       xml:space="preserve"
+       style="font-size:16px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
+       x="269.71072"
+       y="734.16412"
+       id="text5184"
+       sodipodi:linespacing="125%"
+       inkscape:export-filename="/u/wwoods/dev/job_stream/doc/readme/04_piPipeline.png"
+       inkscape:export-xdpi="90"
+       inkscape:export-ydpi="90"><tspan
+         sodipodi:role="line"
+         id="tspan5186"
+         x="269.71072"
+         y="734.16412">Repeat until done</tspan></text>
+    <rect
+       inkscape:export-ydpi="90"
+       inkscape:export-xdpi="90"
+       inkscape:export-filename="/u/wwoods/dev/job_stream/doc/readme/04_piPipeline.png"
+       y="599.28217"
+       x="505.16229"
+       height="54.731503"
+       width="107.58865"
+       id="rect5188"
+       style="fill:#ffffff;fill-opacity:1;fill-rule:evenodd;stroke:#a07cb4;stroke-width:1;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none" />
+    <text
+       inkscape:export-ydpi="90"
+       inkscape:export-xdpi="90"
+       inkscape:export-filename="/u/wwoods/dev/job_stream/doc/readme/04_piPipeline.png"
+       sodipodi:linespacing="125%"
+       id="text5190"
+       y="621.06195"
+       x="558.91754"
+       style="font-size:15.64365005px;font-style:normal;font-weight:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
+       xml:space="preserve"><tspan
+         id="tspan5194"
+         style="font-size:16px;text-align:center;text-anchor:middle"
+         y="621.06195"
+         x="558.91754"
+         sodipodi:role="line">Required</tspan><tspan
+         style="font-size:16px;text-align:center;text-anchor:middle"
+         y="641.06195"
+         x="558.91754"
+         sodipodi:role="line"
+         id="tspan5200">trials</tspan></text>
+    <path
+       inkscape:export-ydpi="90"
+       inkscape:export-xdpi="90"
+       inkscape:export-filename="/u/wwoods/dev/job_stream/doc/readme/04_piPipeline.png"
+       inkscape:connector-curvature="0"
+       id="path5196"
+       d="m 430.32499,625.63777 73.74114,0"
+       style="fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-end:url(#Arrow1Lend)" />
+    <text
+       xml:space="preserve"
+       style="font-size:16px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
+       x="176.77669"
+       y="615.97626"
+       id="text5202"
+       sodipodi:linespacing="125%"
+       inkscape:export-filename="/u/wwoods/dev/job_stream/doc/readme/04_piPipeline.png"
+       inkscape:export-xdpi="90"
+       inkscape:export-ydpi="90"><tspan
+         sodipodi:role="line"
+         id="tspan5204"
+         x="176.77669"
+         y="615.97626">float</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:16px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
+       x="453.55847"
+       y="616.98645"
+       id="text5206"
+       sodipodi:linespacing="125%"
+       inkscape:export-filename="/u/wwoods/dev/job_stream/doc/readme/04_piPipeline.png"
+       inkscape:export-xdpi="90"
+       inkscape:export-ydpi="90"><tspan
+         sodipodi:role="line"
+         id="tspan5208"
+         x="453.55847"
+         y="616.98645">int</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:16px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
+       x="-660.90985"
+       y="386.00894"
+       id="text5210"
+       sodipodi:linespacing="125%"
+       transform="matrix(0.18809404,-0.98215102,0.98215102,0.18809404,0,0)"
+       inkscape:export-filename="/u/wwoods/dev/job_stream/doc/readme/04_piPipeline.png"
+       inkscape:export-xdpi="90"
+       inkscape:export-ydpi="90"><tspan
+         sodipodi:role="line"
+         id="tspan5212"
+         x="-660.90985"
+         y="386.00894">float</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:16px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
+       x="699.01746"
+       y="-353.47159"
+       id="text5214"
+       sodipodi:linespacing="125%"
+       transform="matrix(0.09398314,0.99557379,-0.99557379,0.09398314,0,0)"
+       inkscape:export-filename="/u/wwoods/dev/job_stream/doc/readme/04_piPipeline.png"
+       inkscape:export-xdpi="90"
+       inkscape:export-ydpi="90"><tspan
+         sodipodi:role="line"
+         id="tspan5216"
+         x="699.01746"
+         y="-353.47159"
+         style="font-size:14px">literally anything</tspan></text>
+  </g>
+</svg>

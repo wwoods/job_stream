@@ -60,6 +60,7 @@ SET(REQ_LIB
         rt)
 
 add_library(job_stream
+        job_stream/invoke.cpp
         job_stream/job_stream.cpp
         job_stream/job.cpp
         job_stream/message.cpp
@@ -67,7 +68,8 @@ add_library(job_stream
         job_stream/processor.cpp
         job_stream/serialization.cpp
         job_stream/workerThread.cpp
-        job_stream/death_handler/death_handler.cc)
+        job_stream/death_handler/death_handler.cc
+        job_stream/libexecstream/exec-stream.cpp)
 target_link_libraries(job_stream ${REQ_LIB})
 
 # Examples
@@ -97,8 +99,7 @@ add_dependencies(example
 
 # Tests
 FILE(GLOB TEST_SOURCES "job_stream/test/*.cpp" "test/*.cpp")
-add_executable(test_job_stream ${TEST_SOURCES}
-        test/libexecstream/exec-stream.cpp)
+add_executable(test_job_stream ${TEST_SOURCES})
 target_link_libraries(test_job_stream
         job_stream
         ${REQ_LIB}

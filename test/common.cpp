@@ -3,7 +3,7 @@
 #include "common.h"
 
 #include <boost/algorithm/string.hpp>
-#include <exec-stream.h>
+#include <job_stream/libexecstream/exec-stream.h>
 #include <job_stream/message.h>
 
 using string = std::string;

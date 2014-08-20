@@ -1,5 +1,6 @@
 
 #include "death_handler/death_handler.h"
+#include "invoke.h"
 #include "job_stream.h"
 #include "processor.h"
 #include "yaml.h"
@@ -84,6 +85,9 @@ void runProcessor(int argc, char** argv) {
         inputLine += argv[i];
     }
     boost::algorithm::trim(inputLine);
+
+    //Allow spawning
+    job_stream::invoke::_init();
 
     processor::Processor p(std::move(env), world, config, checkpoint);
     p.setCheckpointInterval(checkpointMs);

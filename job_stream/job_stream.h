@@ -1,6 +1,7 @@
 #ifndef JOB_STREAM_H_
 #define JOB_STREAM_H_
 
+#include "invoke.h"
 #include "message.h"
 #include "job.h"
 #include "processor.h"
