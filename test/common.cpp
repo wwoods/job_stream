@@ -3,8 +3,10 @@
 #include "common.h"
 
 #include <boost/algorithm/string.hpp>
-#include <job_stream/libexecstream/exec-stream.h>
+#include <boost/process.hpp>
 #include <job_stream/message.h>
+
+namespace bp = boost::process;
 
 using string = std::string;
 using Location = job_stream::message::Location;
@@ -16,6 +18,7 @@ void readall(std::istream& stream, std::ostringstream& ss) {
 
 std::tuple<string, string> run(string prog, string args, string input) {
     auto r = runRetval(prog, args, input);
+    INFO("Stderr: " << std::get<2>(r));
     REQUIRE(0 == std::get<0>(r));
     return std::tuple<string, string>(std::get<1>(r), std::get<2>(r));
 }
@@ -23,23 +26,33 @@ std::tuple<string, string> run(string prog, string args, string input) {
 
 std::tuple<int, string, string> runRetval(string prog, string args,
         string input) {
-    exec_stream_t es(prog, args);
-    es.in() << input;
-    es.close_in();
+    bp::context ctx;
+    ctx.stdin_behavior = bp::capture_stream();
+    ctx.stdout_behavior = bp::capture_stream();
+    ctx.stderr_behavior = bp::capture_stream();
+    ctx.environment = bp::self::get_environment();
+    std::vector<std::string> splitArgs;
+    boost::algorithm::split(splitArgs, args, boost::is_any_of(" "));
+    splitArgs.emplace(splitArgs.begin(), prog);
+    bp::child es = bp::launch(prog, splitArgs, ctx);
+    es.get_stdin() << input;
+    es.get_stdin().close();
+
     std::ostringstream obuf, ebuf;
     uint64_t start = Location::getCurrentTimeMs();
-    while (es.is_alive() && Location::getCurrentTimeMs() <= start + 1000) {
-        readall(es.out(), obuf);
-        readall(es.err(), ebuf);
+    while (!es.poll().exited()
+            && Location::getCurrentTimeMs() <= start + 10000) {
+        readall(es.get_stdout(), obuf);
+        readall(es.get_stderr(), ebuf);
     }
 
-    readall(es.out(), obuf);
-    readall(es.err(), ebuf);
+    readall(es.get_stdout(), obuf);
+    readall(es.get_stderr(), ebuf);
 
     bool didExit = true;
-    if (!es.close()) {
+    if (!es.poll().exited()) {
         //Since these are MPI programs, best to use SIGTERM so it can clean up
-        es.kill(SIGTERM);
+        es.terminate(false);
         didExit = false;
     }
 
@@ -47,7 +60,7 @@ std::tuple<int, string, string> runRetval(string prog, string args,
     INFO("Stderr: " << ebuf.str());
 
     REQUIRE(didExit);
-    return std::tuple<int, string, string>(es.exit_code(), obuf.str(),
+    return std::tuple<int, string, string>(es.poll().exit_status(), obuf.str(),
             ebuf.str());
 }
 

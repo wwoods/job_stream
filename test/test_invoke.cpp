@@ -13,7 +13,7 @@ TEST_CASE("invoke") {
         std::vector<string> args;
         args.push_back("/bin/echo");
         args.push_back("Hello, world!");
-        std::tie(output, error) = inv::run(args);
+        std::tie(output, error) = inv::run(args, 1);
         REQUIRE(output == "Hello, world!\n");
     }
     SECTION("bad cat") {
@@ -21,6 +21,6 @@ TEST_CASE("invoke") {
         std::vector<string> args;
         args.push_back("/bin/cat");
         args.push_back("/some/nonexistant/file/ok/right");
-        REQUIRE_THROWS_AS(inv::run(args), std::runtime_error);
+        REQUIRE_THROWS_AS(inv::run(args, 1), std::runtime_error);
     }
 }

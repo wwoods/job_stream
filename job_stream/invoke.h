@@ -1,16 +1,20 @@
 #ifndef JOB_STREAM_INVOKE_H_
 #define JOB_STREAM_INVOKE_H_
 
-#include <boost/optional.hpp>
-#include "libexecstream/exec-stream.h"
+#include <string>
+#include <tuple>
+#include <vector>
 
 namespace job_stream {
 namespace invoke {
 
 /** Runs an application to completion, returning up to two strings for stdout
-    and stderr. */
+    and stderr.
+
+    maxSeconds - If non-zero, terminate this program if it runs longer than
+    maxSeconds.  */
 std::tuple<std::string, std::string> run(
-        const std::vector<std::string>& progAndArgs);
+        const std::vector<std::string>& progAndArgs, int maxSeconds = 0);
 
 /** Called by main job_stream right before processor (and thus MPI routines and
     job_stream threads) starts. */

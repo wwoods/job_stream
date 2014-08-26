@@ -3,12 +3,15 @@
 
 #include "job_stream.h"
 #include "josuttis/fdstream.hpp"
-#include "libexecstream/exec-stream.h"
 
+#include <boost/algorithm/string.hpp>
 #include <boost/asio/ip/host_name.hpp>
 #include <boost/lexical_cast.hpp>
+#include <boost/process.hpp>
 #include <memory>
 #include <sstream>
+
+namespace bp = boost::process;
 
 namespace job_stream {
 namespace invoke {
@@ -17,17 +20,25 @@ job_stream::Mutex forkLock;
 
 uint64_t runningTotal = 0;
 struct RunData {
-    std::unique_ptr<exec_stream_t> es;
+    std::unique_ptr<bp::child> es;
+    /** We buffer the program's output and error streams into our own
+        stringstreams that we can control more precisely (that is, don't
+        register something as a line unless there is actually a newline or the
+        application is dead). */
     std::unique_ptr<std::stringstream> stdout;
     std::unique_ptr<std::stringstream> stderr;
 
-    RunData() {}
-    RunData(std::unique_ptr<exec_stream_t> es) : es(std::move(es)),
-            stdout(new std::stringstream()), stderr(new std::stringstream()) {}
-    RunData(RunData&& other) {
+    RunData() {
+        throw std::runtime_error("RunData() with no params should not be "
+                "called");
+    }
+    RunData(std::unique_ptr<bp::child> es)
+            : stdout(new std::stringstream()), stderr(new std::stringstream()) {
+        this->es = std::move(es);
+    }
+    RunData(RunData&& other) : stdout(std::move(other.stdout)),
+            stderr(std::move(other.stderr)) {
         std::swap(this->es, other.es);
-        std::swap(this->stdout, other.stdout);
-        std::swap(this->stderr, other.stderr);
     }
 };
 std::map<std::string, RunData> running;
@@ -115,12 +126,29 @@ void _forkerHandleLine(const std::string& line) {
                     "Did not have prog--!!!!---args split!");
         }
 
-        std::unique_ptr<exec_stream_t> es(new exec_stream_t(
-                req.substr(0, split), req.substr(split + 8)));
-        es->close_in();
+        bp::context ctx;
+        ctx.stdout_behavior = bp::capture_stream();
+        ctx.stderr_behavior = bp::capture_stream();
+        ctx.stdin_behavior = bp::close_stream();
+        ctx.environment = bp::self::get_environment();
+        for (auto& k : ctx.environment) {
+            if (k.first.find("OMPI_") != std::string::npos
+                    || k.first.find("OPAL_") != std::string::npos) {
+                ctx.environment.erase(k.first);
+            }
+        }
+        std::string progPart = req.substr(0, split);
+        std::string argPart = req.substr(split + 8);
+        std::vector<std::string> args;
+        boost::algorithm::split(args, argPart, boost::is_any_of(" "));
+        args.emplace(args.begin(), progPart);
+        std::unique_ptr<bp::child> es(new bp::child(bp::launch(
+                progPart, args, ctx)));
         runningTotal++;
+        //printf("Launched %lu (%lu)\n", runningTotal,
+        //       (unsigned long)es->get_id());
         std::ostringstream fakePid;
-        fakePid << runningTotal;
+        fakePid << es->get_id();
         std::string fakePidStr = fakePid.str();
         running.emplace(fakePidStr, std::move(es));
         *forker_out << "K" << fakePidStr;
@@ -130,11 +158,18 @@ void _forkerHandleLine(const std::string& line) {
         _checkExists(req);
         auto& rec = running[req];
         auto& es = *rec.es;
-        *rec.stdout << es.out().rdbuf();
-        //Inefficient, copying buffer.  We don't want getline to
-        //block though
-        if (rec.stdout->str().find('\n') < 0) {
-            if (!es.is_alive()) {
+
+        *rec.stdout << es.get_stdout().rdbuf();
+        //Gotta clear status flags, reading from rdbuf can cause issues
+        rec.stdout->clear();
+
+        //Some wizardry to not read a line if we hit eof without newline
+        std::string sline;
+        auto oldPos = rec.stdout->tellg();
+        if (std::getline(*rec.stdout, sline).eof()) {
+            //No newline, reset pointer and check if process is alive
+            rec.stdout->seekg(oldPos);
+            if (es.poll().exited()) {
                 *forker_out << "D";
             }
             else {
@@ -142,9 +177,10 @@ void _forkerHandleLine(const std::string& line) {
             }
         }
         else {
-            std::string ll;
-            std::getline(*rec.stdout, ll);
-            *forker_out << "K" << ll;
+            if (rec.stdout->bad()) {
+                printf("Well what the heck happened here... stdout->bad?\n");
+            }
+            *forker_out << "K" << sline;
         }
     }
     else if (line[0] == 'E') {
@@ -152,11 +188,18 @@ void _forkerHandleLine(const std::string& line) {
         _checkExists(req);
         auto& rec = running[req];
         auto& es = *rec.es;
-        *rec.stderr << es.err().rdbuf();
-        //Inefficient, copying buffer.  We don't want getline to
-        //block though
-        if (rec.stderr->str().find('\n') < 0) {
-            if (!es.is_alive()) {
+
+        *rec.stderr << es.get_stderr().rdbuf();
+        //Gotta clear status flags, reading from rdbuf can cause issues
+        rec.stderr->clear();
+
+        //Some wizardry to not read a line if we hit eof without newline
+        std::string sline;
+        auto oldPos = rec.stderr->tellg();
+        if (std::getline(*rec.stderr, sline).eof()) {
+            //No newline, reset pointer and check if process is alive
+            rec.stderr->seekg(oldPos);
+            if (es.poll().exited()) {
                 *forker_out << "D";
             }
             else {
@@ -164,19 +207,34 @@ void _forkerHandleLine(const std::string& line) {
             }
         }
         else {
-            std::string ll;
-            std::getline(*rec.stderr, ll);
-            *forker_out << "K" << ll;
+            if (rec.stderr->bad()) {
+                printf("Well what the heck happened here... stderr->bad?\n");
+            }
+            *forker_out << "K" << sline;
         }
+    }
+    else if (line[0] == 'K') {
+        //Brutally murder the process
+        _checkExists(req);
+        auto& es = *running[req].es;
+        if (!es.poll().exited()) {
+            //Don't use SIGKILL; especially if it's an MPI program, we want to
+            //give it a chance ot die peacefully.
+            es.terminate(false);
+        }
+        int code = es.poll().exit_status();
+        running.erase(req);
+
+        *forker_out << "K" << code;
     }
     else if (line[0] == 'C') {
         //Cleanup requested, closure acknowledged
         _checkExists(req);
         auto& es = *running[req].es;
-        if (!es.close()) {
-            es.kill(SIGTERM);
+        if (!es.poll().exited()) {
+            es.terminate(false);
         }
-        int code = es.exit_code();
+        int code = es.poll().exit_status();
         running.erase(req);
 
         *forker_out << "K" << code;
@@ -202,7 +260,7 @@ std::string forkerCmd(std::string command) {
 }
 
 std::tuple<std::string, std::string> run(
-        const std::vector<std::string>& progAndArgs) {
+        const std::vector<std::string>& progAndArgs, int maxSeconds) {
     std::ostringstream rcmd;
     rcmd << "R";
     for (int i = 0, im = progAndArgs.size() - 1; i <= im; i++) {
@@ -223,6 +281,8 @@ std::tuple<std::string, std::string> run(
     pid = pid.substr(1);
 
     std::string pidOut = "O" + pid, pidErr = "E" + pid;
+    uint64_t terminateTime = message::Location::getCurrentTimeMs()
+            + maxSeconds * 1000;
 
     std::ostringstream stdout, stderr;
     bool badOut = false, badErr = false;
@@ -249,13 +309,33 @@ std::tuple<std::string, std::string> run(
         else {
             stderr << line.substr(1) << "\n";
         }
+
+        //See if we should terminate
+        if (maxSeconds != 0
+                && message::Location::getCurrentTimeMs() > terminateTime) {
+            line = forkerCmd("K" + pid);
+            if (line[0] != 'K') {
+                std::ostringstream err;
+                err << "Failed to kill process " << pid << " (on node "
+                        << boost::asio::ip::host_name() << ")";
+                throw std::runtime_error(err.str());
+            }
+            else {
+                std::ostringstream err;
+                err << "Process " << pid << " (on node "
+                        << boost::asio::ip::host_name() << ") killed, took "
+                        << "longer than " << maxSeconds << " seconds";
+                throw std::runtime_error(err.str());
+            }
+        }
     }
     std::string exitCode = forkerCmd("C" + pid);
     int code = boost::lexical_cast<int>(exitCode.substr(1));
     if (code != 0) {
         std::ostringstream ss;
-        ss << "Program " << progAndArgs[0] << " " << progAndArgs[1] << " exited with code " << code;
+        ss << "Program " << rcmd.str() << " exited with code " << code;
         ss << " (on node " << boost::asio::ip::host_name() << ")";
+        ss << ", stderr: " << stderr.str();
         throw std::runtime_error(ss.str());
     }
 

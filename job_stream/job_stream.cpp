@@ -43,10 +43,6 @@ void runProcessor(int argc, char** argv) {
     for (; inputStart < argc; inputStart++) {
         if (strcmp(argv[inputStart], "-c") == 0) {
             checkpoint = std::string(argv[inputStart + 1]);
-            if (world.rank() == 0) {
-                fprintf(stderr, "Using %s as checkpoint file\n",
-                        checkpoint.c_str());
-            }
             inputStart++;
         }
         else if (strcmp(argv[inputStart], "-t") == 0) {
@@ -89,6 +85,11 @@ void runProcessor(int argc, char** argv) {
     //Fire up MPI
     std::unique_ptr<mpi::environment> env(new mpi::environment(argc, argv));
     mpi::communicator world;
+
+    if (world.rank() == 0 && !checkpoint.empty()) {
+        fprintf(stderr, "Using %s as checkpoint file\n",
+                checkpoint.c_str());
+    }
 
     processor::Processor p(std::move(env), world, config, checkpoint);
     p.setCheckpointInterval(checkpointMs);

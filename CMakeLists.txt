@@ -48,6 +48,7 @@ if(NOT EXISTS "${YAML_LIB}/libyaml-cpp.a")
 endif()
 
 include_directories("include/")
+include_directories("job_stream/boost_process/")
 
 SET(REQ_LIB
         ${BOOST_LIB}/libboost_filesystem.a
@@ -68,8 +69,7 @@ add_library(job_stream
         job_stream/processor.cpp
         job_stream/serialization.cpp
         job_stream/workerThread.cpp
-        job_stream/death_handler/death_handler.cc
-        job_stream/libexecstream/exec-stream.cpp)
+        job_stream/death_handler/death_handler.cc)
 target_link_libraries(job_stream ${REQ_LIB})
 
 # Examples
@@ -99,7 +99,8 @@ add_dependencies(example
 
 # Tests
 FILE(GLOB TEST_SOURCES "job_stream/test/*.cpp" "test/*.cpp")
-add_executable(test_job_stream ${TEST_SOURCES})
+add_executable(test_job_stream
+        ${TEST_SOURCES})
 target_link_libraries(test_job_stream
         job_stream
         ${REQ_LIB}

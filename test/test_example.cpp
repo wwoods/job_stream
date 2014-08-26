@@ -14,7 +14,7 @@ using string = std::string;
 void testExample(string pipe, string input, string output,
         bool lastOnly = false, bool ordered = true) {
     SECTION(pipe) {
-        string prog = "mpirun";
+        string prog = "/usr/bin/mpirun";
         string args = "example/job_stream_example ../example/" + pipe;
         WHEN("one process") {
             runWithExpectedOut(prog, "-np 1 " + args, input, output, lastOnly,
@@ -35,7 +35,7 @@ TEST_CASE("example/job_stream_example/example2.yaml") {
     testExample("example2.yaml", "1\n2\n3\n", "4\n6\n8\n", false, false);
 }
 TEST_CASE("exampleRecur.yaml lots of rings") {
-    string prog = "mpirun";
+    string prog = "/usr/bin/mpirun";
     string args = "example/job_stream_example ../example/exampleRecur.yaml";
     std::ostringstream input;
     for (int i = 0; i < 10; i++) {
@@ -92,7 +92,7 @@ TEST_CASE("example/job_stream_example/checkpoint.yaml", "[checkpoint]") {
             std::remove("test.chkpt");
             { //First run, shouldn't load from checkpoint
                 INFO("First run");
-                auto r = runRetval("mpirun", args.str(), "");
+                auto r = runRetval("/usr/bin/mpirun", args.str(), "");
                 INFO("retVal: " << std::get<0>(r));
                 INFO("stdout1: " << std::get<1>(r));
                 INFO("stderr1: " << std::get<2>(r));
@@ -113,7 +113,7 @@ TEST_CASE("example/job_stream_example/checkpoint.yaml", "[checkpoint]") {
                 //Second run, should load with 3 messages (steal, ring 0, data)
                 run += 1;
                 INFO("Run #" << run);
-                auto r = runRetval("mpirun", args.str(), "");
+                auto r = runRetval("/usr/bin/mpirun", args.str(), "");
                 INFO("retVal: " << std::get<0>(r));
                 INFO("stdout: " << std::get<1>(r));
                 INFO("stderr: " << std::get<2>(r));
@@ -194,7 +194,7 @@ TEST_CASE("example/job_stream_example/exampleRecurCheckpoint.yaml", "[checkpoint
             std::remove("test.chkpt");
             { //First run, shouldn't load from checkpoint
                 INFO("First run");
-                auto r = runRetval("mpirun", args.str(), "");
+                auto r = runRetval("/usr/bin/mpirun", args.str(), "");
                 INFO("retVal: " << std::get<0>(r));
                 INFO("stdout1: " << std::get<1>(r));
                 INFO("stderr1: " << std::get<2>(r));
@@ -215,7 +215,7 @@ TEST_CASE("example/job_stream_example/exampleRecurCheckpoint.yaml", "[checkpoint
                 //Second run, should load with 3 messages (steal, ring 0, data)
                 run += 1;
                 INFO("Run #" << run);
-                auto r = runRetval("mpirun", args.str(), "");
+                auto r = runRetval("/usr/bin/mpirun", args.str(), "");
                 INFO("retVal: " << std::get<0>(r));
                 INFO("stdout: " << std::get<1>(r));
                 INFO("stderr: " << std::get<2>(r));
