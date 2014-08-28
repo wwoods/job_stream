@@ -11,6 +11,8 @@
 #include <memory>
 #include <sstream>
 
+#define NO_FORK 1
+
 namespace bp = boost::process;
 
 namespace job_stream {
@@ -54,6 +56,9 @@ void _checkExists(const std::string& pid);
 void _forkerHandleLine(const std::string& line);
 
 void _init() {
+    #if NO_FORK
+    return;
+    #endif
     runningTotal = 0;
     _checkedPipe(forker_input);
     _checkedPipe(forker_output);
@@ -261,6 +266,45 @@ std::string forkerCmd(std::string command) {
 
 std::tuple<std::string, std::string> run(
         const std::vector<std::string>& progAndArgs, int maxSeconds) {
+    #if NO_FORK
+        //Forking is REALLY slow.  So, we'll try a NO_FORK version, which
+        //simply re-launches the process if we get a "No child processes"
+        //message, which seems to happen regularly here for whatever reason.
+        bp::context ctx;
+        ctx.stdout_behavior = bp::capture_stream();
+        ctx.stderr_behavior = bp::capture_stream();
+        ctx.stdin_behavior = bp::close_stream();
+        ctx.environment = bp::self::get_environment();
+        for (auto& k : ctx.environment) {
+            if (k.first.find("OMPI_") != std::string::npos
+                    || k.first.find("OPAL_") != std::string::npos) {
+                ctx.environment.erase(k.first);
+            }
+        }
+        for (int trial = 0, trialm = 10; trial < trialm; trial++) {
+            if (trial > 0) {
+                fprintf(stderr, "TRYING AGAIN (%i)\n", trial+1);
+            }
+            try {
+                bp::child es = bp::launch(progAndArgs[0], progAndArgs, ctx);
+                auto status = es.wait();
+                if (!status.exited() || status.exit_status() != 0) {
+                    throw std::runtime_error("Bad exit");
+                }
+                std::ostringstream out, err;
+                out << es.get_stdout().rdbuf();
+                err << es.get_stderr().rdbuf();
+                return std::make_tuple(out.str(), err.str());
+            }
+            catch (const std::exception& e) {
+                if (trial == trialm - 1
+                        || std::string(e.what()).find("No child processes")
+                            == std::string::npos) {
+                    throw;
+                }
+            }
+        }
+    #endif
     std::ostringstream rcmd;
     rcmd << "R";
     for (int i = 0, im = progAndArgs.size() - 1; i <= im; i++) {
