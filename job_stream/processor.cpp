@@ -295,6 +295,7 @@ struct ProcessorInfo {
     int pctMpiTime;
     uint64_t msgsTotal;
     int pctUserMsgs;
+    std::string hostName;
 
     friend class boost::serialization::access;
     template<class Archive>
@@ -305,6 +306,7 @@ struct ProcessorInfo {
         ar & this->pctMpiTime;
         ar & this->msgsTotal;
         ar & this->pctUserMsgs;
+        ar & this->hostName;
     }
 };
 
@@ -453,6 +455,7 @@ void Processor::run(const std::string& inputLine) {
             Processor::TIME_USER] / userTimeNonZero);
     myInfo.msgsTotal = msgsTotal;
     myInfo.pctUserMsgs = (int)(1000 * msgsUser / msgsTotal);
+    myInfo.hostName = boost::asio::ip::host_name();
 
     //Send info to rank 0, which prints out everything in order
     if (this->world.rank() != 0) {
@@ -473,7 +476,7 @@ void Processor::run(const std::string& inputLine) {
             fprintf(stderr,
                     "%i_%s %i%% user time (%i%% mpi), %i%% user cpu, "
                         "%lu messages (%i%% user)\n",
-                    i, boost::asio::ip::host_name().c_str(),
+                    i, pi.hostName.c_str(),
                     pi.pctUserTime / 10, pi.pctMpiTime / 10, pi.pctUserCpu / 10,
                     pi.msgsTotal, pi.pctUserMsgs / 10);
         }
