@@ -7,6 +7,7 @@
 #include "workerThread.h"
 
 #include <boost/algorithm/string.hpp>
+#include <boost/asio.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/lexical_cast.hpp>
 #include <chrono>
@@ -470,10 +471,11 @@ void Processor::run(const std::string& inputLine) {
             totalCpu += pi.userCpuTotal;
             totalCpuTime += pi.pctUserCpu * pi.pctUserTime;
             fprintf(stderr,
-                    "%i %i%% user time (%i%% mpi), %i%% user cpu, "
+                    "%i_%s %i%% user time (%i%% mpi), %i%% user cpu, "
                         "%lu messages (%i%% user)\n",
-                    i, pi.pctUserTime / 10, pi.pctMpiTime / 10,
-                    pi.pctUserCpu / 10, pi.msgsTotal, pi.pctUserMsgs / 10);
+                    i, boost::asio::ip::host_name().c_str(),
+                    pi.pctUserTime / 10, pi.pctMpiTime / 10, pi.pctUserCpu / 10,
+                    pi.msgsTotal, pi.pctUserMsgs / 10);
         }
         fprintf(stderr, "C %i%% user time, %i%% user cpu, "
                 "quality %.2f cpus, ran %.3fs\n",

@@ -60,7 +60,9 @@ void Module::postSetup() {
             throw std::runtime_error(ss.str());
         }
 
-        this->config["reducer"] = this->config["frame"];
+        //Clone our frame into reducer in case frame is a reference (since we
+        //change its recurTo parameter).
+        this->config["reducer"] = YAML::Clone(this->config["frame"]);
         if (this->config["input"]) {
             this->config["reducer"]["recurTo"] = this->config["input"].as<
                     std::string>();
@@ -97,13 +99,15 @@ void Module::postSetup() {
                 throw std::runtime_error(ss.str());
             }
 
+            //Clone the node in case it is a repeated reference (*submodule)
+            YAML::Node nc = YAML::Clone(n);
             if (i < m - 1) {
-                n["to"] = boost::lexical_cast<std::string>(jobId + 1);
+                nc["to"] = boost::lexical_cast<std::string>(jobId + 1);
             }
             else {
-                n["to"] = "output";
+                nc["to"] = "output";
             }
-            newJobs[boost::lexical_cast<std::string>(jobId)] = n;
+            newJobs[boost::lexical_cast<std::string>(jobId)] = nc;
             jobId += 1;
         }
 
@@ -185,7 +189,7 @@ void Module::dispatchWork(message::WorkRecord& work) {
             }
             else {
                 throw std::runtime_error("shouldn't be reached; implemented in "
-                        "sendModuleOutput.");
+                        "SharedBase::getTarget...");
             }
         }
         else {

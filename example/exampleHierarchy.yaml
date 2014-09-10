@@ -1,0 +1,16 @@
+# exampleHierarchy.yaml
+# Shows usage of embedded modules
+
+_module2: &module2
+    jobs:
+      - type: addOne
+      - type: addOne
+
+_module1: &module1
+    jobs:
+      - type: addOne
+      - *module2
+
+jobs:
+    - *module1
+    - *module1

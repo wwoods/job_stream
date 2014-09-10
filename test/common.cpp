@@ -19,6 +19,7 @@ void readall(std::istream& stream, std::ostringstream& ss) {
 std::tuple<string, string> run(string prog, string args, string input) {
     auto r = runRetval(prog, args, input);
     INFO("Stderr: " << std::get<2>(r));
+    INFO("Stdout: " << std::get<1>(r));
     REQUIRE(0 == std::get<0>(r));
     return std::tuple<string, string>(std::get<1>(r), std::get<2>(r));
 }

@@ -574,7 +574,6 @@ Roadmap
   something like this->getChunk(__FILE__, __LINE__, 500) and then job_stream
   tracks time spent on communicating vs processing and optimizes the size of
   the work a bit...
-* Rather than rank, print host.
 * Fix timing statistics in continue'd runs from checkpoints
 * to: Should be a name or YAML reference, emit() or recur() should accept an
   argument of const YAML::Node& so that we can use e.g. stepTo: *priorRef as
@@ -631,6 +630,8 @@ Roadmap
 
 Recent Changelog
 ----------------
+* 2014-9-10 - Fixed up duplicated and end-of-job-sequence (output) submodules.
+  Host name is now used in addition to MPI rank when reporting results.
 * 2014-6-13 - Finalized checkpoint code for initial release.  A slew of new
   tests.  
 * 2014-4-24 - Fixed up shared_ptr serialization.  Fixed synchronization issue

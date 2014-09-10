@@ -53,6 +53,10 @@ TEST_CASE("example/job_stream_example/example5.yaml") {
     testExample("example5.yaml", "abba\nkadoodle\nj", "98\n105\n107\n", false,
             false);
 }
+TEST_CASE("example/job_stream_exmaple/exampleHierarchy.yaml", "[hierarchy]") {
+    testExample("exampleHierarchy.yaml", "10\n16\n90\n", "16\n22\n96\n", false,
+            false);
+}
 
 
 /** Given the stderr of a job_stream application, parse out the number of
@@ -83,7 +87,7 @@ TEST_CASE("example/job_stream_example/checkpoint.yaml", "[checkpoint]") {
         SECTION(secName.str()) {
             boost::regex ms("took [0-9]+ ms");
             boost::regex mpiFooter("--------------------------------------------------------------------------\nmpirun has exited.*"
-                    "|0 [0-9]+% user time[ ,].*");
+                    "|0_[a-zA-Z0-9_]+ [0-9]+% user time[ ,].*");
             boost::regex end("(messages\\))(.*)");
             boost::regex pending("\\(([0-9]+) pending messages");
             std::ostringstream args;
@@ -185,7 +189,7 @@ TEST_CASE("example/job_stream_example/exampleRecurCheckpoint.yaml", "[checkpoint
             boost::regex resultHarvester("^-?\\d+$");
             boost::regex ms("took [0-9]+ ms");
             boost::regex mpiFooter("--------------------------------------------------------------------------\nmpirun has exited.*"
-                    "|0 [0-9]+% user time[ ,].*");
+                    "|0_[a-zA-Z0-9_]+ [0-9]+% user time[ ,].*");
             boost::regex end("(messages\\))(.*)");
             boost::regex pending("\\(([0-9]+) pending messages");
             std::ostringstream args;

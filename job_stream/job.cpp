@@ -68,12 +68,75 @@ void SharedBase::populateAfterRestore(const YAML::Node& globalConfig,
 }
 
 
+std::vector<std::string> SharedBase::_getTargetSiblingOrReducer(
+        bool isReducerEmit) {
+    std::vector<std::string> targetNew = this->currentRecord->getTarget();
+
+    //Make sure our new target points to our parent module (if we are a reducer,
+    //this will still point to the right place since our "parent" is our module)
+    module::Module* p = this->parent;
+    if (!this->targetIsModule) {
+        //We want it to point to a module, always
+        targetNew.pop_back();
+    }
+
+    //At this point, targetNew refers to p.  We let one reducer slide if this
+    //was a reducer emit, since that means that the top reducer has been
+    //processed.
+    bool firstEmit = isReducerEmit;
+    while (!p->hasReducer() || firstEmit) {
+        firstEmit = false;
+        //We're sending to at least a sibling of this node, so pop off our last
+        //target element
+        if (p->parent) {
+            //Root module doesn't show up as a "target"
+            targetNew.pop_back();
+        }
+        //See if it has a "to" field; note that the root module does not!
+        const YAML::Node& pTo = p->getConfig()["to"];
+        if (!pTo) {
+            if (!p->parent) {
+                //Root level, has no reducer.  By convention, send
+                //output::reduced.
+                break;
+            }
+            std::ostringstream ss;
+            ss << "Module " << p->getFullName() << " needs 'to'";
+            throw std::runtime_error(ss.str());
+        }
+        //Find the next target in this chain; if it's not output, we're done
+        //(found a suitable sibling)
+        std::string next = pTo.as<std::string>();
+        if (next != "output") {
+            targetNew.push_back(next);
+            return targetNew;
+        }
+        p = p->parent;
+    }
+
+    targetNew.push_back("output");
+    if (isReducerEmit && !p->parent) {
+        if (targetNew.size() != 1) {
+            throw std::runtime_error("Bad target..?  "
+                    "Shouldn't have anything in targetNew.");
+        }
+        targetNew.push_back("reduced");
+    }
+    return targetNew;
+}
+
+
 std::vector<std::string> SharedBase::getTargetForJob(std::string target) {
+    if (target == "output") {
+        return this->_getTargetSiblingOrReducer(false);
+    }
+
     std::vector<std::string> targetNew = this->currentRecord->getTarget();
     //On our first send, target includes the job (it already did).  We
     //want to redirect to targetList based on the module level.  So we
     //always pop the last part of target.
-    //...unless it's the root module (recur on top-level reducer)
+    //...unless the work is already pointed at the current module (recur or emit
+    //from within the "done" method of a reducer)
     if (!this->targetIsModule) {
         targetNew.pop_back();
     }
@@ -86,6 +149,8 @@ std::vector<std::string> SharedBase::getTargetForReducer() {
     //Called in the context of a Reducer, meaning currentRecord's target was
     //the record that started the reduce - that is, it points to our module.
     //Note that this function is used for emit(), not recur().
+    return this->_getTargetSiblingOrReducer(true);
+
     std::vector<std::string> targetNew = this->currentRecord->getTarget();
     if (!this->targetIsModule) {
         //We want it to point to a module

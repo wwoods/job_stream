@@ -29,6 +29,9 @@ public:
     /** Get our module level */
     int getLevel() const { return this->level; }
 
+    /** Does this module have a reducer? */
+    bool hasReducer() const { return this->reducer.get() != 0; }
+
     /** Setup self, then any instantiated children. */
     virtual void populateAfterRestore(const YAML::Node& globalConfig,
             const YAML::Node& config);

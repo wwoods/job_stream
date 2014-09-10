@@ -22,12 +22,12 @@ namespace processor {
 }
 
 namespace job {
-    void addJob(const std::string& typeName, 
+    void addJob(const std::string& typeName,
             std::function<job::JobBase* ()> allocator);
-    void addReducer(const std::string& typeName, 
+    void addReducer(const std::string& typeName,
             std::function<job::ReducerBase* ()> allocator);
 
-    /** Unspecialized, internal job / reducer base class.  All jobs should 
+    /** Unspecialized, internal job / reducer base class.  All jobs should
         actually derive from job_stream::Job<WorkType>, and all reducers from
         job_stream::Reducer<AccumulatorType[, WorkType]>. */
     class SharedBase {
@@ -56,7 +56,7 @@ namespace job {
         void setup(processor::Processor* processor,
                 module::Module* parent,
                 const std::string& id,
-                const YAML::Node& config, 
+                const YAML::Node& config,
                 const YAML::Node& globalConfig);
 
         /** Used when restoring from a checkpoint, populate our and all
@@ -85,12 +85,12 @@ namespace job {
 
         /* This job / module's parent module */
         module::Module* parent;
-    
+
         /* The processor that we are running under */
         processor::Processor* processor;
 
         /** Since reducers can have handleWork() vs handleDone(), one of which
-            has ::output as the target, and the other is the target of the 
+            has ::output as the target, and the other is the target of the
             module itself.  */
         static thread_local bool targetIsModule;
 
@@ -105,18 +105,19 @@ namespace job {
             we can cast basic input types into the system appropriately. */
         virtual std::string getInputTypeName() = 0;
 
-        /* Put the given payload into module's output.  Called by reducers. */
-        //void sendModuleOutput(const std::string& payload);
-
-        /* Put the given payload, which is a boost::serialized archive, into a
-           WorkRecord and dispatch it to a given target from config. */
-        //void sendTo(const YAML::Node& targetList, const std::string& payload);
-
-        /** Take a line of stdin or argv input and convert it to the 
+        /** Take a line of stdin or argv input and convert it to the
             appropriate type for this job (or module's first job). */
         std::string parseAndSerialize(const std::string& line);
 
     private:
+        /** For output from either a reducer or job context, we may want to
+            traverse our parent module chain to determine the next recipient of
+            work.  This function resolves that.
+
+            isReducerEmit - If true, called from getTargetForReducer().  Sends
+            the special ::output::reduced target when appropriate. */
+        std::vector<std::string> _getTargetSiblingOrReducer(bool isReducerEmit);
+
         friend class boost::serialization::access;
         /*  Serialization for checkpoints; only used bottom up.  You do not need
             to register your own derived classes!  We just need to detect if
@@ -152,7 +153,7 @@ namespace job {
     };
 
 
-    /** Base class for Reducers, which take multiple outputs and combine them. 
+    /** Base class for Reducers, which take multiple outputs and combine them.
         */
     class ReducerBase : public SharedBase {
     public:
