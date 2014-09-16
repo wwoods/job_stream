@@ -281,25 +281,37 @@ std::tuple<std::string, std::string> run(
                 ctx.environment.erase(k.first);
             }
         }
-        for (int trial = 0, trialm = 10; trial < trialm; trial++) {
+        for (int trial = 0, trialm = 100; trial < trialm; trial++) {
             if (trial > 0) {
-                fprintf(stderr, "TRYING AGAIN (%i)\n", trial+1);
+                fprintf(stderr, "TRYING AGAIN (%i) IN 10 SEC\n", trial+1);
+                std::this_thread::sleep_for(std::chrono::milliseconds(10000));
             }
             try {
                 bp::child es = bp::launch(progAndArgs[0], progAndArgs, ctx);
                 auto status = es.wait();
-                if (!status.exited() || status.exit_status() != 0) {
-                    throw std::runtime_error("Bad exit");
-                }
                 std::ostringstream out, err;
                 out << es.get_stdout().rdbuf();
                 err << es.get_stderr().rdbuf();
+                if (!status.exited() || status.exit_status() != 0) {
+                    std::ostringstream ss;
+                    ss << "Bad exit from";
+                    for (const std::string& arg : progAndArgs) {
+                        ss << " " << arg;
+                    }
+                    ss << ": ****\n*STDERR*\n" << err.str();
+                    ss << "\n\n*STDOUT*\n" << out.str();
+                    ss << "\n**** Bad Exit";
+                    throw std::runtime_error(ss.str());
+                }
                 return std::make_tuple(out.str(), err.str());
             }
             catch (const std::exception& e) {
+                std::string emsg(e.what());
+                auto nf = std::string::npos;
+                //We only retry if "No child processes" is the error.  This
+                //is an OS thing that is transient.
                 if (trial == trialm - 1
-                        || std::string(e.what()).find("No child processes")
-                            == std::string::npos) {
+                        || emsg.find("No child processes") == nf) {
                     throw;
                 }
             }
