@@ -281,10 +281,14 @@ std::tuple<std::string, std::string> run(
                 ctx.environment.erase(k.first);
             }
         }
-        for (int trial = 0, trialm = 100; trial < trialm; trial++) {
+        int timeToNext = 1;
+        for (int trial = 0, trialm = 20; trial < trialm; trial++) {
             if (trial > 0) {
-                fprintf(stderr, "TRYING AGAIN (%i) IN 10 SEC\n", trial+1);
-                std::this_thread::sleep_for(std::chrono::milliseconds(10000));
+                fprintf(stderr, "TRYING AGAIN (%i) IN %i SEC\n", trial+1,
+                        timeToNext);
+                std::this_thread::sleep_for(std::chrono::milliseconds(
+                        timeToNext * 1000));
+                timeToNext += 1;
             }
             try {
                 bp::child es = bp::launch(progAndArgs[0], progAndArgs, ctx);
