@@ -27,10 +27,15 @@ void runProcessor(int argc, char** argv) {
     if (argc < 2) {
         std::ostringstream ss;
         ss << "Usage: " << argv[0]
-                << " path/to/config [-c checkpointFile] [seed line; if omitted, stdin]";
-        printf("%s\n\n", ss.str().c_str());
-        printf("If -c is specified and the file exists, stdin will be "
-                "ignored.\n");
+                << " path/to/config [flags] [seed line; if omitted, stdin]";
+        printf("%s\n\n\
+Flags:\n\
+    -c filepath : File to use for checkpoints.  If file exists, seed will be \n\
+            ignored and the system will resume from checkpoint.  Otherwise,\n\
+            seed will be used and file will be created at checkpoint time.\n\
+    -t number : Hours between checkpoints.  Default is 10 minutes.\n\
+    --check-sync number : Additional milliseconds to wait during checkpoints.\n\
+            Primarily used in tests.  Default 10000.\n", ss.str().c_str());
         exit(-1);
     }
 
@@ -43,6 +48,11 @@ void runProcessor(int argc, char** argv) {
     for (; inputStart < argc; inputStart++) {
         if (strcmp(argv[inputStart], "-c") == 0) {
             checkpoint = std::string(argv[inputStart + 1]);
+            inputStart++;
+        }
+        else if (strcmp(argv[inputStart], "--check-sync") == 0) {
+            processor::Processor::CHECKPOINT_SYNC_WAIT_MS
+                    = boost::lexical_cast<int>(argv[inputStart + 1]);
             inputStart++;
         }
         else if (strcmp(argv[inputStart], "-t") == 0) {

@@ -284,8 +284,8 @@ std::tuple<std::string, std::string> run(
         int timeToNext = 1;
         for (int trial = 0, trialm = 20; trial < trialm; trial++) {
             if (trial > 0) {
-                fprintf(stderr, "TRYING AGAIN (%i) IN %i SEC\n", trial+1,
-                        timeToNext);
+                JobLog() << "TRYING AGAIN (" << trial+1 << ") IN "
+                        << timeToNext << " SEC";
                 std::this_thread::sleep_for(std::chrono::milliseconds(
                         timeToNext * 1000));
                 timeToNext += 1;

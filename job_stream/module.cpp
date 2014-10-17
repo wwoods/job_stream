@@ -16,7 +16,7 @@ Module::Module() : level(0) {
 }
 
 
-void Module::populateAfterRestore(const YAML::Node& globalConfig,
+void Module::populateAfterRestore(YAML::GuardedNode* globalConfig,
         const YAML::Node& config) {
     job::JobBase::populateAfterRestore(globalConfig, config);
 
@@ -35,16 +35,18 @@ void Module::populateAfterRestore(const YAML::Node& globalConfig,
 
 void Module::postSetup() {
     //Sanity checks - jobs cannot be a sequence if input is defined.
-    if (this->config["jobs"].IsSequence()) {
-        if (this->config["input"]) {
+    //Lock our config and get it.
+    auto conf = this->config;
+    if (conf["jobs"].IsSequence()) {
+        if (conf["input"]) {
             std::ostringstream ss;
             ss << "Module " << this->getFullName() << " has input defined but "
                     "jobs is a list";
             throw std::runtime_error(ss.str());
         }
     }
-    else if (!this->config["input"]) {
-        if (!this->config["jobs"].IsSequence()) {
+    else if (!conf["input"]) {
+        if (!conf["jobs"].IsSequence()) {
             std::ostringstream ss;
             ss << "Module " << this->getFullName() << " has no input defined";
             throw std::runtime_error(ss.str());
@@ -52,8 +54,8 @@ void Module::postSetup() {
     }
 
     //Is this module framed?
-    if (this->config["frame"]) {
-        if (this->config["reducer"]) {
+    if (conf["frame"]) {
+        if (conf["reducer"]) {
             std::ostringstream ss;
             ss << "Module " << this->getFullName() << " cannot define a "
                     "reducer as it has a frame defined";
@@ -62,20 +64,20 @@ void Module::postSetup() {
 
         //Clone our frame into reducer in case frame is a reference (since we
         //change its recurTo parameter).
-        this->config["reducer"] = YAML::Clone(this->config["frame"]);
-        if (this->config["input"]) {
-            this->config["reducer"]["recurTo"] = this->config["input"].as<
+        conf["reducer"] = YAML::Clone(conf["frame"]);
+        if (conf["input"]) {
+            conf["reducer"]["recurTo"] = conf["input"].as<
                     std::string>();
         }
         else {
-            this->config["reducer"]["recurTo"] = "0";
+            conf["reducer"]["recurTo"] = "0";
         }
 
-        this->config["input"] = "output";
-        this->config.remove("frame");
+        conf["input"] = "output";
+        conf.remove("frame");
     }
 
-    if (this->config["jobs"].IsSequence()) {
+    if (conf["jobs"].IsSequence()) {
         //Pipeline!  Since all of the code relies on named jobs, as they
         //are more flexible, we have to replace the jobs node with a named
         //version.
@@ -83,13 +85,13 @@ void Module::postSetup() {
 
         //If there is no input, then we need to set it to the first job in the
         //sequence.
-        if (!this->config["input"]) {
-            this->config["input"] = "0";
+        if (!conf["input"]) {
+            conf["input"] = "0";
         }
 
         int jobId = 0;
-        for (int i = 0, m = this->config["jobs"].size(); i < m; i++) {
-            YAML::Node n = this->config["jobs"][i];
+        for (int i = 0, m = conf["jobs"].size(); i < m; i++) {
+            YAML::LockedNode n = conf["jobs"][i];
             if (n["to"]) {
                 std::ostringstream ss;
                 ss << "Job " << jobId << " under " << this->getFullName();
@@ -111,13 +113,13 @@ void Module::postSetup() {
             jobId += 1;
         }
 
-        this->config["jobs"] = newJobs;
+        conf["jobs"] = newJobs;
     }
 
     //Assign our level
     if (this->parent) {
         this->level = this->parent->level + 1;
-        if (!this->config["to"]) {
+        if (!conf["to"]) {
             std::ostringstream ss;
             ss << "Module " << this->getFullName() << " needs a 'to'";
             throw std::runtime_error(ss.str());
@@ -125,9 +127,9 @@ void Module::postSetup() {
     }
 
     //Set up reducer, unless we've started from a checkpoint
-    if (this->config["reducer"] && !this->reducer) {
+    if (conf["reducer"] && !this->reducer) {
         this->reducer.reset(this->processor->allocateReducer(this,
-                this->config["reducer"]));
+                conf["reducer"]._getNode()));
     }
 }
 
@@ -142,9 +144,7 @@ void Module::dispatchWork(message::WorkRecord& work) {
     bool startedNewRing = false;
 
     if (processor::JOB_STREAM_DEBUG >= 2) {
-        std::ostringstream ss;
-        ss << "Dispatching: " << this->getFullName();
-        fprintf(stderr, "%s\n", ss.str().c_str());
+        JobLog() << "Dispatching: " << this->getFullName();
     }
 
     const std::vector<std::string>& target = work.getTarget();
@@ -196,10 +196,8 @@ void Module::dispatchWork(message::WorkRecord& work) {
             //When a reducer is active, output is just a JobBase that is the
             //reducer.
             if (processor::JOB_STREAM_DEBUG >= 2) {
-                std::ostringstream ss;
-                ss << "Passing to " << this->reducer->getFullName()
+                JobLog() << "Passing to " << this->reducer->getFullName()
                         << ", tag " << work.getReduceTag();
-                fprintf(stderr, "%s\n", ss.str().c_str());
             }
             this->reducer->dispatchAdd(work);
         }
@@ -207,9 +205,7 @@ void Module::dispatchWork(message::WorkRecord& work) {
     else {
         //Process the work under the appropriate job (or forward to next module)
         if (processor::JOB_STREAM_DEBUG >= 2) {
-            std::ostringstream ss;
-            ss << "Passing to " << this->getJob(curTarget)->getFullName();
-            fprintf(stderr, "%s\n", ss.str().c_str());
+            JobLog() << "Passing to " << this->getJob(curTarget)->getFullName();
         }
         this->getJob(curTarget)->dispatchWork(work);
     }
@@ -221,9 +217,7 @@ void Module::dispatchWork(message::WorkRecord& work) {
     this->currentRecord = 0;
 
     if (processor::JOB_STREAM_DEBUG >= 2) {
-        std::ostringstream ss;
-        ss << "Completed dispatch " << this->getFullName();
-        fprintf(stderr, "%s\n", ss.str().c_str());
+        JobLog() << "Completed dispatch " << this->getFullName();
     }
 }
 
@@ -266,7 +260,7 @@ job::JobBase* Module::getJob(const std::string& id) {
         throw std::runtime_error(msg.str());
     }
 
-    const YAML::Node& config = this->config["jobs"][id];
+    const YAML::Node& config = this->config["jobs"][id]._getNode();
     job::JobBase* job = this->processor->allocateJob(this, id,
             config);
     this->jobMap[id].reset(job);
@@ -275,10 +269,11 @@ job::JobBase* Module::getJob(const std::string& id) {
 
 
 std::string Module::getInputTypeName() {
-    if (this->config["input"].as<std::string>() == "output") {
+    YAML::LockedNode input = this->config["input"];
+    if (input.as<std::string>() == "output") {
         return this->reducer->getInputTypeName();
     }
-    return this->getJob(this->config["input"].as<std::string>())
+    return this->getJob(input.as<std::string>())
             ->getInputTypeName();
 }
 

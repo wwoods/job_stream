@@ -358,17 +358,19 @@ namespace job_stream {
             if (target.empty()) {
                 if (!this->config["recurTo"]) {
                     ntarget = this->getTargetForJob(
-                            this->parent->getConfig()["input"]
+                            this->parent->config["input"]
                                 .template as<std::string>());
                 }
                 else {
                     ntarget = this->getTargetForJob(
-                            this->config["recurTo"].template as<std::string>());
+                            this->config["recurTo"].template as<
+                                std::string>());
                 }
             }
             else {
-                ntarget = this->getTargetForJob(this->config["recurTo"][target]
-                        .template as<std::string>());
+                ntarget = this->getTargetForJob(
+                        this->config["recurTo"][target].template as<
+                            std::string>());
             }
 
             std::unique_ptr<message::WorkRecord> wr(new message::WorkRecord(

@@ -128,9 +128,9 @@ public:
 
         //layerInput now == output
         float score = 0;
-        for (int base = this->layers[0]->inputs, i = 0, 
+        for (int base = this->layers[0]->inputs, i = 0,
                 m = array.size() - base; i < m; i++) {
-            score += (layerInput[i] - inputs[base + i]) 
+            score += (layerInput[i] - inputs[base + i])
                     * (layerInput[i] - inputs[base + i]);
         }
         return score;
@@ -159,7 +159,7 @@ private:
 };
 
 
-class NetworkPopulace { 
+class NetworkPopulace {
 public:
     NetworkPopulace() {
     }
@@ -292,10 +292,11 @@ public:
 
     void handleWork(unique_ptr<int> networkCount) {
         //Initialize networkCount networks
+        auto conf = this->config;
         for (int i = 0; i < *networkCount; i++) {
-            this->emit(NeuralNet(this->config["neurons"].as<int>(),
-                    this->config["numInputs"].as<int>(),
-                    this->config["numOutputs"].as<int>()));
+            this->emit(NeuralNet(conf["neurons"].as<int>(),
+                    conf["numInputs"].as<int>(),
+                    conf["numOutputs"].as<int>()));
         }
     }
 } makeNetworks;
@@ -307,7 +308,8 @@ public:
 
     void handleWork(unique_ptr<NeuralNet> network) {
         float score = 0.0;
-        auto tests = this->globalConfig["tests"].as<std::vector<YAML::Node> >();
+        auto tests = this->globalConfig["tests"].as<
+                std::vector<YAML::Node>>();
         for (int i = 0, m = tests.size(); i < m; i++) {
             score += network->getError(tests[i]);
         }
@@ -326,7 +328,7 @@ public:
         current.addNetwork(std::move(work));
     }
 
-    void handleJoin(NetworkPopulace& current, 
+    void handleJoin(NetworkPopulace& current,
             unique_ptr<NetworkPopulace> other) {
         current.joinNetwork(std::move(other));
     }

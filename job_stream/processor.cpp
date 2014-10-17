@@ -28,6 +28,10 @@ namespace std {
     }
 }
 
+namespace YAML {
+    job_stream::Mutex GuardedNode::mutex;
+}
+
 namespace job_stream {
 namespace processor {
 
@@ -82,6 +86,9 @@ private:
 #endif
 
 /** STATICS **/
+int Processor::CHECKPOINT_SYNC_WAIT_MS
+        = Processor::DEFAULT_CHECKPOINT_SYNC_WAIT_MS;
+
 void Processor::addJob(const std::string& typeName,
         std::function<job::JobBase* ()> allocator) {
     JobTypeMapType& jtm = jobTypeMap();
@@ -182,6 +189,16 @@ Processor::Processor(std::unique_ptr<mpi::environment> env,
     serialization::registerType<job::ReducerBase, job::SharedBase>();
     serialization::registerType<module::Module, job::JobBase, job::SharedBase>();
 
+    { //Configure JobLog header
+        std::ostringstream info;
+        info << this->getRank() << ":" << boost::asio::ip::host_name()
+                << ":" << getpid();
+        JobLog::header = info.str();
+    }
+
+    //Set up our globalConfig GuardedNode.
+    this->globalConfig.set(config);
+
     if (!this->checkpointFileName.empty()) {
         std::ifstream cf(this->checkpointFileName);
         if (cf) {
@@ -214,12 +231,11 @@ Processor::Processor(std::unique_ptr<mpi::environment> env,
 
             //Populate config for all of our jobs
             this->root->processor = this;
-            this->root->populateAfterRestore(config, config);
+            this->root->populateAfterRestore(&this->globalConfig, config);
 
             this->wasRestored = true;
-            fprintf(stderr, "%i resumed from checkpoint "
-                    "(%i pending messages)\n",
-                    this->getRank(), this->workInQueue.size());
+            JobLog() << "resumed from checkpoint (" << this->workInQueue.size()
+                    << " pending messages)";
         }
     }
 
@@ -263,19 +279,19 @@ MpiMessagePtr Processor::getWork() {
             rim.childTagCount += 1;
         }
         if (JOB_STREAM_DEBUG >= 1) {
-            fprintf(stderr, "%i %lu processing %i ", this->getRank(),
-                    message::Location::getCurrentTimeMs(), ptr->tag);
+            JobLog jl;
+            jl << message::Location::getCurrentTimeMs() << " processing "
+                    << ptr->tag;
             if (ptr->tag == Processor::TAG_WORK
                     || ptr->tag == Processor::TAG_REDUCE_WORK) {
                 for (const std::string& s
                         : ptr->getTypedData<message::WorkRecord>()->getTarget()
                         ) {
-                    fprintf(stderr, "::%s", s.c_str());
+                    jl << "::" << s;
                 }
-                fprintf(stderr, " ON %lu\n",
-                        ptr->getTypedData<message::WorkRecord>()->getReduceTag());
+                jl << " ON " << ptr->getTypedData<message::WorkRecord>()
+                        ->getReduceTag();
             }
-            fprintf(stderr, "\n");
         }
 
         //We had work, meaning that a thread is working on this
@@ -473,6 +489,7 @@ void Processor::run(const std::string& inputLine) {
             totalTime += pi.pctUserTime;
             totalCpu += pi.userCpuTotal;
             totalCpuTime += pi.pctUserCpu * pi.pctUserTime;
+            //Don't make JobLog, we're reporting on someone else
             fprintf(stderr,
                     "%i_%s %i%% user time (%i%% mpi), %i%% user cpu, "
                         "%lu messages (%i%% user)\n",
@@ -480,6 +497,7 @@ void Processor::run(const std::string& inputLine) {
                     pi.pctUserTime / 10, pi.pctMpiTime / 10, pi.pctUserCpu / 10,
                     pi.msgsTotal, pi.pctUserMsgs / 10);
         }
+        //Don't make JobLog, reporting on whole cluster
         fprintf(stderr, "C %i%% user time, %i%% user cpu, "
                 "quality %.2f cpus, ran %.3fs\n",
                 totalTime / 10, totalCpuTime / 10000,
@@ -560,8 +578,9 @@ void Processor::startRingTest(uint64_t reduceTag, uint64_t parentTag,
     }
 
     if (JOB_STREAM_DEBUG) {
-        fprintf(stderr, "Starting ring test on %lu (from %lu) - %lu / %lu\n",
-                reduceTag, parentTag, pri.countProcessed, pri.countCreated);
+        JobLog() << "Starting ring test on " << reduceTag << " (from "
+                << parentTag << ") - " << pri.countProcessed << " / "
+                << pri.countCreated;
     }
 
     auto m = message::DeadRingTestMessage(this->world.rank(),
@@ -634,7 +653,7 @@ void Processor::maybeAllowSteal(const std::string& messageBuffer) {
     WorkTimer stealTimer(this, Processor::TIME_SYSTEM);
     message::StealRing sr(messageBuffer);
     if (JOB_STREAM_DEBUG >= 3) {
-        fprintf(stderr, "%i checking steal ring...\n", this->getRank());
+        JobLog() << "checking steal ring...";
     }
 
     //This method requires heavy manipulation of workInQueue, so keep it locked
@@ -727,7 +746,7 @@ void Processor::maybeAllowSteal(const std::string& messageBuffer) {
             sr.serialized());
 
     if (JOB_STREAM_DEBUG >= 3) {
-        fprintf(stderr, "%i done with steal ring\n", this->getRank());
+        JobLog() << "done with steal ring";
     }
 }
 
@@ -795,15 +814,7 @@ job::JobBase* Processor::allocateJob(module::Module* parent,
     }
 
     auto job = allocatorIter->second();
-    const YAML::Node* globalConfig;
-    if (this->root == 0) {
-        //we're allocating the root
-        globalConfig = &config;
-    }
-    else {
-        globalConfig = &this->root->getConfig();
-    }
-    job->setup(this, parent, id, config, *globalConfig);
+    job->setup(this, parent, id, config, &this->globalConfig);
     if (!this->root) {
         this->root = std::unique_ptr<job::JobBase>(job);
     }
@@ -834,7 +845,7 @@ job::ReducerBase* Processor::allocateReducer(module::Module* parent,
 
     auto reducer = allocatorIter->second();
     reducer->setup(this, parent, "output", *realConfig,
-            this->root->getConfig());
+            &this->globalConfig);
     reducer->postSetup();
     return reducer;
 }
@@ -902,6 +913,33 @@ void Processor::forceCheckpoint(bool forceQuit) {
 }
 
 
+void Processor::handleDeadRing(MpiMessagePtr msg) {
+    message::DeadRingTestMessage& dm = *msg->getTypedData<
+            message::DeadRingTestMessage>();
+    if (dm.sentryRank != this->getRank()) {
+        Lock lock(this->mutex);
+        if (this->reduceInfoMap[dm.reduceTag].messagesWaiting.size()) {
+            throw std::runtime_error("Shouldn't have any messages "
+                    "still waiting on a dead ring!");
+        }
+        this->reduceInfoMap.erase(dm.reduceTag);
+
+        if (dm.reduceTag == 0) {
+            this->shouldRun = false;
+        }
+
+        //Forward so it dies on all ranks
+        this->messageQueue.push(std::unique_ptr<message::_Message>(
+                new message::_Message(
+                    message::Header(Processor::TAG_DEAD_RING_IS_DEAD,
+                        _getNextRank()),
+                    //Minor inefficiency since we didn't actually change dm, but
+                    //oh well.
+                    std::move(dm.serialized()))));
+    }
+}
+
+
 void Processor::handleRingTest(MpiMessagePtr message) {
     //Handle a ring test check in either tryReceive or the main work loop.
     message::DeadRingTestMessage& dm = *message->getTypedData<
@@ -933,31 +971,41 @@ void Processor::handleRingTest(MpiMessagePtr message) {
             //The pass is done and we're in a worker thread.
             dm.pass += 1;
             if (JOB_STREAM_DEBUG) {
-                fprintf(stderr, "Dead ring %lu pass %i - %lu / %lu / %lu\n",
-                        dm.reduceTag, dm.pass, dm.processed, dm.created,
-                        dm.createdLast);
+                JobLog() << "Dead ring " << dm.reduceTag << " pass "
+                        << dm.pass << " - " << dm.processed << " / "
+                        << dm.created << " / " << dm.createdLast;
             }
 
+            if (JOB_STREAM_DEBUG) JobLog() << "DEAD_A";
             if (dm.createdLast == dm.created && dm.created == dm.processed) {
                 //This ring is officially done (unless recurrence happens)
+                if (JOB_STREAM_DEBUG) JobLog() << "DEAD_B";
+                uint64_t dmTestStarted = dm.tsTestStarted;
+                uint64_t dmTag = dm.reduceTag;
+                std::string dmSerialized = dm.serialized();
                 if (dm.reduceTag == 0) {
                     //Global
+                    if (JOB_STREAM_DEBUG) JobLog() << "DEAD_C";
                     this->shouldRun = false;
                     forward = false;
                 }
                 else {
+                    if (JOB_STREAM_DEBUG) JobLog() << "DEAD_D";
                     //Unlock so that done() handling can happen in parallel
+                    job::ReducerBase* reduceInfoReducer = reduceInfo.reducer;
+                    uint64_t parentTag = reduceInfo.parentTag;
                     this->mutex.unlock();
-                    bool noRecur = reduceInfo.reducer->dispatchDone(
-                            dm.reduceTag);
+                    bool noRecur = reduceInfoReducer->dispatchDone(dmTag);
                     this->mutex.lock();
 
+                    if (JOB_STREAM_DEBUG) JobLog() << "DEAD_E";
                     if (noRecur) {
-                        uint64_t parentTag = reduceInfo.parentTag;
                         this->decrReduceChildTag(parentTag);
+                        if (JOB_STREAM_DEBUG) JobLog() << "DEAD_F";
 
-                        auto it = this->reduceInfoMap.find(dm.reduceTag);
+                        auto it = this->reduceInfoMap.find(dmTag);
                         this->reduceInfoMap.erase(it);
+                        if (JOB_STREAM_DEBUG) JobLog() << "DEAD_G";
 
                         forward = false;
                     }
@@ -976,16 +1024,18 @@ void Processor::handleRingTest(MpiMessagePtr message) {
                                     message::Header(
                                         Processor::TAG_DEAD_RING_IS_DEAD,
                                         this->_getNextRank()),
-                                    dm.serialized())));
+                                    dmSerialized)));
 
                     if (JOB_STREAM_DEBUG) {
-                        fprintf(stderr, "Dead ring %lu took %lu ms\n",
-                                dm.reduceTag,
-                                message::Location::getCurrentTimeMs()
-                                    - dm.tsTestStarted);
+                        JobLog() << "Dead ring " << dmTag
+                                << " took "
+                                << message::Location::getCurrentTimeMs()
+                                    - dmTestStarted
+                                << " ms";
                     }
                 }
             }
+            if (JOB_STREAM_DEBUG) JobLog() << "DEAD_Y";
 
             if (forward) {
                 //Ring still alive; reset ring test
@@ -993,6 +1043,7 @@ void Processor::handleRingTest(MpiMessagePtr message) {
                 dm.created = 0;
                 dm.processed = 0;
             }
+            if (JOB_STREAM_DEBUG) JobLog() << "DEAD_Z";
         }
     }
 
@@ -1023,25 +1074,27 @@ void Processor::process(MpiMessagePtr message) {
         }
         catch (const std::exception& e) {
             this->decrReduceChildTag(oldReduceTag);
-            std::ostringstream ss;
-            ss << "While processing work with target: ";
+            JobLog log;
+            log << "While processing work with target: ";
             const std::vector<std::string>& target = wr.getTarget();
             for (int i = 0, m = target.size(); i < m; i++) {
                 if (i != 0) {
-                    ss << "::";
+                    log << "::";
                 }
-                ss << target[i];
+                log << target[i];
             }
-            fprintf(stderr, "%s\n", ss.str().c_str());
             throw;
         }
 
         if (JOB_STREAM_DEBUG) {
             Lock lock(this->mutex);
             auto& it = this->reduceInfoMap[wr.getReduceTag()];
-            fprintf(stderr, "REDUCE %lu DOWN TO %lu\n", wr.getReduceTag(),
-                    it.childTagCount);
+            JobLog() << "REDUCE " << wr.getReduceTag() << " DOWN TO "
+                    << it.childTagCount;
         }
+    }
+    else if (tag == Processor::TAG_DEAD_RING_IS_DEAD) {
+        this->handleDeadRing(std::move(message));
     }
     else if (tag == Processor::TAG_DEAD_RING_TEST) {
         this->handleRingTest(std::move(message));
@@ -1096,8 +1149,7 @@ bool Processor::tryReceive() {
         //NOTE - The way boost::mpi receives into strings corrupts the
         //string.  That's why we copy it here with a substr() call.
         if (JOB_STREAM_DEBUG >= 3) {
-            fprintf(stderr, "%i got message len %lu\n", this->getRank(),
-                    (unsigned long)msg.buffer.size());
+            JobLog() << "got message len " << msg.buffer.size();
         }
 
         this->msgsByTag[tag] += 1;
@@ -1137,41 +1189,36 @@ bool Processor::tryReceive() {
                 this->handleRingTest(std::move(mpiMessage));
             }
             else {
+                Lock lock(this->mutex);
                 this->workInQueue.emplace_back(std::move(mpiMessage));
             }
         }
         else if (tag == Processor::TAG_DEAD_RING_IS_DEAD) {
-            message::DeadRingTestMessage dm(msg.buffer);
-            if (dm.sentryRank != this->getRank()) {
+            MpiMessagePtr mpiMessage(new MpiMessage(tag,
+                    std::move(msg.buffer)));
+            if (this->checkpointState != Processor::CHECKPOINT_NONE) {
                 Lock lock(this->mutex);
-                if (this->reduceInfoMap[dm.reduceTag].messagesWaiting.size()) {
-                    throw std::runtime_error("Shouldn't have any messages "
-                            "still waiting on a dead ring!");
-                }
-                this->reduceInfoMap.erase(dm.reduceTag);
-
-                if (dm.reduceTag == 0) {
-                    this->shouldRun = false;
-                }
-
-                //Forward so it dies on all ranks
-                this->_nonBlockingSend(
-                        message::Header(Processor::TAG_DEAD_RING_IS_DEAD,
-                            _getNextRank()),
-                        std::move(msg.buffer));
+                this->workInQueue.emplace_front(std::move(mpiMessage));
+            }
+            else {
+                this->handleDeadRing(std::move(mpiMessage));
             }
         }
         else if (tag == Processor::TAG_CHECKPOINT_NEXT) {
             //We must be in either CHECKPOINT_NONE or CHECKPOINT_SYNC
             if (JOB_STREAM_DEBUG >= 1) {
-                fprintf(stderr, "%i Got TAG_CHECKPOINT_NEXT\n",
-                        this->getRank());
+                JobLog() << "got TAG_CHECKPOINT_NEXT";
             }
             if (this->checkpointState == Processor::CHECKPOINT_NONE) {
                 this->checkpointState = Processor::CHECKPOINT_START;
             }
             else if (this->checkpointState == Processor::CHECKPOINT_SYNC) {
                 this->checkpointState = Processor::CHECKPOINT_SEND;
+                this->checkpointWaiting = 1;
+            }
+            else if (this->checkpointState == Processor::CHECKPOINT_SEND) {
+                //All checkpoints received, resume computation.
+                this->checkpointState = Processor::CHECKPOINT_NONE;
             }
             else {
                 std::ostringstream buf;
@@ -1180,14 +1227,12 @@ bool Processor::tryReceive() {
                 throw std::runtime_error(buf.str());
             }
             if (JOB_STREAM_DEBUG >= 1) {
-                fprintf(stderr, "%i checkpointState -> %i\n", this->getRank(),
-                        this->checkpointState);
+                JobLog() << "checkpointState -> " << this->checkpointState;
             }
         }
         else if (tag == Processor::TAG_CHECKPOINT_READY) {
             if (JOB_STREAM_DEBUG >= 1) {
-                fprintf(stderr, "%i Got TAG_CHECKPOINT_READY\n",
-                        this->getRank());
+                JobLog() << "got TAG_CHECKPOINT_READY";
             }
             if (this->getRank() != 0) {
                 throw std::runtime_error(
@@ -1197,8 +1242,7 @@ bool Processor::tryReceive() {
         }
         else if (tag == Processor::TAG_CHECKPOINT_DATA) {
             if (JOB_STREAM_DEBUG >= 1) {
-                fprintf(stderr, "%i Got TAG_CHECKPOINT_DATA\n",
-                        this->getRank());
+                JobLog() << "got TAG_CHECKPOINT_DATA";
             }
             if (this->getRank() != 0) {
                 throw std::runtime_error(
@@ -1211,8 +1255,7 @@ bool Processor::tryReceive() {
             }
 
             if (JOB_STREAM_DEBUG >= 1) {
-                fprintf(stderr, "%i got checkpoint data from %i!\n",
-                        this->getRank(), recv.source());
+                JobLog() << "got checkpoint data from " << recv.source();
             }
             serialization::encode(*this->checkpointAr, (int)recv.source());
             serialization::encode(*this->checkpointAr, msg.buffer);
@@ -1229,8 +1272,6 @@ bool Processor::tryReceive() {
             //If we're not already checkpointing...
             if (this->checkpointState == Processor::CHECKPOINT_NONE) {
                 this->checkpointNext = 0;
-                //Simulate a 1ms step to start the checkpoint
-                this->_updateCheckpoints(1);
             }
 
             //Force quit?
@@ -1258,6 +1299,7 @@ bool Processor::tryReceive() {
             this->maybeAllowSteal(stealBuffer);
         }
         else {
+            Lock lock(this->mutex);
             this->workInQueue.emplace_front(new MpiMessage(Processor::TAG_STEAL,
                     std::move(stealBuffer)));
         }
@@ -1357,7 +1399,7 @@ void Processor::_updateCheckpoints(int msDiff) {
             this->checkpointNext -= msDiff;
             if (this->checkpointNext < 0) {
                 this->checkpointNext = -1;
-                fprintf(stderr, "%i Checkpoint starting\n", this->getRank());
+                JobLog() << "Checkpoint starting";
                 for (int i = 1, m = this->world.size(); i < m; i++) {
                     this->_nonBlockingSend(
                             message::Header(Processor::TAG_CHECKPOINT_NEXT, i),
@@ -1381,8 +1423,7 @@ void Processor::_updateCheckpoints(int msDiff) {
             //Now we just wait for everyone to enter this state
             this->checkpointState = Processor::CHECKPOINT_SYNC;
             if (JOB_STREAM_DEBUG >= 1) {
-                fprintf(stderr, "%i checkpointState -> %i\n", this->getRank(),
-                        this->checkpointState);
+                JobLog() << "checkpointState -> " << this->checkpointState;
             }
         }
     }
@@ -1412,25 +1453,37 @@ void Processor::_updateCheckpoints(int msDiff) {
                         serialization::encode(*this));
                 this->checkpointState = Processor::CHECKPOINT_GATHER;
                 if (JOB_STREAM_DEBUG >= 1) {
-                    fprintf(stderr, "%i checkpointState -> %i\n",
-                            this->getRank(), this->checkpointState);
+                    JobLog() << "checkpointState -> " << this->checkpointState;
                 }
             }
             else {
+                if (this->checkpointNext == -1) {
+                    JobLog() << "Checkpoint activity synced after "
+                            << message::Location::getCurrentTimeMs()
+                                - this->tsCheckpointStart
+                            << "ms, waiting "
+                            << Processor::CHECKPOINT_SYNC_WAIT_MS
+                            << "ms then gathering data";
+                }
                 this->checkpointNext -= msDiff;
             }
         }
     }
     else if (this->checkpointState == Processor::CHECKPOINT_SEND) {
-        //Encode our state and transmit it to the root node.
-        if (JOB_STREAM_DEBUG >= 1) {
-            fprintf(stderr, "%i checkpoint sending state, resuming "
-                    "computation\n", this->getRank());
+        //Encode our state and transmit it to the root node.  Wait to continue
+        //work (that is, stay in CHECKPOINT_SEND) until we get confirmation
+        //from the root node.  Otherwise, we might generate messages that get
+        //received out-of-order with the SEND message.  That causes messages to
+        //be duplicated when they are saved, which is disastrous for ring tests.
+        if (this->checkpointWaiting == 1) {
+            this->checkpointWaiting = 0;
+            if (JOB_STREAM_DEBUG >= 1) {
+                JobLog() << "checkpoint sending state, resuming computation";
+            }
+            this->_nonBlockingSend(message::Header(
+                    Processor::TAG_CHECKPOINT_DATA, 0),
+                    serialization::encode(*this));
         }
-        this->_nonBlockingSend(message::Header(Processor::TAG_CHECKPOINT_DATA,
-                0), serialization::encode(*this));
-        //Begin working again.
-        this->checkpointState = Processor::CHECKPOINT_NONE;
     }
     else if (this->checkpointState == Processor::CHECKPOINT_GATHER) {
         if (this->checkpointWaiting == 0) {
@@ -1442,14 +1495,20 @@ void Processor::_updateCheckpoints(int msDiff) {
             fs::rename((this->checkpointFileName + ".new").c_str(),
                     this->checkpointFileName.c_str());
 
-            fprintf(stderr, "%i Checkpoint took %i ms, resuming computation\n",
-                    this->getRank(), message::Location::getCurrentTimeMs()
-                        - this->tsCheckpointStart);
-            //Begin the process again
+            JobLog() << "Checkpoint took "
+                    << message::Location::getCurrentTimeMs()
+                        - this->tsCheckpointStart
+                    << "ms, resuming computation";
+            //Start processing again on this node
             this->checkpointState = Processor::CHECKPOINT_NONE;
             this->checkpointNext = this->checkpointInterval;
             if (this->checkpointQuit) {
                 exit(RETVAL_CHECKPOINT_FORCED);
+            }
+
+            for (int i = 1, im = this->world.size(); i < im; i++) {
+                this->_nonBlockingSend(message::Header(
+                        Processor::TAG_CHECKPOINT_NEXT, i), "");
             }
         }
     }

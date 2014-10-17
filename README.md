@@ -564,17 +564,6 @@ early on.  So handleDone() gets called with 20, 62, and finally 188.
 Roadmap
 -------
 
-* re-nice certain processors to use lab machines (mention in README that you only
-  need to invoke mpirun -hostfile hostfile nice -n 19 path/to/program args
-* Smarter serialization....... maybe hash serialized entities, and store a dict
-  of hashes, so as to only write the same data once even if it is NOT a
-  duplicated pointer.
-* depth-first iteration as flag
-* Ability to let job_stream optimize work size.  That is, your program says
-  something like this->getChunk(__FILE__, __LINE__, 500) and then job_stream
-  tracks time spent on communicating vs processing and optimizes the size of
-  the work a bit...
-* Fix timing statistics in continue'd runs from checkpoints
 * to: Should be a name or YAML reference, emit() or recur() should accept an
   argument of const YAML::Node& so that we can use e.g. stepTo: *priorRef as
   a normal config.  DO NOT overwrite to!  Allow it to be specified in pipes, e.g.
@@ -587,6 +576,16 @@ Roadmap
     - &other
       type: ...
 
+  In general, allow standard YAML rather than a specially split "to" member.
+* Smarter serialization....... maybe hash serialized entities, and store a dict
+  of hashes, so as to only write the same data once even if it is NOT a
+  duplicated pointer.
+* depth-first iteration as flag
+* Ability to let job_stream optimize work size.  That is, your program says
+  something like this->getChunk(__FILE__, __LINE__, 500) and then job_stream
+  tracks time spent on communicating vs processing and optimizes the size of
+  the work a bit...
+* Fix timing statistics in continue'd runs from checkpoints
 * Errors during a task should push the work back on the stack and trigger a
   checkpoint before exiting.  That would be awesome.  Should probably be an
   option though, since it would require "checkpointing" reduce accumulations
@@ -630,6 +629,13 @@ Roadmap
 
 Recent Changelog
 ----------------
+* 2014-10-17 - Apparently yaml-cpp is not thread safe.  Wtf.  Anyway, as a
+  "temporary" solution, job_stream now uses some custom globally locked classes
+  as a gateway to yaml-cpp.  All functionality should still work exactly like
+  vanilla yaml-cpp.
+
+  Also, no work happens during a checkpoint now.  That was causing corrupted
+  checkpoint files with duplicated ring tests.
 * 2014-9-10 - Fixed up duplicated and end-of-job-sequence (output) submodules.
   Host name is now used in addition to MPI rank when reporting results.
 * 2014-6-13 - Finalized checkpoint code for initial release.  A slew of new

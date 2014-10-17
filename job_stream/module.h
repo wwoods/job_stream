@@ -33,7 +33,7 @@ public:
     bool hasReducer() const { return this->reducer.get() != 0; }
 
     /** Setup self, then any instantiated children. */
-    virtual void populateAfterRestore(const YAML::Node& globalConfig,
+    virtual void populateAfterRestore(YAML::GuardedNode* globalConfig,
             const YAML::Node& config);
 
     /** Ensure that our config keys are set */

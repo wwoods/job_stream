@@ -45,7 +45,9 @@ namespace job {
             work completes. */
         void forceCheckpoint(bool forceQuit = false);
 
-        const YAML::Node& getConfig() const { return this->config; }
+        /** Returns a thread-safe version of our YAML::Node */
+        YAML::UnlockedNode config;
+        YAML::UnlockedNode globalConfig;
 
         /* For debug; return double-colon delimited job id. */
         std::string getFullName() const;
@@ -57,7 +59,7 @@ namespace job {
                 module::Module* parent,
                 const std::string& id,
                 const YAML::Node& config,
-                const YAML::Node& globalConfig);
+                YAML::GuardedNode* globalConfig);
 
         /** Used when restoring from a checkpoint, populate our and all
             allocated child jobs / reducers based on config.  Also calls
@@ -66,19 +68,12 @@ namespace job {
             Default behavior is just to call setup() with our extant parameters,
             and then call postSetup.
             */
-        virtual void populateAfterRestore(const YAML::Node& globalConfig,
+        virtual void populateAfterRestore(YAML::GuardedNode* globalConfig,
                 const YAML::Node& config);
 
     protected:
-        /* Our job's specific config, including "to", "id", and "type". */
-        YAML::Node config;
-
         /* The current WorkRecord being processed; NULL out of processing */
         static thread_local message::WorkRecord* currentRecord;
-
-        /* Our module's config, from global module_config or submodule
-         * instantiation */
-        YAML::Node globalConfig;
 
         /* This job's name (local to its module) */
         std::string id;
@@ -110,6 +105,13 @@ namespace job {
         std::string parseAndSerialize(const std::string& line);
 
     private:
+        /* Our job's specific config, including "to", "id", and "type". */
+        YAML::GuardedNode __config;
+
+        /* Our module's config, from global module_config or submodule
+         * instantiation */
+        YAML::GuardedNode* __globalConfig;
+
         /** For output from either a reducer or job context, we may want to
             traverse our parent module chain to determine the next recipient of
             work.  This function resolves that.

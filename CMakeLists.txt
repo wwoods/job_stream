@@ -68,6 +68,7 @@ add_library(job_stream
         job_stream/module.cpp
         job_stream/processor.cpp
         job_stream/serialization.cpp
+        job_stream/types.cpp
         job_stream/workerThread.cpp
         job_stream/death_handler/death_handler.cc)
 target_link_libraries(job_stream ${REQ_LIB})

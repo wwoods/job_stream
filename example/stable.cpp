@@ -49,7 +49,8 @@ public:
     static const char* NAME() { return "makeLoaded"; }
 
     void handleWork(unique_ptr<int> input) {
-        this->emit(LoadedInt(*input, this->globalConfig["dataSize"].as<int>()));
+        this->emit(LoadedInt(*input,
+                this->globalConfig["dataSize"].as<int>()));
     }
 } makeLoaded;
 
@@ -69,7 +70,8 @@ public:
     static const char* NAME() { return "makeSystems"; }
 
     void handleWork(unique_ptr<LoadedInt> unused) {
-        for (int i = 0; i < this->config["count"].as<int>(); i++) {
+        for (int i = 0, im = this->config["count"].as<int>(); i < im;
+                i++) {
             this->emit(LoadedInt(this->globalConfig["sleepTime"].as<int>(),
                     this->globalConfig["dataSize"].as<int>()));
         }
@@ -102,7 +104,7 @@ public:
     }
 
     void handleJoin(SystemCheck& current, unique_ptr<SystemCheck> other) {
-        current.works.insert(current.works.end(), other->works.begin(), 
+        current.works.insert(current.works.end(), other->works.begin(),
                 other->works.end());
         current.iteration += other->iteration;
     }
@@ -130,4 +132,3 @@ int main(int argc, char* argv[]) {
     job_stream::runProcessor(argc, argv);
     return 0;
 }
-

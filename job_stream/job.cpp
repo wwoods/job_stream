@@ -50,16 +50,22 @@ std::string SharedBase::getFullName() const {
 
 void SharedBase::setup(processor::Processor* processor, module::Module* parent,
         const std::string& id, const YAML::Node& config,
-        const YAML::Node& globalConfig) {
+        YAML::GuardedNode* globalConfig) {
     this->processor = processor;
     this->parent = parent;
     this->id = id;
-    this->config = config;
-    this->globalConfig = globalConfig;
+
+    //Setup private GuardedNodes for config
+    this->__config.set(config);
+    this->__globalConfig = globalConfig;
+
+    //Now set public members
+    this->config.set(this->__config);
+    this->globalConfig.set(*this->__globalConfig);
 }
 
 
-void SharedBase::populateAfterRestore(const YAML::Node& globalConfig,
+void SharedBase::populateAfterRestore(YAML::GuardedNode* globalConfig,
         const YAML::Node& config) {
     //Parent and id were populated by serialization, processor by parent.
     this->setup(this->processor, this->parent, this->id, config,
@@ -93,7 +99,7 @@ std::vector<std::string> SharedBase::_getTargetSiblingOrReducer(
             targetNew.pop_back();
         }
         //See if it has a "to" field; note that the root module does not!
-        const YAML::Node& pTo = p->getConfig()["to"];
+        const YAML::LockedNode& pTo = p->config["to"];
         if (!pTo) {
             if (!p->parent) {
                 //Root level, has no reducer.  By convention, send
@@ -161,7 +167,7 @@ std::vector<std::string> SharedBase::getTargetForReducer() {
     //Now it's the module containing our reducer; we want to go to a sibling
     //job.  So..
     if (this->parent->getLevel() != 0) {
-        const YAML::Node& parentTo = this->parent->getConfig()["to"];
+        const YAML::LockedNode& parentTo = this->parent->config["to"];
         if (!parentTo) {
             std::ostringstream ss;
             ss << "Module " << this->parent->getFullName() << " needs 'to'";

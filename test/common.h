@@ -13,6 +13,7 @@ std::vector<std::string> sortedLines(std::string input);
 std::vector<std::string> sortedLinesLimited(std::string input,
         const std::vector<std::string>& onlyIncludeIfMatching);
 
+/** Exact match only (that is, no extraneous lines) */
 #define REQUIRE_UNORDERED_LINES(a, b) { \
         auto sorted1 = sortedLines(a); \
         auto sorted2 = sortedLines(b); \
@@ -25,8 +26,10 @@ std::vector<std::string> sortedLinesLimited(std::string input,
     }
 
 
+/** b must contain all lines in a, but may have extras. */
 #define REQUIRE_CONTAINS_LINES(a, b) { \
-        INFO("Looking for lines: " << a << "\nGot lines: " << b); \
+        INFO("==== Looking for lines ====\n" << a << "\n==== Got lines ====\n" \
+                << b); \
         auto sorted1 = sortedLines(a); \
         auto sorted2 = sortedLinesLimited(b, sorted1); \
         \

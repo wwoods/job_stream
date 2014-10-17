@@ -314,6 +314,9 @@ public:
         Processor* processor;
     };
 
+    static const int DEFAULT_CHECKPOINT_SYNC_WAIT_MS = 10000;
+    static int CHECKPOINT_SYNC_WAIT_MS;
+
     static void addJob(const std::string& typeName,
             std::function<job::JobBase* ()> allocator);
     static void addReducer(const std::string& typeName,
@@ -359,9 +362,13 @@ protected:
         a quit (exit non-zero) after the checkpoint completes.
         */
     void forceCheckpoint(bool forceQuit = false);
+    /** Called to handle a ring test is dead message, within either tryReceive
+        or a work thread. */
+    void handleDeadRing(MpiMessagePtr message);
     /** Called to handle a ring test message, possibly within tryReceive, or
-        possibly in the main work loop.  If we are the sentry for the message's
-        ring, we are called in work loop.  Otherwise in tryReceive. */
+        possibly a work thread.  If we are the sentry for the message's
+        ring, we are called in work loop.  Otherwise in tryReceive.  Unless
+        checkpointing interfered. */
     void handleRingTest(MpiMessagePtr message);
     /** If we have an input thread, join it */
     void joinThreads();
@@ -393,8 +400,6 @@ private:
                     timeType(type) {}
     };
 
-    static const int CHECKPOINT_SYNC_WAIT_MS = 10;
-
     /** The file being used to write the current checkpoint. */
     std::unique_ptr<std::ofstream> checkpointFile;
     /** The archive writing to checkpointFile */
@@ -417,6 +422,8 @@ private:
     std::unique_ptr<boost::mpi::environment> env;
     /** Global array; see localClksByType */
     std::unique_ptr<uint64_t[]> globalClksByType;
+    /** The root global config node, which is globally guarded. */
+    YAML::GuardedNode globalConfig;
     std::unique_ptr<uint64_t[]> globalTimesByType;
     /** Array containing how many cpu clocks were spent in each type of
         operation.  Indexed by ProcessorTimeType */
