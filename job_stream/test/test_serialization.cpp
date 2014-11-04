@@ -240,6 +240,7 @@ TEST_CASE("polymorphic types", "[serialization]") {
     a.c = 2;
 
     try {
+        /** It is now a compile error to encode a polymorphic class.
         SECTION("Raw") {
             DerivedClass b;
             decode(encode(a), b);
@@ -254,7 +255,7 @@ TEST_CASE("polymorphic types", "[serialization]") {
             std::string aenc = encode(a);
 
             REQUIRE_THROWS(decode(aenc, b));
-        }
+        }*/
 
         SECTION("Pointer pre-registration") {
             clearRegisteredTypes();

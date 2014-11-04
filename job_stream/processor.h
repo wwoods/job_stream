@@ -249,6 +249,23 @@ struct ProcessorSendInfo {
 
 
 
+/** Size and other information about a processor from a checkpoint file. */
+struct CheckpointInfo {
+    uint64_t jobTreeSize;
+    uint64_t messagesWaiting;
+    uint64_t reduceMapSize;
+    uint64_t totalBytes;
+    uint64_t totalUserBytes;
+    std::map<int, uint64_t> countByTag;
+    std::map<int, uint64_t> bytesByTag;
+
+    /** Initialize with all zeroes */
+    CheckpointInfo() : jobTreeSize(0), messagesWaiting(0), reduceMapSize(0),
+            totalBytes(0), totalUserBytes(0) {}
+};
+
+
+
 /** Handles communication and job dispatch, as well as input streaming */
 class Processor {
     friend class job::SharedBase;
@@ -337,6 +354,10 @@ public:
     /** Get work for a Worker, or return a null unique_ptr if there is no
         work (or we're waiting on a checkpoint) */
     MpiMessagePtr getWork();
+    /** Returns statistics about some processor from a serialized checkpoint
+        buffer. */
+    void populateCheckpointInfo(CheckpointInfo& info,
+            const std::string& buffer);
     /** Run all modules defined in config; inputLine (already trimmed)
         determines whether we are using one row of input (the inputLine) or
         stdin (if empty) */

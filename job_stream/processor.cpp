@@ -239,7 +239,7 @@ Processor::Processor(std::unique_ptr<mpi::environment> env,
         }
     }
 
-    if (!this->root) {
+    if (!this->root && !config["__isCheckpointProcessorOnly"]) {
         //Generate this->root from config
         this->allocateJob(NULL, "root", config);
     }
@@ -299,6 +299,65 @@ MpiMessagePtr Processor::getWork() {
     }
 
     return ptr;
+}
+
+
+struct _BsFixForBoostSerialization {
+    _BsFixForBoostSerialization(job::JobBase* root,
+            std::map<uint64_t, ProcessorReduceInfo>& reduceInfoMap)
+            : r(*root), map(reduceInfoMap) {}
+
+private:
+    job::JobBase& r;
+    std::map<uint64_t, ProcessorReduceInfo>& map;
+
+    friend class boost::serialization::access;
+    void serialize(serialization::OArchive& ar, const unsigned int version) {
+        serialization::encodeAsPtr(ar, this->r);
+        serialization::encode(ar, this->map);
+    }
+};
+
+
+void Processor::populateCheckpointInfo(CheckpointInfo& info,
+        const std::string& buffer) {
+    //Load them into us
+    info.totalBytes += buffer.size();
+    serialization::decode(buffer, *this);
+
+    //Sample the rootSize, which includes reducers, jobs, etc.
+    uint64_t rootSize = serialization::encodeAsPtr(*this->root).size();
+    info.jobTreeSize += rootSize;
+    //We have to package reduceInfoMap with job tree for measuring, so that
+    //we can subtract the size of the job::ReducerBase's in the tree (which
+    //are also pointed to by reduceInfoMap, but we don't want to double count
+    //them).
+    info.reduceMapSize += serialization::encode(
+            _BsFixForBoostSerialization(this->root.get(),
+                this->reduceInfoMap))
+            .size() - rootSize;
+
+    info.messagesWaiting += this->workInQueue.size();
+    for (MpiMessagePtr& m : this->workInQueue) {
+        info.countByTag[m->tag] += 1;
+        info.bytesByTag[m->tag] += m->serialized().size();
+        if (m->tag == Processor::TAG_WORK
+                || m->tag == Processor::TAG_REDUCE_WORK) {
+            auto* ptr = m->getTypedData<message::WorkRecord>();
+            info.totalUserBytes += ptr->getWorkSize();
+        }
+        else if (m->tag == Processor::TAG_GROUP) {
+            auto* group = m->getTypedData<message::GroupMessage>();
+            for (int i = 0, im = group->messageTags.size(); i < im; i++) {
+                if (group->messageTags[i] == Processor::TAG_WORK) {
+                    MpiMessage wr(group->messageTags[i],
+                            std::move(group->messages[i]));
+                    auto* ptr = wr.getTypedData<message::WorkRecord>();
+                    info.totalUserBytes += ptr->getWorkSize();
+                }
+            }
+        }
+    }
 }
 
 

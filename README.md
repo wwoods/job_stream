@@ -561,9 +561,49 @@ for each value less than 3, two additional "3" works get added into the system
 early on.  So handleDone() gets called with 20, 62, and finally 188.
 
 
+
+Recent Changelog
+----------------
+* 2014-11-03 - Added --checkpoint-info for identifying what makes checkpoint
+  files so large sometimes.  Miscellaneous cleanup to --help functionality.
+  Serialization will refuse to serialize a non-pointer version of a polymorphic
+  class, since it takes a long time to track down what's wrong in that
+  situation.
+* 2014-10-17 - Apparently yaml-cpp is not thread safe.  Wtf.  Anyway, as a
+  "temporary" solution, job_stream now uses some custom globally locked classes
+  as a gateway to yaml-cpp.  All functionality should still work exactly like
+  vanilla yaml-cpp.
+
+  Also, no work happens during a checkpoint now.  That was causing corrupted
+  checkpoint files with duplicated ring tests.
+* 2014-9-10 - Fixed up duplicated and end-of-job-sequence (output) submodules.
+  Host name is now used in addition to MPI rank when reporting results.
+* 2014-6-13 - Finalized checkpoint code for initial release.  A slew of new
+  tests.  
+* 2014-4-24 - Fixed up shared_ptr serialization.  Fixed synchronization issue
+  in reduction rings.
+* 2014-2-19 - Added Frame specialization of Reducer.  Expects a different
+  first work than subsequent.  Usage pattern is to do some initialization work
+  and then recur() additional work as needed.
+* 2014-2-12 - Serialization is now via pointer, and supports polymorphic classes
+  completely unambiguously via dynamic_cast and
+  job_stream::serialization::registerType.  User cpu % updated to be in terms of
+  user time (quality measure) for each processor, and cumulative CPUs for
+  cumulative time.  
+* 2014-2-5 - In terms of user ticks / wall clock ms, less_serialization is on
+  par with master (3416 vs 3393 ticks / ms, 5% error), in addition
+  to all of the other fixes that branch has.  Merged in.
+* 2014-2-4 - Got rid of needed istream specialization; use an if and a
+  runtime\_exception.
+* 2014-2-4 - handleWork, handleAdd, and handleJoin all changed to take a
+  unique\_ptr rather than references.  This allows preventing more memory
+  allocations and copies.  Default implementation with += removed.
+
+
 Roadmap
 -------
 
+* README update - Should mention symlinking.
 * to: Should be a name or YAML reference, emit() or recur() should accept an
   argument of const YAML::Node& so that we can use e.g. stepTo: *priorRef as
   a normal config.  DO NOT overwrite to!  Allow it to be specified in pipes, e.g.
@@ -626,35 +666,3 @@ Roadmap
     * Note - decided to go with handleJoin(), which isn't used currently, but will be soon (I think this will become a small issue)
 * Tests
 * Subproject - executable integrated with python, for compile-less / easier work
-
-Recent Changelog
-----------------
-* 2014-10-17 - Apparently yaml-cpp is not thread safe.  Wtf.  Anyway, as a
-  "temporary" solution, job_stream now uses some custom globally locked classes
-  as a gateway to yaml-cpp.  All functionality should still work exactly like
-  vanilla yaml-cpp.
-
-  Also, no work happens during a checkpoint now.  That was causing corrupted
-  checkpoint files with duplicated ring tests.
-* 2014-9-10 - Fixed up duplicated and end-of-job-sequence (output) submodules.
-  Host name is now used in addition to MPI rank when reporting results.
-* 2014-6-13 - Finalized checkpoint code for initial release.  A slew of new
-  tests.  
-* 2014-4-24 - Fixed up shared_ptr serialization.  Fixed synchronization issue
-  in reduction rings.
-* 2014-2-19 - Added Frame specialization of Reducer.  Expects a different
-  first work than subsequent.  Usage pattern is to do some initialization work
-  and then recur() additional work as needed.
-* 2014-2-12 - Serialization is now via pointer, and supports polymorphic classes
-  completely unambiguously via dynamic_cast and
-  job_stream::serialization::registerType.  User cpu % updated to be in terms of
-  user time (quality measure) for each processor, and cumulative CPUs for
-  cumulative time.  
-* 2014-2-5 - In terms of user ticks / wall clock ms, less_serialization is on
-  par with master (3416 vs 3393 ticks / ms, 5% error), in addition
-  to all of the other fixes that branch has.  Merged in.
-* 2014-2-4 - Got rid of needed istream specialization; use an if and a
-  runtime\_exception.
-* 2014-2-4 - handleWork, handleAdd, and handleJoin all changed to take a
-  unique\_ptr rather than references.  This allows preventing more memory
-  allocations and copies.  Default implementation with += removed.

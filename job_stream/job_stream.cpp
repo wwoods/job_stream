@@ -16,6 +16,85 @@ namespace mpi = boost::mpi;
 
 namespace job_stream {
 
+void checkpointInfo(const std::string& path, processor::Processor& p) {
+    std::ifstream cf(path);
+    if (!cf) {
+        throw std::runtime_error("Could not open specified checkpoint file");
+    }
+
+    serialization::IArchive ar(cf);
+    int wsize;
+    serialization::decode(ar, wsize);
+    printf("%i processors\n", wsize);
+
+    std::map<int, std::string> procData;
+    for (int i = 0; i < wsize; i++) {
+        int bufRank;
+        std::string buffer;
+        serialization::decode(ar, bufRank);
+        serialization::decode(ar, buffer);
+        procData[bufRank] = buffer;
+    }
+
+    //Gather data from each processor (and processor -1, which is cumulative
+    //results.  Yes, it's inefficient to run the calculation twice.  However,
+    //it saves me [the programmer] time).
+    std::map<int, processor::CheckpointInfo> procInfo;
+    for (int i = 0; i < wsize; i++) {
+        p.populateCheckpointInfo(procInfo[i], procData[i]);
+        //Yes, it's inefficient to run the calculation twice.  But it's
+        //efficient dev time.
+        p.populateCheckpointInfo(procInfo[-1], procData[i]);
+    }
+
+    for (int i = 0; i <= wsize; i++) {
+        int j = i;
+        if (j == wsize) {
+            //Total
+            j = -1;
+        }
+
+        printf("== %i ==\n%lu total bytes\n", j, procInfo[j].totalBytes);
+        printf("%lu messages pending\n", procInfo[j].messagesWaiting);
+        uint64_t messagesTotal = 0;
+        for (int k = 0, km = processor::Processor::TAG_COUNT; k < km; k++) {
+            messagesTotal += procInfo[j].bytesByTag[k];
+        }
+        printf("\n-- Initial breakdown --\nMessages (%lu total bytes):\n",
+                messagesTotal);
+        for (int k = 0, km = processor::Processor::TAG_COUNT; k < km; k++) {
+            printf("%i - %lu messages, %lu bytes\n", k,
+                    procInfo[j].countByTag[k], procInfo[j].bytesByTag[k]);
+        }
+        printf("\nJob tree: %lu bytes\nReduce map: %lu bytes\n",
+                procInfo[j].jobTreeSize, procInfo[j].reduceMapSize);
+        printf("\n-- Work Messages --\n");
+        printf("%lu bytes of user data\n", procInfo[j].totalUserBytes);
+
+        printf("\n\n");
+    }
+    printf("\n");
+}
+
+
+void help(char** argv) {
+    std::ostringstream ss;
+    ss << "Usage: " << argv[0]
+            << " [flags] path/to/config [seed line; if omitted, stdin]";
+    printf("%s\n\n\
+Flags:\n\
+    -c filepath : File to use for checkpoints.  If file exists, seed will be \n\
+            ignored and the system will resume from checkpoint.  Otherwise,\n\
+            seed will be used and file will be created at checkpoint time.\n\
+    -t number : Hours between checkpoints.  Default is 10 minutes.\n\
+    --check-sync number : Additional milliseconds to wait during checkpoints.\n\
+            Primarily used in tests.  Default 10000.\n\
+    --checkpoint-info checkpoint/file : Dumps information about the given \n\
+            checkpoint file.\n\
+", ss.str().c_str());
+    exit(-1);
+}
+
 
 void runProcessor(int argc, char** argv) {
     Debug::DeathHandler dh;
@@ -25,18 +104,7 @@ void runProcessor(int argc, char** argv) {
     job_stream::invoke::_init();
 
     if (argc < 2) {
-        std::ostringstream ss;
-        ss << "Usage: " << argv[0]
-                << " path/to/config [flags] [seed line; if omitted, stdin]";
-        printf("%s\n\n\
-Flags:\n\
-    -c filepath : File to use for checkpoints.  If file exists, seed will be \n\
-            ignored and the system will resume from checkpoint.  Otherwise,\n\
-            seed will be used and file will be created at checkpoint time.\n\
-    -t number : Hours between checkpoints.  Default is 10 minutes.\n\
-    --check-sync number : Additional milliseconds to wait during checkpoints.\n\
-            Primarily used in tests.  Default 10000.\n", ss.str().c_str());
-        exit(-1);
+        help(argv);
     }
 
     bool configLoaded = false;
@@ -61,20 +129,30 @@ Flags:\n\
                     * 3600 * 1000);
             inputStart++;
         }
-        else if (argv[inputStart][0] == '-'
-                //Cheap hack to allow negative numbers
-                && (argv[inputStart][1] < '0' || argv[inputStart][1] > '9')) {
+        else if (strcmp(argv[inputStart], "-h") == 0
+                || strcmp(argv[inputStart], "--help") == 0) {
+            help(argv);
+        }
+        else if (strcmp(argv[inputStart], "--checkpoint-info") == 0) {
+            std::unique_ptr<mpi::environment> env(new mpi::environment(argc,
+                    argv));
+            mpi::communicator world;
+            YAML::Node confNode;
+            confNode["__isCheckpointProcessorOnly"] = true;
+            processor::Processor p(std::move(env), world, confNode, "");
+            checkpointInfo(argv[inputStart + 1], p);
+            exit(0);
+        }
+        //END OF VALID FLAGS!!
+        else if (argv[inputStart][0] == '-') {
             std::ostringstream ss;
             ss << "Unrecognized flag: " << argv[inputStart];
             throw std::runtime_error(ss.str());
         }
-        else if (!configLoaded) {
-            //We have input that's not a flag, it's our config file
-            config = YAML::LoadFile(argv[inputStart]);
-            configLoaded = true;
-        }
         else {
-            //Unrecognized input that's not a flag; use as input line
+            //We have input that's not a flag, it's our config file
+            config = YAML::LoadFile(argv[inputStart++]);
+            configLoaded = true;
             break;
         }
     }

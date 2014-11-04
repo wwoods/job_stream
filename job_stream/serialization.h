@@ -138,6 +138,9 @@ template<typename T, int = 0>
 void encode(OArchive& a, const std::unique_ptr<T>& src);
 template<typename T, int = 0>
 void encode(OArchive& a, const std::shared_ptr<T>& src);
+template<typename T, typename boost::enable_if<boost::mpl::not_<
+        boost::is_pointer<T>>, int>::type = 0>
+void encodeAsPtr(OArchive& a, const T& src);
 
 /** Extract the typeid(T).name() field from the given encoded message. */
 std::string getDecodedType(const std::string& message);
@@ -440,6 +443,20 @@ struct _SerialHelper {
 };
 
 
+/** If a serialization attempt to a non-pointer of a polymorphic type happens,
+    we complain.  Otherwise, there's a very unhelpful "Unregistered class"
+    message at runtime, and no other help. */
+template<typename T>
+struct _SerialHelper<T, typename boost::enable_if<
+        boost::is_polymorphic<T>>::type> {
+    static_assert(sizeof(T) == 0, "When serializing polymorphic types, "
+            "job_stream::serialization requires you to serialize a unique_ptr "
+            "or shared_ptr instead of the direct object, since different "
+            "types have different memory layouts, which will not be handled "
+            "correctly.");
+};
+
+
 /** Pointers to primitive types have different handling because boost doesn't
     allow serializing pointers to primitives by default. */
 template<typename T>
@@ -551,8 +568,15 @@ template<typename T, typename boost::enable_if<boost::mpl::not_<
 std::string encodeAsPtr(const T& src) {
     std::ostringstream ss;
     OArchive oa(ss, boost::archive::no_header);
-    _SerialHelper<T*>::encodeTypeAndObject(oa, const_cast<T* const>(&src));
+    encodeAsPtr(oa, src);
     return ss.str();
+}
+
+
+template<typename T, typename boost::enable_if<boost::mpl::not_<
+        boost::is_pointer<T>>, int>::type = 0>
+void encodeAsPtr(OArchive& a, const T& src) {
+    _SerialHelper<T*>::encodeTypeAndObject(a, const_cast<T* const>(&src));
 }
 
 

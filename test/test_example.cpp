@@ -95,7 +95,7 @@ TEST_CASE("example/job_stream_example/checkpoint.yaml", "[checkpoint]") {
             boost::regex pending("\\(([0-9]+) pending messages");
             std::ostringstream args;
             args << "-np " << np << " example/job_stream_example "
-                    "../example/checkpoint.yaml -c test.chkpt --check-sync 100 10";
+                    "-c test.chkpt --check-sync 100 ../example/checkpoint.yaml 10";
             std::remove("test.chkpt");
 
             std::string stderrOld;
@@ -210,7 +210,7 @@ TEST_CASE("example/job_stream_example/exampleRecurCheckpoint.yaml", "[checkpoint
             boost::regex pending("\\(([0-9]+) pending messages");
             std::ostringstream args;
             args << "-np " << np << " example/job_stream_example "
-                    "../example/exampleRecurCheckpoint.yaml -c test.chkpt --check-sync 100";
+                    "-c test.chkpt --check-sync 100 ../example/exampleRecurCheckpoint.yaml";
             std::remove("test.chkpt");
             int resultsSeen = 0;
             { //First run, shouldn't load from checkpoint
