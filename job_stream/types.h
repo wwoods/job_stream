@@ -32,6 +32,15 @@ namespace job_stream {
             return *this;
         }
 
+
+        /** Test functionality only; since some internals use JobLog() when a
+            processor is not initialized, use JobLog::FakeHeaderForTests to
+            override. */
+        struct FakeHeaderForTests {
+            FakeHeaderForTests();
+            ~FakeHeaderForTests();
+        };
+
     private:
         friend class processor::Processor;
         /** The stream for this JobLog */

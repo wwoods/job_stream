@@ -564,6 +564,9 @@ early on.  So handleDone() gets called with 20, 62, and finally 188.
 
 Recent Changelog
 ----------------
+* 2014-11-06 - Fixed invoke::run up so that it supported retry on user-defined
+  transient errors (For me, Xyce was having issues creating a sub directory
+  and would crash).
 * 2014-11-03 - Added --checkpoint-info for identifying what makes checkpoint
   files so large sometimes.  Miscellaneous cleanup to --help functionality.
   Serialization will refuse to serialize a non-pointer version of a polymorphic

@@ -24,4 +24,13 @@ JobLog::~JobLog() {
             this->stream.str().c_str());
 }
 
+
+
+JobLog::FakeHeaderForTests::FakeHeaderForTests() {
+    JobLog::header = "Fake Header";
+}
+JobLog::FakeHeaderForTests::~FakeHeaderForTests() {
+    JobLog::header = "";
+}
+
 } //job_stream
