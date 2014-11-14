@@ -108,7 +108,7 @@ void runProcessor(int argc, char** argv) {
     }
 
     bool configLoaded = false;
-    YAML::Node config;
+    std::string config;
 
     int inputStart = 1;
     std::string checkpoint;
@@ -137,9 +137,8 @@ void runProcessor(int argc, char** argv) {
             std::unique_ptr<mpi::environment> env(new mpi::environment(argc,
                     argv));
             mpi::communicator world;
-            YAML::Node confNode;
-            confNode["__isCheckpointProcessorOnly"] = true;
-            processor::Processor p(std::move(env), world, confNode, "");
+            processor::Processor p(std::move(env), world,
+                    "__isCheckpointProcessorOnly: true", "");
             checkpointInfo(argv[inputStart + 1], p);
             exit(0);
         }
@@ -151,7 +150,10 @@ void runProcessor(int argc, char** argv) {
         }
         else {
             //We have input that's not a flag, it's our config file
-            config = YAML::LoadFile(argv[inputStart++]);
+            std::ifstream confRead(argv[inputStart++]);
+            std::stringstream configStream;
+            configStream << confRead.rdbuf();
+            config = configStream.str();
             configLoaded = true;
             break;
         }

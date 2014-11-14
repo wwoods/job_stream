@@ -3,6 +3,11 @@ project(job_stream)
 
 # Note - run "cmake .." from the build/ directory.
 
+# Library can be built and tested with "cmake .. && make test"
+# Since some tests, specifically the checkpoint ones, fail transiently when
+# something is wrong, there is also the test-long target, which runs the tests
+# over and over until something fails
+
 # Note -- I had to compile boost by editing project-config.jam to include:
 #
 # using mpi : mpicxx.openmpi ;
@@ -116,3 +121,8 @@ add_dependencies(test_job_stream example)
 add_custom_target(test DEPENDS test_job_stream)
 add_custom_command(TARGET test
         POST_BUILD COMMAND test_job_stream "\${ARGS}")
+
+# Since
+add_custom_target(test-long DEPENDS test_job_stream)
+add_custom_command(TARGET test-long
+        POST_BUILD COMMAND /bin/sh -c 'echo \"Starting tests\" && while [ $$? -eq 0 ]\; do ./test_job_stream "\${ARGS}"\; done')

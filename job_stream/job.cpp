@@ -42,9 +42,22 @@ void SharedBase::forceCheckpoint(bool forceQuit) {
 
 std::string SharedBase::getFullName() const {
     if (this->parent) {
-        return this->parent->getFullName() + "::" + this->id;
+        std::ostringstream fname;
+        fname << this->parent->getFullName();
+        if (this->id[0] == '[') {
+            fname << this->id;
+        }
+        else {
+            fname << "." << this->id;
+        }
+        return fname.str();
     }
     return this->id;
+}
+
+
+void SharedBase::lockOutCheckpointsUntilCompletion() {
+    this->processor->workerWorkThisThread->lockForWork();
 }
 
 

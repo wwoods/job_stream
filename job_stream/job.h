@@ -45,6 +45,13 @@ namespace job {
             work completes. */
         void forceCheckpoint(bool forceQuit = false);
 
+        /** This utility function is used to ensure that something happens
+            outside of a checkpoint.  In testing it eliminates the chances
+            of duplicate output due to work being repeated by a checkpoint.
+            In practice, it only reduces the chances, and often marginally.
+            */
+        void lockOutCheckpointsUntilCompletion();
+
         /** Returns a thread-safe version of our YAML::Node */
         YAML::UnlockedNode config;
         YAML::UnlockedNode globalConfig;
@@ -158,6 +165,8 @@ namespace job {
     /** Base class for Reducers, which take multiple outputs and combine them.
         */
     class ReducerBase : public SharedBase {
+        friend class processor::Processor;
+
     public:
         /** Dispatch to templated init */
         virtual bool dispatchInit(message::WorkRecord& work) = 0;
@@ -173,6 +182,15 @@ namespace job {
         virtual bool dispatchDone(uint64_t reduceTag) = 0;
 
     private:
+        /** Called by processor when it is safe to remove the checkpoint reset
+            on a given reduceTag in this reducer.  That is, all work is finished
+            AND there are no checkpoints happening. */
+        virtual void purgeCheckpointReset(uint64_t reduceTag) = 0;
+        /** Called by processor when it is safe to remove a dead ring.
+            Specifically, no checkpoints are occurring and handleDone() did
+            not cause any recurrence. */
+        virtual void purgeDeadRing(uint64_t reduceTag) = 0;
+
         friend class boost::serialization::access;
         template<class Archive>
         void serialize(Archive& ar, const unsigned int version) {

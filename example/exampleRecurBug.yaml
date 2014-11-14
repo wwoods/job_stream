@@ -1,0 +1,6 @@
+# exampleRecurBug.yaml - Checkpoint issue where reduction ring finishes prior
+# to all jobs closing
+jobs:
+    - reducer: sum
+      jobs:
+        - type: checkpointTester # these add 1

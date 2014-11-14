@@ -30,28 +30,22 @@ TEST_CASE("invoke") {
         std::vector<string> args;
         args.push_back("/bin/bash");
         args.push_back("-c");
-        //$RANDOM ranges 0-32767
-        //So, if we have an X% chance of failure, then avg number of trials to
-        //success: P(trialsToFirst <= n) = sum[k = 0 to n - 1](X^k * (1-X))
-        //P(trialsToFirst <= n) = sum(X^(n - 1) * (1-x))
-        //P(trialsToFirst <= n) = (1 - X) * (1 - X^(n)) / (1 - X) == 1 - X^(n)
-        //n = log(1 - P(trialsToFirst <= n)) / log(X)
-        //or, X = e^(log(1 - P(trialsToFirst <= n)) / n)
-        //so, for n = 20, and a 99% probability of success, X = 0.767, scaled
-        //to 32767...
-        args.push_back("if [ $RANDOM -le 25132 ]; "
-                "then echo 'Error: Bad Random' >&2; exit 1; "
-                "else echo 'OK'; fi");
+        //We want something that will fail the first run, and succeed the
+        //second.
+        args.push_back("(rm testj && echo OK) || (touch testj && failj)");
+        //A good blacklist (will get to second, which succeeds)
         std::vector<std::string> transientOk;
-        transientOk.push_back("Bad Random");
+        transientOk.push_back("failj: command not found");
+        //A bad blacklist (will throw exception after first; case mismatch)
         std::vector<std::string> transientBad;
-        transientBad.push_back("bad Random");
-        for (int i = 0, im = 10; i < im; i++) {
-            std::string output, error;
-            std::tie(output, error) = inv::run(args, transientOk);
-            REQUIRE(output == "OK\n");
-        }
-        args.back() = "echo 'ERROR: Bad Random' >&2; exit 1;";
+        transientBad.push_back("Failj: command not found");
+
+        std::remove("testj");
+        std::tie(output, error) = inv::run(args, transientOk);
+        REQUIRE(output == "OK\n");
+
+        std::remove("testj");
+        //First fail should throw, since our blacklist is bad (case mismatch)
         REQUIRE_THROWS_AS(inv::run(args, transientBad), std::runtime_error);
     }
 }

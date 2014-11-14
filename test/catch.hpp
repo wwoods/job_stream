@@ -13,6 +13,8 @@
 
 #define TWOBLUECUBES_CATCH_HPP_INCLUDED
 
+#define MAX_INFO_LINES 100000
+
 #ifdef __clang__
 #pragma clang diagnostic ignored "-Wglobal-constructors"
 #pragma clang diagnostic ignored "-Wvariadic-macros"
@@ -3084,7 +3086,7 @@ namespace Tbc {
             std::string remainder = _str;
 
             while( !remainder.empty() ) {
-                if( lines.size() >= 1000 ) {
+                if( lines.size() >= MAX_INFO_LINES ) {
                     lines.push_back( "... message truncated due to excessive size" );
                     return;
                 }
@@ -3992,7 +3994,7 @@ namespace Tbc {
             std::string remainder = _str;
 
             while( !remainder.empty() ) {
-                if( lines.size() >= 1000 ) {
+                if( lines.size() >= MAX_INFO_LINES ) {
                     lines.push_back( "... message truncated due to excessive size" );
                     return;
                 }
@@ -8340,4 +8342,3 @@ using Catch::Detail::Approx;
 #endif
 
 #endif // TWOBLUECUBES_SINGLE_INCLUDE_CATCH_HPP_INCLUDED
-

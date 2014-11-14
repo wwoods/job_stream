@@ -2,18 +2,28 @@
 #include "catch.hpp"
 #include "common.h"
 
+#include <boost/asio.hpp>
 #include <boost/algorithm/string.hpp>
+#include <boost/bind.hpp>
+#define BOOST_PROCESS_WINDOWS_USE_NAMED_PIPE
 #include <boost/process.hpp>
 #include <job_stream/message.h>
 
+#include <functional>
+
+namespace ba = boost::asio;
 namespace bp = boost::process;
 
 using string = std::string;
 using Location = job_stream::message::Location;
 
-void readall(std::istream& stream, std::ostringstream& ss) {
-    ss << stream.rdbuf();
-}
+#if defined(BOOST_POSIX_API)
+typedef ba::posix::stream_descriptor bpAsio;
+#elif defined(BOOST_WINDOWS_API)
+typedef ba::windows::stream_handle bpAsio;
+#else
+#  error "Unsupported platform."
+#endif
 
 
 std::tuple<string, string> run(string prog, string args, string input) {
@@ -40,28 +50,52 @@ std::tuple<int, string, string> runRetval(string prog, string args,
     es.get_stdin().close();
 
     std::ostringstream obuf, ebuf;
-    uint64_t start = Location::getCurrentTimeMs();
-    while (!es.poll().exited()
-            && Location::getCurrentTimeMs() <= start + 10000) {
-        readall(es.get_stdout(), obuf);
-        readall(es.get_stderr(), ebuf);
-    }
+    boost::array<char, 4096> outBuffer, errBuffer;
 
-    readall(es.get_stdout(), obuf);
-    readall(es.get_stderr(), ebuf);
+    ba::io_service io_service;
+    bpAsio outReader(io_service);
+    bpAsio errReader(io_service);
 
-    bool didExit = true;
-    if (!es.poll().exited()) {
-        //Since these are MPI programs, best to use SIGTERM so it can clean up
-        es.terminate(false);
-        didExit = false;
-    }
+    outReader.assign(es.get_stdout().handle().release());
+    errReader.assign(es.get_stderr().handle().release());
+
+    std::function<void(const boost::system::error_code&, std::size_t)> outEnd,
+            errEnd;
+    auto outBegin = [&]() {
+        outReader.async_read_some(boost::asio::buffer(outBuffer),
+                boost::bind(outEnd, ba::placeholders::error,
+                    ba::placeholders::bytes_transferred));
+    };
+    outEnd = [&](const boost::system::error_code& ec,
+            std::size_t bytesTransferred) {
+        if (!ec) {
+            obuf << std::string(outBuffer.data(), bytesTransferred);
+            outBegin();
+        }
+    };
+    auto errBegin = [&]() {
+        errReader.async_read_some(boost::asio::buffer(errBuffer),
+                boost::bind(errEnd, ba::placeholders::error,
+                    ba::placeholders::bytes_transferred));
+    };
+    errEnd = [&](const boost::system::error_code& ec,
+            std::size_t bytesTransferred) {
+        if (!ec) {
+            ebuf << std::string(errBuffer.data(), bytesTransferred);
+            errBegin();
+        }
+    };
+
+    outBegin();
+    errBegin();
+
+    io_service.run();
+    auto stat = es.wait();
 
     INFO("Stdout: " << obuf.str());
     INFO("Stderr: " << ebuf.str());
 
-    REQUIRE(didExit);
-    return std::tuple<int, string, string>(es.poll().exit_status(), obuf.str(),
+    return std::tuple<int, string, string>(stat.exit_status(), obuf.str(),
             ebuf.str());
 }
 

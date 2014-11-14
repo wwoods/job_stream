@@ -308,17 +308,26 @@ report a user-code quality of 200+ cpus.
 Words of Warning
 ----------------
 
-Sometimes, passing -bind-to-core to mpirun can have a profoundly positive impact
-on performance.
-
-fork()ing a child can be difficult in a threaded MPI application.  To work
-around these difficulties, it is suggested that your application use
+fork()ing a child process can be difficult in a threaded MPI application.  To
+work around these difficulties, it is suggested that your application use
 job_stream::invoke (which forwards commands to a properly controlled
 libexecstream).
 
-Job and reduction routines MUST be thread safe.  That is, do NOT create a shared
-buffer to do your work in as part of the class.  If you do, make sure you declare
-it thread\_local (which requires static).
+Job and reduction routines MUST be thread safe.  Job_stream handles most of this
+for you.  However, do NOT create a shared buffer in which to do your work as
+part of a job class.  If you do, make sure you declare it thread\_local (which
+requires static).
+
+If you use checkpoints and your process crashes, it is possible that any
+activity _outside_ of job_stream will be repeated.  In other words, if one of
+your jobs appends content to a file, then that content might appear in the
+file multiple times.  The recommended way to get around this is to have your
+work output to different files, with a unique, deterministic file name for each
+piece of work that outputs.  Another approach is to use a reducer which gathers
+all completed work, and then dumps it all to a file at once in handleDone().
+
+Sometimes, passing -bind-to-core to mpirun can have a profoundly positive impact
+on performance.
 
 
 Unfriendly Examples
@@ -564,6 +573,15 @@ early on.  So handleDone() gets called with 20, 62, and finally 188.
 
 Recent Changelog
 ----------------
+* 2014-11-14 - Fixed job_stream checkpoints to be continuous.  That is, a
+  checkpoint no longer needs current work to finish in order to complete.  This
+  cuts the runtime for checkpoints from several hours in some situations down
+  to a couple of seconds.  Also, added test-long to cmake, so that tests can
+  be run repeatedly for any period of time in order to track down transient
+  failures.
+
+  Fixed a bug with job_stream::invoke which would lock up if a program wrote
+  too much information to stderr or stdout.
 * 2014-11-06 - Fixed invoke::run up so that it supported retry on user-defined
   transient errors (For me, Xyce was having issues creating a sub directory
   and would crash).

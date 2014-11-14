@@ -2,6 +2,8 @@
 #include "module.h"
 #include "processor.h"
 
+#include "debug_internals.h"
+
 #include <boost/lexical_cast.hpp>
 
 namespace job_stream {
@@ -37,20 +39,17 @@ void Module::postSetup() {
     //Sanity checks - jobs cannot be a sequence if input is defined.
     //Lock our config and get it.
     auto conf = this->config;
-    if (conf["jobs"].IsSequence()) {
+    if (!conf["jobs"]) {
+        ERROR("Module " << this->getFullName() << " has no jobs defined");
+    }
+    else if (conf["jobs"].IsSequence()) {
         if (conf["input"]) {
-            std::ostringstream ss;
-            ss << "Module " << this->getFullName() << " has input defined but "
-                    "jobs is a list";
-            throw std::runtime_error(ss.str());
+            ERROR("Module " << this->getFullName() << " has input defined but "
+                    "jobs is a list");
         }
     }
     else if (!conf["input"]) {
-        if (!conf["jobs"].IsSequence()) {
-            std::ostringstream ss;
-            ss << "Module " << this->getFullName() << " has no input defined";
-            throw std::runtime_error(ss.str());
-        }
+        ERROR("Module " << this->getFullName() << " has no input defined");
     }
 
     //Is this module framed?
@@ -70,7 +69,7 @@ void Module::postSetup() {
                     std::string>();
         }
         else {
-            conf["reducer"]["recurTo"] = "0";
+            conf["reducer"]["recurTo"] = "[0]";
         }
 
         conf["input"] = "output";
@@ -86,7 +85,7 @@ void Module::postSetup() {
         //If there is no input, then we need to set it to the first job in the
         //sequence.
         if (!conf["input"]) {
-            conf["input"] = "0";
+            conf["input"] = "[0]";
         }
 
         int jobId = 0;
@@ -104,12 +103,16 @@ void Module::postSetup() {
             //Clone the node in case it is a repeated reference (*submodule)
             YAML::Node nc = YAML::Clone(n);
             if (i < m - 1) {
-                nc["to"] = boost::lexical_cast<std::string>(jobId + 1);
+                std::ostringstream nextName;
+                nextName << "[" << jobId+1 << "]";
+                nc["to"] = nextName.str();
             }
             else {
                 nc["to"] = "output";
             }
-            newJobs[boost::lexical_cast<std::string>(jobId)] = nc;
+            std::ostringstream name;
+            name << "[" << jobId << "]";
+            newJobs[name.str()] = nc;
             jobId += 1;
         }
 
@@ -184,6 +187,7 @@ void Module::dispatchWork(message::WorkRecord& work) {
                 }
                 else {
                     //Print as str to stdout for root module by default
+                    this->lockOutCheckpointsUntilCompletion();
                     printf("%s\n", work.getWorkAsString().c_str());
                 }
             }
@@ -208,10 +212,6 @@ void Module::dispatchWork(message::WorkRecord& work) {
             JobLog() << "Passing to " << this->getJob(curTarget)->getFullName();
         }
         this->getJob(curTarget)->dispatchWork(work);
-    }
-
-    if (startedNewRing) {
-        this->processor->decrReduceChildTag(startedReduceTag, true);
     }
 
     this->currentRecord = 0;

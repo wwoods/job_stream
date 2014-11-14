@@ -158,7 +158,8 @@ struct MpiMessage {
 
     ~MpiMessage() {}
 
-    std::string serialized() const;
+    /** Returns the serialized version of the data, NOT the whole message! */
+    std::string getSerializedData() const;
 
     template<typename T>
     T* getTypedData() const {
@@ -187,7 +188,7 @@ private:
         ar & this->tag;
         if (Archive::is_saving::value) {
             //Ensure we're serialized
-            std::string msg = this->serialized();
+            std::string msg = this->getSerializedData();
             ar & msg;
         }
         else {
@@ -268,6 +269,7 @@ struct CheckpointInfo {
 
 /** Handles communication and job dispatch, as well as input streaming */
 class Processor {
+    friend class job::ReducerBase;
     friend class job::SharedBase;
     friend class module::Module;
     friend class WorkerThread;
@@ -305,14 +307,21 @@ public:
         TIME_COUNT,
     };
 
-    /** Checkpoint states. */
+    /** Checkpoint states.
+        Checkpoints go something like this:
+
+        CHECKPOINT_NONE: No checkpoint operations in progress
+        CHECKPOINT_SYNC: A checkpoint has started, waiting for all processors
+            to wait CHECKPOINT_SYNC_WAIT_MS after having zero-sized
+            messageQueue and sendRequests lists.
+        CHECKPOINT_GATHER: For rank 0 only, wait for everyone else to send their
+            data and then package it up into the checkpoint file.  For rank 1,
+            send our state once, and then wait for TAG_CHECKPOINT_NEXT, at which
+            point we're done.
+        */
     enum CheckpointState {
         CHECKPOINT_NONE,
-        CHECKPOINT_START,
         CHECKPOINT_SYNC,
-        /** Rank != 0 only; used to separate message logic from main checkpoint
-            logic */
-        CHECKPOINT_SEND,
         /** Rank 0 only; waiting for everyone else to send */
         CHECKPOINT_GATHER
     };
@@ -331,7 +340,6 @@ public:
         Processor* processor;
     };
 
-    static const int DEFAULT_CHECKPOINT_SYNC_WAIT_MS = 10000;
     static int CHECKPOINT_SYNC_WAIT_MS;
 
     static void addJob(const std::string& typeName,
@@ -341,23 +349,24 @@ public:
 
     Processor(std::unique_ptr<boost::mpi::environment> env,
             boost::mpi::communicator world,
-            const YAML::Node& config, const std::string& checkpointName);
+            const std::string& config, const std::string& checkpointName);
     ~Processor();
 
-
-    /** Add work to our workInQueue.  We now own wr. */
+    /** Add work to our workInQueue when the current job finishes.  We now own
+        wr. */
     void addWork(std::unique_ptr<message::WorkRecord> wr);
     /** Allocate and return a new tag for reduction operations. */
     uint64_t getNextReduceTag();
     /** Return this Processor's rank */
     int getRank() const { return this->world.rank(); }
-    /** Get work for a Worker, or return a null unique_ptr if there is no
-        work (or we're waiting on a checkpoint) */
-    MpiMessagePtr getWork();
     /** Returns statistics about some processor from a serialized checkpoint
         buffer. */
     void populateCheckpointInfo(CheckpointInfo& info,
             const std::string& buffer);
+    /** Registers the given ReducerBase and reduce tag as having a
+        reduceMapPatch that needs to be cleared on successful completion of
+        the current work. */
+    void registerReduceReset(job::ReducerBase* rb, uint64_t reduceTag);
     /** Run all modules defined in config; inputLine (already trimmed)
         determines whether we are using one row of input (the inputLine) or
         stdin (if empty) */
@@ -367,7 +376,10 @@ public:
         Otherwise, only takes effect after the next checkpoint. */
     void setCheckpointInterval(int intervalMs) {
             this->checkpointInterval = intervalMs; }
-    /** Start a dead ring test for the given reduceTag */
+    /** Start a dead ring test for the given reduceTag.  The ring won't actually
+        be started until the work that started it completes.  Otherwise
+        checkpoints would be broken.  See _startRingTest() for implementation.
+        */
     void startRingTest(uint64_t reduceTag, uint64_t parentTag,
             job::ReducerBase* reducer);
 
@@ -376,9 +388,6 @@ protected:
             const YAML::Node& config);
     job::ReducerBase* allocateReducer(module::Module* parent,
             const YAML::Node& config);
-    /** Called to reduce a childTagCount on a ProcessorReduceInfo for a given
-        reduceTag.  Optionally dispatch messages pending. */
-    void decrReduceChildTag(uint64_t reduceTag, bool wasProcessed = false);
     /** Force a checkpoint after current work completes.  Optionally, force
         a quit (exit non-zero) after the checkpoint completes.
         */
@@ -399,12 +408,15 @@ protected:
     void localTimersMerge();
     /** We got a steal message; decode it and maybe give someone work. */
     void maybeAllowSteal(const std::string& messageBuffer);
+    /** Called in a worker thread; using the current thread, pull down some
+        work and process it, while respecting checkpoint criteria.
+
+        Returns true if work happened, or false if there was nothing to do
+        (which inspires the thread to sleep) */
+    bool processInThread();
     /** Listen for input events and put them on workOutQueue.  When this thread
         is finished, it emits a TAG_DEAD_RING_TEST message for 0. */
     void processInputThread_main(const std::string& inputLine);
-    /** Process a previously received mpi message.  Passed non-const so that it
-        can be steal-constructored (rvalue) */
-    void process(MpiMessagePtr message);
     /** Try to receive the current request, or make a new one */
     bool tryReceive();
 
@@ -420,6 +432,64 @@ private:
                 : tsStart(start), clkStart(clock), timeChild(0), clksChild(0),
                     timeType(type) {}
     };
+
+    /** Information about a WorkerThread - specifically, outbound messages
+        waiting on the current work's completion (and the completion of
+        checkpoint operations) before being sent. */
+    struct _WorkerInfo {
+        _WorkerInfo() : hasReduceTag(false), isLocked(false), p(0),
+                reduceTag(0) {}
+
+        struct RingTestInfo {
+            uint64_t reduceTag, parentTag;
+            job::ReducerBase* reducer;
+
+            RingTestInfo(uint64_t reduceTag, uint64_t parentTag,
+                    job::ReducerBase* reducer) : reduceTag(reduceTag),
+                    parentTag(parentTag), reducer(reducer) {}
+        };
+
+        struct ReduceMapResetInfo {
+            job::ReducerBase* reducer;
+            uint64_t reduceTag;
+
+            ReduceMapResetInfo(job::ReducerBase* reducer, uint64_t reduceTag)
+                    : reducer(reducer), reduceTag(reduceTag) {}
+        };
+
+        processor::Processor* p;
+        /** This is the only part that is serialized; the MpiMessagePtr that we
+            started with, before any reduction ring modifications.
+
+            Note that it is VITAL no state changes happen outside of the control
+            of this struct, including network communication queuing.  Otherwise,
+            a checkpoint will re-enqueue the work, when it is partially
+            complete, and work will be duplicated. */
+        std::string work;
+        std::list<ReduceMapResetInfo> reduceMapResets;
+        std::list<RingTestInfo> outboundRings;
+        std::list<std::unique_ptr<message::WorkRecord>> outboundWork;
+        std::list<std::unique_ptr<message::_Message>> outboundMessages;
+        bool isLocked;
+        bool hasReduceTag;
+        /** If hasReduceTag is set, then this is the reduceTag of the work
+            occurring in this thread.  Ergo, it needs to be decremented on
+            checkpoint load, since its childTagCount gets incremented when
+            work begins. */
+        uint64_t reduceTag;
+
+        void lockForWork();
+
+    private:
+        friend class boost::serialization::access;
+        template<class Archive>
+        void serialize(Archive& ar, const unsigned int version) {
+            ar & this->work;
+            ar & this->hasReduceTag;
+            ar & this->reduceTag;
+        }
+    };
+    typedef std::list<_WorkerInfo> _WorkerInfoList;
 
     /** The file being used to write the current checkpoint. */
     std::unique_ptr<std::ofstream> checkpointFile;
@@ -439,6 +509,9 @@ private:
     /** Count of processors that we're waiting on information from.  Only used
         on rank 0. */
     int checkpointWaiting;
+    /** Our config as a string.  Used for checkpointing to ensure that an
+        existing checkpoint file matches what the user wanted. */
+    std::string _configStr;
     /** Our environment */
     std::unique_ptr<boost::mpi::environment> env;
     /** Global array; see localClksByType */
@@ -457,9 +530,6 @@ private:
     std::thread::id mainThreadId;
     /** Running count of messages by tag */
     std::unique_ptr<uint64_t[]> msgsByTag;
-    /** Locks shared resources - workInQueue, reduceInfoMap
-        and reduceTagCount */
-    Mutex mutex;
     /* The stdin management thread; only runs on node 0 */
     std::unique_ptr<std::thread> processInputThread;
     /* Buffers corresponding to requests */
@@ -483,24 +553,44 @@ private:
     bool shouldRun;
     /* True if and only if this processor was restored from a checkpoint. */
     bool wasRestored;
+    /** Allocated threads doing work. */
     std::vector<std::unique_ptr<WorkerThread>> workers;
-    //Number of workerThreads currently processing a message.
-    int workingCount;
     //Any work waiting to be done on this Processor.
     MpiMessageList workInQueue;
-    /* workOutQueue gets redistributed to all workers; MPI is not implicitly
+    /** workOutQueue gets redistributed to all workers; MPI is not implicitly
        thread-safe, that is why this queue exists.  Used for input only at
        the moment. */
     ThreadSafeQueue<message::WorkRecord> workOutQueue;
+    /** Outbound messages, which are sent from the main thread each loop. */
     ThreadSafeQueue<message::_Message> messageQueue;
+    /** Work happening right now, including enough static information to resume
+        after a checkpoint. */
+    _WorkerInfoList workerWork;
+    static thread_local _WorkerInfoList::iterator workerWorkThisThread;
     int workTarget;
     static thread_local std::vector<_WorkTimerRecord> workTimers;
     boost::mpi::communicator world;
 
+    /** Locks shared resources - workInQueue, reduceInfoMap.  ANY WORK requiring
+        a mutex lock should go through
+        workerWorkThisThread->lockForWork().  That way, the work is locked in
+        until it finishes and all transient activity that would interfere with
+        checkpoints completes. */
+    Mutex _mutex;
+
+    /** Locks reduceTagCount.  See getNextReduceTag() for why this is separate.
+        */
+    Mutex _mutexForReduceTags;
+
+    /** Adds work to our outbound work queue immediately. */
+    void _addWork(std::unique_ptr<message::WorkRecord> wr);
     /** Raises a runtime_error if this is not the main thread */
     void _assertMain();
     /** Update all asynchronous MPI operations to ensure our buffers are full */
     void _checkMpi();
+    /** Called to reduce a childTagCount on a ProcessorReduceInfo for a given
+        reduceTag.  Optionally dispatch messages pending. */
+    void _decrReduceChildTag(uint64_t reduceTag, bool wasProcessed = false);
     /** Send work from workOutQueue to either our local workInQueue or send to
         a remote source. */
     void _distributeWork(std::unique_ptr<message::WorkRecord> wr);
@@ -512,6 +602,9 @@ private:
     int _getNextRank();
     /** Increment and wrap workTarget, return new value */
     int _getNextWorker();
+    /** Get work for a Worker, or return a null unique_ptr if there is no
+        work (or we're waiting on a checkpoint) */
+    MpiMessagePtr _getWork();
     /** Send in a non-blocking manner (asynchronously, receiving all the while).
         reduceTags are any tags that should be kept alive by the fact that this
         is in the process of being sent.
@@ -522,6 +615,10 @@ private:
     void _pushWorkTimer(ProcessorTimeType userWork);
     /** Pop the last timer section */
     void _popWorkTimer();
+    /** Start a dead ring test for the given reduceTag IMMEDIATELY.  Shouldn't
+        be used during work, or it would break checkpoints. */
+    void _startRingTest(uint64_t reduceTag, uint64_t parentTag,
+            job::ReducerBase* reducer);
 
     /** Update current checkpoint state, given # of ms difference from last
         loop.
@@ -533,19 +630,25 @@ private:
         */
     void _updateCheckpoints(int msDiff);
 
-    /** During CHECKPOINT_START or CHECKPOINT_SYNC, indicates that a Processor
-        has achieved stability and is now in the CHECKPOINT_SYNC state. */
-    void _updateCheckpointSync(int rank);
-
 
     friend class boost::serialization::access;
     /** Either write a checkpoint or restore our state from one. */
     template<class Archive>
     void serialize(Archive& ar, const unsigned int version) {
+        ar & this->_configStr;
         ar & this->root;
         ar & this->reduceTagCount & this->reduceInfoMap;
         ar & this->workInQueue;
         ar & this->sentEndRing0;
+        ar & this->workerWork;
+        if (Archive::is_saving::value && JOB_STREAM_DEBUG) {
+            for (auto& m : this->workerWork) {
+                if (!m.hasReduceTag) {
+                    continue;
+                }
+                fprintf(stderr, "Known checkpoint work: %lu\n", m.reduceTag);
+            }
+        }
     }
 };
 

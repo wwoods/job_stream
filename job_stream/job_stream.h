@@ -191,8 +191,11 @@ namespace job_stream {
             this->unsetCurrentReduce();
 
             if (!this->hadRecurrence) {
-                Lock lock(this->reduceMapMutex);
-                this->reduceMap.erase(reduceTag);
+                //The processor that calls this function ends up calling
+                //this->reduceMap.erase(reduceTag) for us with a lock on our
+                //mutex.  This is done in the processor so that no
+                //checkpoint-state-changing operations happen outside of
+                //the processor's lock.
                 return true;
             }
             return false;
@@ -219,12 +222,14 @@ namespace job_stream {
             //prematurely exiting).
             if (work.getTarget().size() != 0) {
                 homeRank = this->processor->getRank();
+                //Takes the non-primary processor lock, so this is OK.
                 tag = this->processor->getNextReduceTag();
                 if (this->reduceMap.count(tag) != 0) {
                     throw std::runtime_error("Bad tag?  Duplicate");
                 }
             }
             else {
+                //This path is only for tag 1
                 if (homeRank != this->processor->getRank()
                         || this->reduceMap.count(tag) != 0) {
                     reallyInit = false;
@@ -232,11 +237,18 @@ namespace job_stream {
             }
 
             if (reallyInit) {
+                //Make a patch for the reduceMap which will erase this record on
+                //checkpoint restore.
+                this->reduceMapPatches[tag] = "";
+                this->processor->registerReduceReset(this, tag);
+
+                //Fill out the reduceMap with our new information.
                 job::ReduceAccumulator<T_accum>& record = this->reduceMap[tag];
                 record.originalWork.reset(new message::WorkRecord(
                         work.serialized()));
                 record.accumulator.reset(new T_accum());
                 record.gotFirstWork = false;
+                record.mutex.lock();
 
                 { //timer scope
                     processor::Processor::WorkTimer timer(this->processor,
@@ -394,33 +406,70 @@ namespace job_stream {
             the reduction is finished. */
         static thread_local bool hadRecurrence;
         std::map<uint64_t, job::ReduceAccumulator<T_accum>> reduceMap;
+        /** Mutex for altering reduceMap's structure.  Note that when this
+            mutex is taken, the processor's mutex MUST NOT be taken inside of
+            its lock (if already locked, that's OK).  This affects e.g.
+            dispatchInit when we get our reduce tag for a new ring.  That is
+            why the processor uses a different lock for that functionality.
+            */
         Mutex reduceMapMutex;
+        /** User data checkpointed before it is modified. */
+        std::map<uint64_t, std::string> reduceMapPatches;
 
         virtual std::string getInputTypeName() {
             return typeid(T_input).name();
         }
 
+        /** Purges checkpoint reset information.  Called after
+            processor->registerReduceReset() */
+        void purgeCheckpointReset(uint64_t reduceTag) override {
+            Lock lock(this->reduceMapMutex);
+            this->reduceMapPatches.erase(reduceTag);
+            this->reduceMap[reduceTag].mutex.unlock();
+        }
+
+        /** Purges a dead ring from our reduceMap. */
+        void purgeDeadRing(uint64_t reduceTag) override {
+            Lock lock(this->reduceMapMutex);
+            this->reduceMap.erase(reduceTag);
+        }
 
         /** Set currentReduce to point to the right ReduceAccumulator */
         void setCurrentReduce(uint64_t reduceTag) {
-            Lock lock(this->reduceMapMutex);
-            auto iter = this->reduceMap.find(reduceTag);
-            if (iter == this->reduceMap.end()) {
-                std::ostringstream ss;
-                ss << "ReduceTag " << reduceTag << " not found on "
-                        << this->processor->getRank() << "!";
-                throw std::runtime_error(ss.str());
+            { //Lock and release reduceMap before locking the reduction
+                Lock lock(this->reduceMapMutex);
+                auto iter = this->reduceMap.find(reduceTag);
+                if (iter == this->reduceMap.end()) {
+                    std::ostringstream ss;
+                    ss << "ReduceTag " << reduceTag << " not found on "
+                            << this->processor->getRank() << "!";
+                    throw std::runtime_error(ss.str());
+                }
+
+                this->currentReduceTag = reduceTag;
+                this->currentReduce = &iter->second;
             }
 
-            this->currentReduceTag = reduceTag;
-            this->currentReduce = &iter->second;
             this->currentReduce->mutex.lock();
+            this->processor->registerReduceReset(this, reduceTag);
+            {
+                Lock lock(this->reduceMapMutex);
+                if (this->reduceMapPatches.count(reduceTag) != 0) {
+                    //A dispatchInit leads to either a dispatchWork or
+                    //dispatchAdd, so thany prior reset supercedes the current
+                    //one.
+                }
+                else {
+                    this->reduceMapPatches[reduceTag] = serialization::encode(
+                            *this->currentReduce);
+                }
+            }
         }
 
 
         /** Unlock working with this particular reduceTag */
         void unsetCurrentReduce() {
-            this->currentReduce->mutex.unlock();
+            //Most cleanup actually happens in purgeCheckpointReset
             this->currentReduce = 0;
         }
 
@@ -434,8 +483,26 @@ namespace job_stream {
             to register your own derived classes! */
         template<class Archive>
         void serialize(Archive& ar, const unsigned int version) {
+            Lock lock(this->reduceMapMutex);
+
             ar & boost::serialization::base_object<job::ReducerBase>(*this);
             ar & this->reduceMap;
+            //We don't protect user data during checkpoint operations.  So,
+            //we checkpoint it before any work occurs (see
+            //setCurrentReduce).  Save those checkpoints.
+            ar & this->reduceMapPatches;
+            if (Archive::is_loading::value) {
+                for (auto& m : this->reduceMapPatches) {
+                    if (m.second.empty()) {
+                        this->reduceMap.erase(m.first);
+                    }
+                    else {
+                        serialization::decode(m.second,
+                                this->reduceMap[m.first]);
+                    }
+                }
+                this->reduceMapPatches.clear();
+            }
         }
 
         /* Auto class registration. */

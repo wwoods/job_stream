@@ -5,13 +5,27 @@
 #include "josuttis/fdstream.hpp"
 
 #include <boost/algorithm/string.hpp>
+#include <boost/asio.hpp>
 #include <boost/asio/ip/host_name.hpp>
+#include <boost/bind.hpp>
 #include <boost/lexical_cast.hpp>
+#define BOOST_PROCESS_WINDOWS_USE_NAMED_PIPE
 #include <boost/process.hpp>
+
+#include <functional>
 #include <memory>
 #include <sstream>
 
+namespace ba = boost::asio;
 namespace bp = boost::process;
+
+#if defined(BOOST_POSIX_API)
+typedef ba::posix::stream_descriptor bpAsio;
+#elif defined(BOOST_WINDOWS_API)
+typedef ba::windows::stream_handle bpAsio;
+#else
+#  error "Unsupported platform."
+#endif
 
 namespace job_stream {
 namespace invoke {
@@ -69,9 +83,49 @@ std::tuple<std::string, std::string> run(
         std::ostringstream out, err;
         try {
             bp::child es = bp::launch(progAndArgs[0], progAndArgs, ctx);
+
+            //Buffer stdout and stderr, so that we won't lock up if the program
+            //pushes a lot of bytes
+            boost::array<char, 4096> outBuffer, errBuffer;
+            ba::io_service io_service;
+            bpAsio outReader(io_service);
+            bpAsio errReader(io_service);
+
+            outReader.assign(es.get_stdout().handle().release());
+            errReader.assign(es.get_stderr().handle().release());
+
+            std::function<void(const boost::system::error_code&, std::size_t)>
+                    outEnd, errEnd;
+            auto outBegin = [&] {
+                outReader.async_read_some(boost::asio::buffer(outBuffer),
+                        boost::bind(outEnd, ba::placeholders::error,
+                            ba::placeholders::bytes_transferred));
+            };
+            outEnd = [&](const boost::system::error_code& ec,
+                    std::size_t bytesTransferred) {
+                if (!ec) {
+                    out << std::string(outBuffer.data(), bytesTransferred);
+                    outBegin();
+                }
+            };
+            auto errBegin = [&]() {
+                errReader.async_read_some(boost::asio::buffer(errBuffer),
+                        boost::bind(errEnd, ba::placeholders::error,
+                            ba::placeholders::bytes_transferred));
+            };
+            errEnd = [&](const boost::system::error_code& ec,
+                    std::size_t bytesTransferred) {
+                if (!ec) {
+                    err << std::string(errBuffer.data(), bytesTransferred);
+                    errBegin();
+                }
+            };
+
+            outBegin();
+            errBegin();
+
+            io_service.run();
             auto status = es.wait();
-            out << es.get_stdout().rdbuf();
-            err << es.get_stderr().rdbuf();
             if (!status.exited() || status.exit_status() != 0) {
                 std::ostringstream ss;
                 ss << "Bad exit from";
