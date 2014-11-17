@@ -278,6 +278,7 @@ public:
     /* MPI message tags */
     enum ProcessorSendTag {
         TAG_WORK,
+        /** Work that is en-route to the only host capable of handling it. */
         TAG_REDUCE_WORK,
         TAG_DEAD_RING_TEST,
         TAG_DEAD_RING_IS_DEAD,
@@ -376,6 +377,9 @@ public:
         Otherwise, only takes effect after the next checkpoint. */
     void setCheckpointInterval(int intervalMs) {
             this->checkpointInterval = intervalMs; }
+    /** Can be used to turn stealing off; not recommended. */
+    void setStealEnabled(bool enable) {
+            this->_stealEnabled = enable; }
     /** Start a dead ring test for the given reduceTag.  The ring won't actually
         be started until the work that started it completes.  Otherwise
         checkpoints would be broken.  See _startRingTest() for implementation.
@@ -411,9 +415,12 @@ protected:
     /** Called in a worker thread; using the current thread, pull down some
         work and process it, while respecting checkpoint criteria.
 
+        workerId - ID of worker thread; used to limit number of active workers
+                according to capacity.
+
         Returns true if work happened, or false if there was nothing to do
         (which inspires the thread to sleep) */
-    bool processInThread();
+    bool processInThread(int workerId);
     /** Listen for input events and put them on workOutQueue.  When this thread
         is finished, it emits a TAG_DEAD_RING_TEST message for 0. */
     void processInputThread_main(const std::string& inputLine);
@@ -563,6 +570,9 @@ private:
     ThreadSafeQueue<message::WorkRecord> workOutQueue;
     /** Outbound messages, which are sent from the main thread each loop. */
     ThreadSafeQueue<message::_Message> messageQueue;
+    /** Number of worker threads that are allowed to work.  Adjusted by steal
+        ring. */
+    int workersActive;
     /** Work happening right now, including enough static information to resume
         after a checkpoint. */
     _WorkerInfoList workerWork;
@@ -570,6 +580,11 @@ private:
     int workTarget;
     static thread_local std::vector<_WorkTimerRecord> workTimers;
     boost::mpi::communicator world;
+
+    bool _stealEnabled;
+    //Pending steal messages get stored specially for checkpoints, so that they
+    //always get processed first.
+    MpiMessagePtr _stealMessage;
 
     /** Locks shared resources - workInQueue, reduceInfoMap.  ANY WORK requiring
         a mutex lock should go through
@@ -603,8 +618,11 @@ private:
     /** Increment and wrap workTarget, return new value */
     int _getNextWorker();
     /** Get work for a Worker, or return a null unique_ptr if there is no
-        work (or we're waiting on a checkpoint) */
-    MpiMessagePtr _getWork();
+        work (or we're waiting on a checkpoint).
+
+        workerId - the ID of the worker thread asking for work.  Used to
+                constrain standard work based on workersActive. */
+    MpiMessagePtr _getWork(int workerId);
     /** Send in a non-blocking manner (asynchronously, receiving all the while).
         reduceTags are any tags that should be kept alive by the fact that this
         is in the process of being sent.
@@ -641,6 +659,7 @@ private:
         ar & this->workInQueue;
         ar & this->sentEndRing0;
         ar & this->workerWork;
+        ar & this->_stealMessage;
         if (Archive::is_saving::value && JOB_STREAM_DEBUG) {
             for (auto& m : this->workerWork) {
                 if (!m.hasReduceTag) {

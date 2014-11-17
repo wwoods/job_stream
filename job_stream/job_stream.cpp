@@ -91,6 +91,8 @@ Flags:\n\
             Primarily used in tests.  Default 10000.\n\
     --checkpoint-info checkpoint/file : Dumps information about the given \n\
             checkpoint file.\n\
+    --disable-steal : Disables stealing as a means for sharing work.  Not\n\
+            recommended, mostly here for speed tests.\n\
 ", ss.str().c_str());
     exit(-1);
 }
@@ -113,6 +115,7 @@ void runProcessor(int argc, char** argv) {
     int inputStart = 1;
     std::string checkpoint;
     int checkpointMs = 600 * 1000;
+    bool stealOff = false;
     for (; inputStart < argc; inputStart++) {
         if (strcmp(argv[inputStart], "-c") == 0) {
             checkpoint = std::string(argv[inputStart + 1]);
@@ -141,6 +144,9 @@ void runProcessor(int argc, char** argv) {
                     "__isCheckpointProcessorOnly: true", "");
             checkpointInfo(argv[inputStart + 1], p);
             exit(0);
+        }
+        else if (strcmp(argv[inputStart], "--disable-steal") == 0) {
+            stealOff = true;
         }
         //END OF VALID FLAGS!!
         else if (argv[inputStart][0] == '-') {
@@ -183,6 +189,7 @@ void runProcessor(int argc, char** argv) {
 
     processor::Processor p(std::move(env), world, config, checkpoint);
     p.setCheckpointInterval(checkpointMs);
+    p.setStealEnabled(!stealOff);
     p.run(inputLine);
 
     //If we get here, there were no errors.  If there were no errors, we should

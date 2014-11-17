@@ -6,7 +6,8 @@
 namespace job_stream {
 namespace processor {
 
-WorkerThread::WorkerThread(Processor* p) : shouldRun(true), processor(p),
+WorkerThread::WorkerThread(Processor* p, int index) : shouldRun(true),
+        processor(p), workerIndex(index),
         thread(std::bind(&WorkerThread::main, this)) {
 }
 
@@ -22,7 +23,7 @@ void WorkerThread::main() {
     std::unique_ptr<Processor::WorkTimer> outerTimer(new Processor::WorkTimer(
             this->processor, Processor::TIME_IDLE));
     while (this->shouldRun) {
-        if (!this->processor->processInThread()) {
+        if (!this->processor->processInThread(this->workerIndex)) {
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
     }

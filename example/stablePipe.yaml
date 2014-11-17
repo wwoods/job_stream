@@ -27,7 +27,7 @@ dataSize: 1000000
 jobs:
     - type: makeLoaded
     -   input: initSystems
-        reducer: 
+        reducer:
             type: checkSystems
             iterations: 2
             recurTo: runSystems
@@ -55,4 +55,3 @@ jobs:
                         type: evalSystem
                         to: output
     - type: unmakeLoaded
-

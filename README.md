@@ -582,6 +582,8 @@ Recent Changelog
 
   Fixed a bug with job_stream::invoke which would lock up if a program wrote
   too much information to stderr or stdout.
+
+  Re-did steal ring so that it takes available processing power into account.
 * 2014-11-06 - Fixed invoke::run up so that it supported retry on user-defined
   transient errors (For me, Xyce was having issues creating a sub directory
   and would crash).

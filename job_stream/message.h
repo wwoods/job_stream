@@ -30,7 +30,7 @@ namespace message {
     /** Used as actual vessel of send / receive over the network. */
     struct _Message {
         _Message() {}
-        _Message(Header header, std::string payload) 
+        _Message(Header header, std::string payload)
                 : header(std::move(header)), buffer(std::move(payload)) {}
 
         Header header;
@@ -110,7 +110,7 @@ namespace message {
         /* Timestamp (ms since epoch) queued up to be sent from this location */
         uint64_t tsSent;
 
-        /* Timestamp (ms since epoch) work started from this location (not at 
+        /* Timestamp (ms since epoch) work started from this location (not at
            this location, necessarily) */
         uint64_t tsWorkStart;
 
@@ -142,12 +142,12 @@ namespace message {
     public:
         static const int TAG_ADDRESS_BITS = 16;
 
-        /* Restores a WorkRecord that has been serialized(), filling in 
+        /* Restores a WorkRecord that has been serialized(), filling in
            tsReceived on source */
         WorkRecord(const std::string& serialized);
 
         /** Instantiates a new _WorkRecord with source of localhost. */
-        WorkRecord(const std::vector<std::string>& target, 
+        WorkRecord(const std::vector<std::string>& target,
                 const std::string& work);
         WorkRecord(const std::vector<std::string>& target,
                 void* work);
@@ -159,7 +159,7 @@ namespace message {
 
         int getReduceHomeRank() const { return this->reduceHomeRank; }
         uint64_t getReduceTag() const { return this->reduceTag; }
-        const std::vector<std::string>& getTarget() const { 
+        const std::vector<std::string>& getTarget() const {
                 return this->source.target; }
 
         /** Get work as a printable string; used for output. */
@@ -198,7 +198,7 @@ namespace message {
         Location source;
         std::vector<Location> route;
 
-        /** Rank of client that will receive output from this message.  That 
+        /** Rank of client that will receive output from this message.  That
             client has the original WorkRecord that started the reduction.  All
             results need to end up there.  By default, all output goes to 0. */
         int reduceHomeRank;
@@ -268,16 +268,23 @@ namespace message {
         have no work. */
     class StealRing {
     public:
-        std::vector<bool> needsWork;
+        /** For each rank, the max concurrency, current work quantity, and
+            current machine load. */
+        std::vector<int> capacity, slots, work;
+        std::vector<double> load;
 
         StealRing(const std::string& buffer) {
             serialization::decode(buffer, *this);
         }
 
 
-        StealRing(int worldCount) : needsWork(worldCount) {
+        StealRing(int worldCount) : capacity(worldCount), slots(worldCount),
+                work(worldCount), load(worldCount) {
             for (int i = 0; i < worldCount; i++) {
-                this->needsWork[i] = false;
+                this->capacity[i] = 0;
+                this->slots[i] = 0;
+                this->work[i] = 0;
+                this->load[i] = -1;
             }
         }
 
@@ -290,7 +297,7 @@ namespace message {
         friend class boost::serialization::access;
         template<class Archive>
         void serialize(Archive& ar, const unsigned int version) {
-            ar & this->needsWork;
+            ar & this->capacity & this->slots & this->work & this->load;
         }
     };
 }

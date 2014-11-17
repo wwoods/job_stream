@@ -59,6 +59,7 @@ thread_local std::unique_ptr<uint64_t[]> Processor::localClksByType;
 thread_local std::unique_ptr<uint64_t[]> Processor::localTimesByType;
 
 extern const int JOB_STREAM_DEBUG = 0;
+const int NO_STEALING = 0;
 
 class _Z_impl {
 public:
@@ -92,6 +93,16 @@ private:
 const int DEFAULT_CHECKPOINT_SYNC_WAIT_MS = 10000;
 int Processor::CHECKPOINT_SYNC_WAIT_MS
         = DEFAULT_CHECKPOINT_SYNC_WAIT_MS;
+
+
+/** Returns the current (1 min avg) system load */
+double getCurrentLoad() {
+    double load;
+    int r = getloadavg(&load, 1);
+    ASSERT(r >= 1, "Failed to get load average?");
+    return load;
+}
+
 
 void Processor::addJob(const std::string& typeName,
         std::function<job::JobBase* ()> allocator) {
@@ -434,12 +445,15 @@ void Processor::run(const std::string& inputLine) {
     }
 
     //Start up our workers
-    //TODO TRACK workers.size() FOR ALL IN STEAL RING, AS WELL AS LOAD, CALCULATE
-    //BADNESS (==0 if load < workers size), CALCULATE AVAILABLE WORK, CALCULATE
-    //ACTIVE WORKERS EACH.  START WITH ONE ACTIVE PER PROCESSOR.
     unsigned int compute = std::max(1u, std::thread::hardware_concurrency());
+    //All processors start with 0 workers active, which is changed when the
+    //steal ring passes by
+    this->workersActive = 0;
     for (unsigned int i = 0; i < compute; i++) {
-        this->workers.emplace_back(new WorkerThread(this));
+        this->workers.emplace_back(new WorkerThread(this, i));
+    }
+    if (!this->_stealEnabled || NO_STEALING) {
+        this->workersActive = this->workers.size();
     }
 
     //Begin tallying time spent in system vs user functionality.
@@ -593,6 +607,8 @@ void Processor::_distributeWork(std::unique_ptr<message::WorkRecord> wr) {
     const std::vector<std::string>& target = wr->getTarget();
     if (target.size() > 1 && target[target.size() - 2] == "output") {
         //Reduced output for top-level reducer
+        ASSERT(target.size() == 2, "Top-level reducer output not top level? "
+                << target.size());
         if (target[target.size() - 1] != "reduced") {
             std::ostringstream ss;
             ss << "Unexpected tag after output: " << target[target.size() - 1];
@@ -604,6 +620,10 @@ void Processor::_distributeWork(std::unique_ptr<message::WorkRecord> wr) {
     else if (target.size() > 0 && target[target.size() - 1] == "output") {
         dest = wr->getReduceHomeRank();
         tag = Processor::TAG_REDUCE_WORK;
+    }
+    else if (this->_stealEnabled && !NO_STEALING) {
+        //Stealing does a good job of distributing work
+        dest = rank;
     }
     else {
         if (this->root->wouldReduce(*wr)) {
@@ -704,6 +724,17 @@ void Processor::maybeAllowSteal(const std::string& messageBuffer) {
     //This method requires heavy manipulation of workInQueue, so keep it locked
     Lock lock(this->_mutex);
 
+    int rank = this->getRank();
+    sr.capacity[rank] = this->workers.size();
+    sr.slots[rank] = this->workersActive;
+    sr.work[rank] = this->workerWork.size();
+    sr.load[rank] = getCurrentLoad();
+
+    if (!this->_stealEnabled || NO_STEALING) {
+        this->workersActive = this->workers.size();
+    }
+    else {
+
     //Go through our queue and see if we need work or can donate work.
     std::deque<MpiMessageList::iterator> stealable;
     int unstealableWork = 0;
@@ -712,80 +743,146 @@ void Processor::maybeAllowSteal(const std::string& messageBuffer) {
             iter++) {
         if ((*iter)->tag == Processor::TAG_WORK) {
             stealable.push_back(iter);
+            sr.work[rank]++;
         }
         else if ((*iter)->tag == Processor::TAG_REDUCE_WORK) {
             unstealableWork += 1;
+            sr.work[rank]++;
+        }
+    }
+
+    //Calculate our number of slots based on work in the system
+    int wsize = this->world.size();
+    bool ringActive = true;
+    for (int i = 0; i < wsize; i++) {
+        if (sr.capacity[i] == 0) {
+            ringActive = false;
+            break;
+        }
+    }
+
+    bool ringSlotOnly = false;
+    int totalSlots = 0;
+    int totalWork = 0;
+    std::vector<int> assignedSlots(wsize);
+    //Tracks # of messages possessed - messages expected (based on slots)
+    std::vector<int> workOverflow(wsize);
+    if (ringActive) {
+        //Figure out our ideal number of slots
+        std::vector<double> projectedOverload(wsize);
+        for (int i = 0; i < wsize; i++) {
+            totalWork += sr.work[i];
+            assignedSlots[i] = 0;
+            int slotWork = std::min(sr.slots[i], sr.work[i]);
+            projectedOverload[i] = (sr.load[i] - slotWork) / sr.capacity[i];
+            //Always round up - that is, if we have one processor with a high
+            //capacity and one with low capacity, we want the one with high
+            //capacity to be chosen.  So, bias the projected overload as though
+            //each machine already has more work
+            projectedOverload[i] += 1.0 / sr.capacity[i];
+        }
+
+        //Work always goes to least overloaded
+        //Bias is there to make sure that if the steal ring is taking awhile
+        //(lots of network traffic), stuff still gets processed.  Downside is
+        //that it's not the ideal balance of work.
+        //TODO - bias is OK... but ideally we'd just keep high-size work on
+        //its home reducer node.  That's part of the issue with stealing.  AND
+        //we'd steal away "wouldReduce" work.
+        int bias = 10;
+        for (int i = 0; i < totalWork+bias; i++) {
+            double least = 1e300;
+            int leastRank = -1;
+            for (int k = 0; k < wsize; k++) {
+                if (projectedOverload[k] < least) {
+                    least = projectedOverload[k];
+                    leastRank = k;
+                }
+            }
+
+            projectedOverload[leastRank] += 1.0 / sr.capacity[leastRank];
+            assignedSlots[leastRank]++;
+            totalSlots++;
+        }
+
+        //Calculate needs; totalSlots == totalWork!
+        for (int i = 0; i < wsize; i++) {
+            workOverflow[i] = sr.work[i] - assignedSlots[i];
+        }
+
+        //TODO - should this / above calculation be throttled by capacity?  That
+        //may automatically be handled by the division by capacity above, this
+        //may keep small machines from taking on too much work if we don't
+        //limit machines.
+        if (assignedSlots[rank] != this->workersActive) {
+            if (JOB_STREAM_DEBUG >= 3) {
+                JobLog() << "Upgrading workers from " << this->workersActive
+                        << " to " << assignedSlots[rank] << " (load "
+                        << sr.load[rank] << " / " << sr.capacity[rank] << ")";
+            }
+            this->workersActive = assignedSlots[rank];
+            sr.slots[rank] = this->workersActive;
         }
     }
 
     //Can we donate work?
-    bool iNeedWork = false;
-    if (stealable.size() == 0) {
-        if (unstealableWork == 0) {
-            iNeedWork = true;
-        }
+    if (!ringActive) {
+        //We don't have all initialization information yet, don't start work
+    }
+    else if (stealable.size() == 0) {
+        //We can't donate any work, and our slots are already calculated.
+        //Do nothing more!
     }
     else if (!this->sendRequests.empty()) {
         //We don't want to donate any work if we're already sending some.
     }
-    else {
-        //Does anyone else need work?
-        int wsize = this->world.size();
-        int rank = this->getRank();
-        int needWork = 0;
-        for (int i = rank - 1, m = rank - wsize; i > m; --i) {
-            int r = i;
-            if (r < 0) {
-                r += wsize;
-            }
-            if (sr.needsWork[r]) {
-                needWork += 1;
-            }
+    else if (workOverflow[rank] > 0 && false) {
+        if (JOB_STREAM_DEBUG >= 3) {
+            JobLog() << "Allowing steal, my work " << sr.work[rank] << " > max "
+                    << assignedSlots[rank] << " (total slots " << totalSlots
+                    << ")";
         }
 
-        if (needWork > 0) {
-            //Sort stealable work from least desirable to most desirable
-            //TODO - broken by unique_ptr instead of shared_ptr, bleh.
-            //std::sort(stealable.begin(), stealable.end(), sortWorkBySize);
+        //TODO - Sort stealable so that smaller messages (less transfer
+        //overhead) get sent first
 
-            int stealTop = stealable.size();
-            int stealSlice = stealTop / needWork;
-            if (unstealableWork < stealSlice) {
-                stealSlice = (stealTop + unstealableWork) / (needWork + 1);
-            }
-            int stealBottom = std::max(0, stealTop - stealSlice * needWork);
-            for (int i = rank - 1, m = rank - wsize; i > m; --i) {
-                int r = i;
-                if (r < 0) {
-                    r += wsize;
-                }
-                if (!sr.needsWork[r]) continue;
-
-                //Give work to this rank!
-                sr.needsWork[r] = false;
-
-                message::GroupMessage msgOut;
-                int stealNext = std::min(stealTop, stealBottom + stealSlice);
-                for (int j = stealBottom; j < stealNext; j++) {
-                    const MpiMessage& msg = **stealable[j];
-                    msgOut.add(msg.tag, msg.getSerializedData());
-                    this->workInQueue.erase(stealable[j]);
-                }
-                stealBottom = stealNext;
-
-                this->_nonBlockingSend(
-                        message::Header(Processor::TAG_GROUP, r),
-                        msgOut.serialized());
-
-                if (stealBottom == stealTop) {
-                    break;
+        int stealBottom = 0;
+        while (workOverflow[rank] > 0 && stealBottom < stealable.size()) {
+            int mostNeedy = -1;
+            int mostNeed = 0;
+            for (int i = 0; i < wsize; i++) {
+                if (workOverflow[i] < mostNeed) {
+                    mostNeed = workOverflow[i];
+                    mostNeedy = i;
                 }
             }
+
+            if (mostNeedy < 0) {
+                break;
+            }
+
+            //Give work to mostNeedy!
+            message::GroupMessage msgOut;
+            while (workOverflow[rank] > 0 && workOverflow[mostNeedy] < 0
+                    && stealBottom < stealable.size()) {
+                const MpiMessage& msg = **stealable[stealBottom];
+                msgOut.add(msg.tag, msg.getSerializedData());
+                this->workInQueue.erase(stealable[stealBottom++]);
+                workOverflow[rank]--;
+                workOverflow[mostNeedy]++;
+                sr.work[rank]--;
+                sr.work[mostNeedy]++;
+            }
+
+            this->_nonBlockingSend(
+                    message::Header(Processor::TAG_GROUP, mostNeedy),
+                    msgOut.serialized());
         }
     }
 
+    } //DISABLE_STEAL
+
     //Forward the steal ring!
-    sr.needsWork[this->getRank()] = iNeedWork;
     this->_nonBlockingSend(
             message::Header(Processor::TAG_STEAL, this->_getNextRank()),
             sr.serialized());
@@ -1105,9 +1202,9 @@ void Processor::handleRingTest(MpiMessagePtr message) {
 }
 
 
-bool Processor::processInThread() {
+bool Processor::processInThread(int workerId) {
     //Get work and initialize this->workerWorkThisThread
-    MpiMessagePtr message = this->_getWork();
+    MpiMessagePtr message = this->_getWork(workerId);
     if (!message) {
         return false;
     }
@@ -1374,7 +1471,7 @@ bool Processor::tryReceive() {
         }
         else {
             Lock lock(this->_mutex);
-            this->workInQueue.emplace_front(new MpiMessage(Processor::TAG_STEAL,
+            this->_stealMessage.reset(new MpiMessage(Processor::TAG_STEAL,
                     std::move(stealBuffer)));
         }
     }
@@ -1409,7 +1506,7 @@ int Processor::_getNextWorker() {
 }
 
 
-MpiMessagePtr Processor::_getWork() {
+MpiMessagePtr Processor::_getWork(int workerId) {
     MpiMessagePtr ptr;
     //Note, acquiring our mutex ensures that no checkpoint operation is
     //occurring
@@ -1418,9 +1515,21 @@ MpiMessagePtr Processor::_getWork() {
     ASSERT(this->checkpointState == Processor::CHECKPOINT_NONE, "Checkpoints "
             "should be disallowed within mutex?");
 
-    if (this->workInQueue.empty()) {
+    if (this->_stealMessage) {
+        //Steal message ALWAYS has priority
+        std::swap(ptr, this->_stealMessage);
+    }
+    else if (this->workInQueue.empty()) {
         //No work to do!  Return the empty pointer.
         return ptr;
+    }
+    else if (this->workersActive <= workerId) {
+        auto mtag = this->workInQueue.front()->tag;
+        if (mtag == Processor::TAG_WORK) {
+            //If we're disabled, we can't take on work that could be stolen
+            //by someone else.
+            return ptr;
+        }
     }
 
     //This function is called from the thread that will be doing the work, so
@@ -1431,8 +1540,13 @@ MpiMessagePtr Processor::_getWork() {
     this->workerWorkThisThread = this->workerWork.begin();
     this->workerWorkThisThread->p = this;
 
-    ptr = std::move(this->workInQueue.front());
-    this->workInQueue.pop_front();
+    //If ptr is null at this point, we need to take first work from workInQueue.
+    //Otherwise, it is steal ring.
+    if (!ptr) {
+        ptr = std::move(this->workInQueue.front());
+        this->workInQueue.pop_front();
+    }
+
     this->workerWorkThisThread->work = serialization::encode(ptr);
     //Before letting others get work, we want to ensure that a ring test
     //knows we're in progress.  This is just an optimization (it blocks the

@@ -10,7 +10,7 @@ class Processor;
 class WorkerThread {
 public:
     /** Starts a new WorkerThread that processes work from p. */
-    WorkerThread(Processor* p);
+    WorkerThread(Processor* p, int workerIndex);
 
     /** Joins the thread. */
     void join();
@@ -22,6 +22,7 @@ private:
     bool shouldRun;
     Processor* processor;
     std::thread thread;
+    int workerIndex;
 };
 
 }

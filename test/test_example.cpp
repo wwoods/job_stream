@@ -155,12 +155,12 @@ TEST_CASE("example/job_stream_example/checkpoint.yaml", "[checkpoint]") {
                 stderr = boost::regex_replace(stderr, jobLogHeader, "$1");
                 int p = _countAndFixPending(stderr);
                 if (!sawResult) {
-                    //Our action, steal, and ring 0
-                    REQUIRE(3 == p);
+                    //Our action, and ring 0
+                    REQUIRE(2 == p);
                 }
                 else {
-                    //Ring 0 and steal only
-                    REQUIRE(2 == p);
+                    //Ring 0 only
+                    REQUIRE(1 == p);
                 }
                 std::ostringstream expected;
                 expected << "Using test.chkpt as checkpoint file\n\
@@ -356,8 +356,11 @@ TEST_CASE("example/job_stream_example/exampleRecurCheckpoint.yaml", "[checkpoint
             boost::regex end("(messages\\))(.*)");
             boost::regex pending("\\(([0-9]+) pending messages");
             std::ostringstream args;
+            //Note that stealing is disabled for this test since such rapid
+            //checkpointing makes the work go really, really slow if you only
+            //allow a minimum number of worker threads
             args << "-np " << np << " example/job_stream_example "
-                    "-c test.chkpt --check-sync 100 ../example/exampleRecurCheckpoint.yaml";
+                    "-c test.chkpt --disable-steal --check-sync 100 ../example/exampleRecurCheckpoint.yaml";
             std::remove("test.chkpt");
             std::ostringstream allErr;
             int resultsSeen = 0;
