@@ -71,9 +71,21 @@ void checkpointInfo(const std::string& path, processor::Processor& p) {
         printf("\n-- Work Messages --\n");
         printf("%lu bytes of user data\n", procInfo[j].totalUserBytes);
 
+        printf("\n-- Steal ring? --\n");
+        if (procInfo[j].stealRing) {
+            printf("Capacity, slots, work, load\n");
+            auto& sr = *procInfo[j].stealRing;
+            for (int k = 0; k < wsize; k++) {
+                printf("%8i, %5i, %4i, %4f\n", sr.capacity[k], sr.slots[k],
+                        sr.work[k], sr.load[k]);
+            }
+        }
+        else {
+            printf("no\n");
+        }
+
         printf("\n\n");
     }
-    printf("\n");
 }
 
 

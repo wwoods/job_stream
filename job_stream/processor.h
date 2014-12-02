@@ -259,6 +259,7 @@ struct CheckpointInfo {
     uint64_t totalUserBytes;
     std::map<int, uint64_t> countByTag;
     std::map<int, uint64_t> bytesByTag;
+    std::unique_ptr<message::StealRing> stealRing;
 
     /** Initialize with all zeroes */
     CheckpointInfo() : jobTreeSize(0), messagesWaiting(0), reduceMapSize(0),

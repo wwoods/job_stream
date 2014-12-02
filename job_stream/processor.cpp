@@ -360,6 +360,11 @@ void Processor::populateCheckpointInfo(CheckpointInfo& info,
             }
         }
     }
+
+    if (this->_stealMessage) {
+        info.stealRing.reset(new message::StealRing(
+                this->_stealMessage->getSerializedData()));
+    }
 }
 
 
@@ -836,7 +841,7 @@ void Processor::maybeAllowSteal(const std::string& messageBuffer) {
     else if (!this->sendRequests.empty()) {
         //We don't want to donate any work if we're already sending some.
     }
-    else if (workOverflow[rank] > 0 && false) {
+    else if (workOverflow[rank] > 0) {
         if (JOB_STREAM_DEBUG >= 3) {
             JobLog() << "Allowing steal, my work " << sr.work[rank] << " > max "
                     << assignedSlots[rank] << " (total slots " << totalSlots
