@@ -778,7 +778,9 @@ void Processor::maybeAllowSteal(const std::string& messageBuffer) {
         for (int i = 0; i < wsize; i++) {
             totalWork += sr.work[i];
             assignedSlots[i] = 0;
-            int slotWork = std::min(sr.slots[i], sr.work[i]);
+            //Take load attributable to us out of the equation
+            int slotWork = std::min(sr.capacity[i],
+                    std::min(sr.slots[i], sr.work[i]));
             projectedOverload[i] = (sr.load[i] - slotWork) / sr.capacity[i];
             //Always round up - that is, if we have one processor with a high
             //capacity and one with low capacity, we want the one with high
