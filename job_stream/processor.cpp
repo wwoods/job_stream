@@ -293,7 +293,7 @@ Processor::Processor(std::unique_ptr<mpi::environment> env,
     }
 
     //Turn off checkpointing for all processors by default (re-enabled for
-    //processor 1 in run()).
+    //processor 0 in run()).
     this->checkpointNext = -1;
     this->checkpointInterval = 600 * 1000;
     this->checkpointState = Processor::CHECKPOINT_NONE;
@@ -441,6 +441,18 @@ void Processor::run(const std::string& inputLine) {
         //First processor is responsible for checkpointing
         if (this->checkpointFileName.empty()) {
             this->checkpointInterval = -1;
+        }
+        else if (isatty(fileno(stdin))) {
+            //Checkpoints disabled for interactive mode
+            fprintf(stderr, "Checkpoint flags ignored; launched in interactive "
+                    "mode\n");
+            this->checkpointFileName = "";
+            this->checkpointInterval = -1;
+        }
+        else {
+            //Using checkpoints
+            fprintf(stderr, "Using %s as checkpoint file\n",
+                    this->checkpointFileName.c_str());
         }
         this->checkpointNext =  this->checkpointInterval;
     }
@@ -918,6 +930,13 @@ void Processor::_enqueueInputWork(const std::string& line) {
 
 void Processor::processInputThread_main(const std::string& inputLine) {
     try {
+        //If input is not interactive, block checkpoints until ALL input is
+        //in the system.  Otherwise checkpoints aren't exactly valid (might
+        //resume and "complete" even though only half of input was imported
+        //into system).
+        if (!this->checkpointFileName.empty()) {
+            this->_mutex.lock();
+        }
         if (inputLine.empty()) {
             //Read trimmed lines from stdin, use those as input.
             std::string line;
@@ -935,6 +954,9 @@ void Processor::processInputThread_main(const std::string& inputLine) {
 
         //All input handled if we reach here, start a quit request
         this->sawEof = true;
+        if (!this->checkpointFileName.empty()) {
+            this->_mutex.unlock();
+        }
     }
     catch (const std::exception& e) {
         fprintf(stderr, "Caught exception in inputThread: %s\n", e.what());

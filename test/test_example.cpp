@@ -326,6 +326,8 @@ TEST_CASE("example/job_stream_example/exampleRecurBug.yaml", "[checkpoint]") {
                 REQUIRE(tElapsed <= 20000);
             }
 
+            INFO("All stdout: " << allOut.str());
+            INFO("All stderr: " << allErr.str());
             REQUIRE(resultsSeen == numEmit);
 
             { //Ensure checkpoint file was cleaned up

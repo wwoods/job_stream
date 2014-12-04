@@ -194,11 +194,6 @@ void runProcessor(int argc, char** argv) {
     std::unique_ptr<mpi::environment> env(new mpi::environment(argc, argv));
     mpi::communicator world;
 
-    if (world.rank() == 0 && !checkpoint.empty()) {
-        fprintf(stderr, "Using %s as checkpoint file\n",
-                checkpoint.c_str());
-    }
-
     processor::Processor p(std::move(env), world, config, checkpoint);
     p.setCheckpointInterval(checkpointMs);
     p.setStealEnabled(!stealOff);

@@ -128,7 +128,7 @@ std::tuple<std::string, std::string> run(
             auto status = es.wait();
             if (!status.exited() || status.exit_status() != 0) {
                 std::ostringstream ss;
-                ss << "Bad exit from";
+                ss << "Bad exit on attempt " << trial+1 << " from";
                 for (const std::string& arg : progAndArgs) {
                     ss << " " << arg;
                 }
