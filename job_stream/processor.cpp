@@ -935,6 +935,9 @@ void Processor::processInputThread_main(const std::string& inputLine) {
         //resume and "complete" even though only half of input was imported
         //into system).
         if (!this->checkpointFileName.empty()) {
+            //TODO - This should not lock persay, but rather enqueue any
+            //checkpoint request.  That is, work should continue, but no
+            //checkpoints until all input is spooled.
             this->_mutex.lock();
         }
         if (inputLine.empty()) {
