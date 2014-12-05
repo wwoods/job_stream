@@ -145,6 +145,7 @@ std::tuple<std::string, std::string> run(
             //We only retry if "No child processes" is the error.  This
             //is an OS thing that is transient.
             if (trial == trialm - 1) {
+                JobLog() << "RAISING TRANSIENT AFTER FAILURE NUMBER " << trial+1;
                 throw;
             }
 
