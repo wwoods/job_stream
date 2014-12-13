@@ -11,6 +11,7 @@ Requirements
 boost (mpi, serialization, thread)
 yaml-cpp
 
+
 Building
 --------
 
@@ -58,6 +59,22 @@ execute the application until success:
 If -t is not specified, checkpoints will be taken every 10 minutes.  Sometimes
 checkpointing is a very slow process though; -t 24 will only checkpoint once
 per day, for instance.
+
+
+Running in Python
+-----------------
+
+Like this:
+
+    LD_LIBRARY_PATH=/path/to/boost/libs YAML_CPP=/path/to/yaml-cpp [MPICXX=mpicxx] python setup.py install
+    python
+    >>> import job_stream
+    >>> job_stream.run()
+
+Other notes:
+* Had to change yaml-cpp's CMake to include SHARED keyword to add_library(yaml-cpp SHARED.
+* I sym-linked an awful lot of mpi libraries into yaml-cpp's build dir.  Problem was .0 extension added? (libmpi.so.0
+  instead of libmpi.so)
 
 
 Basics
