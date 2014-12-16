@@ -5,6 +5,8 @@
 #include "processor.h"
 #include "yaml.h"
 
+#include <job_stream/pythonType.h>
+
 #include <boost/lexical_cast.hpp>
 #include <exception>
 
@@ -200,6 +202,12 @@ std::vector<std::string> SharedBase::getTargetForReducer() {
 
 
 std::string SharedBase::parseAndSerialize(const std::string& line) {
+    //NOTE - The reason we try a pre-defined list of types rather than having
+    //the templated job override a virtual parseAndSerialize interface is so
+    //that standard users don't have to define istream methods for their custom
+    //types.  Only the very first job (that gets input work) would need it
+    //defined.  Easy workaround if anyone needs that ability: have a
+    //string->UserType job before the real first job.
     std::string typeName = this->getInputTypeName();
 
     #define TRY_TYPE(T) \
@@ -209,6 +217,7 @@ std::string SharedBase::parseAndSerialize(const std::string& line) {
             }
 
     TRY_TYPE(std::string);
+    TRY_TYPE(job_stream::python::SerializedPython);
     TRY_TYPE(float);
     TRY_TYPE(double);
     TRY_TYPE(uint64_t);

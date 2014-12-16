@@ -1,5 +1,6 @@
 
 #include "message.h"
+#include "pythonType.h"
 #include "serialization.h"
 
 #include <boost/asio.hpp>
@@ -23,7 +24,7 @@ WorkRecord::WorkRecord(const std::string& serialized) {
 }
 
 
-WorkRecord::WorkRecord(const std::vector<std::string>& target, 
+WorkRecord::WorkRecord(const std::vector<std::string>& target,
         const std::string& work) : reduceTag(0), reduceHomeRank(0), work(work) {
     this->source.hostname = boost::asio::ip::host_name();
     this->source.target = target;
@@ -66,6 +67,7 @@ std::string WorkRecord::getWorkAsString() const {
         }
 
     TRY_TYPE(std::string);
+    TRY_TYPE(job_stream::python::SerializedPython);
     TRY_TYPE(uint64_t);
     TRY_TYPE(int64_t);
     TRY_TYPE(unsigned int);

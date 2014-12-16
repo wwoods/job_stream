@@ -301,7 +301,7 @@ public:
         bool isNull = (src == 0);
         if (strcmp(srcTypeName, typeName()) != 0
                 && (strcmp(srcTypeName, baseName()) != 0
-                    || !isNull && dynamic_cast<T*>((B*)src) == 0)) {
+                    || (!isNull && dynamic_cast<T*>((B*)src) == 0))) {
             return false;
         }
 

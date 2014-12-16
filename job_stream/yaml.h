@@ -40,7 +40,7 @@ namespace YAML {
     class LockedNode {
     public:
         LockedNode(const LockedNode& other) : mutex(other.mutex),
-                lock(other.mutex), node(other.node) {}
+                node(other.node), lock(other.mutex) {}
         ~LockedNode() {}
 
         template<typename T> const T as() const { return this->node.as<T>(); }

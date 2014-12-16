@@ -90,6 +90,7 @@ public:
     template<class T>
     AnyUniquePtr& operator=(std::unique_ptr<T> ptr) {
         this->_impl.reset(new AnyPtrImpl<T>(std::move(ptr)));
+        return *this;
     }
 
     template<class T>
@@ -223,8 +224,8 @@ struct ProcessorReduceInfo {
        done on it.  NULL for global ring, of course.*/
     job::ReducerBase* reducer;
 
-    ProcessorReduceInfo() : childTagCount(0), parentTag(0), reducer(0),
-            countCreated(0), countProcessed(0) {}
+    ProcessorReduceInfo() : childTagCount(0), countCreated(0),
+            countProcessed(0), parentTag(0), reducer(0) {}
 
 private:
     friend class boost::serialization::access;
@@ -437,7 +438,7 @@ private:
         int timeType;
 
         _WorkTimerRecord(uint64_t start, uint64_t clock, int type)
-                : tsStart(start), clkStart(clock), timeChild(0), clksChild(0),
+                : tsStart(start), timeChild(0), clkStart(clock), clksChild(0),
                     timeType(type) {}
     };
 
@@ -445,7 +446,7 @@ private:
         waiting on the current work's completion (and the completion of
         checkpoint operations) before being sent. */
     struct _WorkerInfo {
-        _WorkerInfo() : hasReduceTag(false), isLocked(false), p(0),
+        _WorkerInfo() : p(0), isLocked(false), hasReduceTag(false),
                 reduceTag(0) {}
 
         struct RingTestInfo {
