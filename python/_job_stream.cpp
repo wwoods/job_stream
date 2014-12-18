@@ -29,7 +29,8 @@ using job_stream::python::SerializedPython;
 namespace job_stream {
 namespace python {
 
-bp::object repr, encodeObj, decodeStr;
+bp::object encodeObj, decodeStr;
+bp::object object, repr;
 
 } //python
 } //job_stream
@@ -81,20 +82,35 @@ private:
 };
 
 
+/** If an error occurred in python, print its stack trace and information, then
+    raise a C++ exception.  To be used in catch blocks around python code. */
+#define CHECK_PYTHON_ERROR(m) \
+    if (PyErr_Occurred()) { \
+        /* Print stack and move error into sys.last_type, sys.last_value, \
+           sys.last_traceback.  Also clears the error. */ \
+        PyErr_Print(); \
+        ERROR("Python exception caught: " << m); \
+    }
+
+
+/** Must be called with GIL locked */
 SerializedPython pythonToSerialized(const bp::object& o) {
     return SerializedPython(bp::extract<std::string>(
             job_stream::python::encodeObj(o)));
 }
 
 
-/** If an error occurred in python, print its stack trace and information, then
-    raise a C++ exception.  To be used in catch blocks around python code. */
-void printPythonError() {
-    if (PyErr_Occurred()) {
-        //Print stack and move error into sys.last_type, sys.last_value,
-        //sys.last_traceback.  Also clears the error.
-        PyErr_Print();
-        throw std::runtime_error("Python exception caught; stacktrace printed");
+/** Must be called with GIL locked */
+bp::object serializedToPython(const SerializedPython& sp) {
+    try {
+        return job_stream::python::decodeStr(sp.data);
+    }
+    catch (...) {
+        if (PyErr_Occurred()) {
+            PyErr_Print();
+            throw std::runtime_error("Error deserializing");
+        }
+        throw;
     }
 }
 
@@ -125,6 +141,10 @@ std::ostream& operator<<(std::ostream& os,
 } //job_stream
 
 class PyJob;
+class PyReducer;
+
+/*********************************************************************/
+//Job
 
 
 /** Since our jobs are technically allocated from Python, but job_stream expects
@@ -141,8 +161,8 @@ public:
     PyJobShell(PyJob* job) : _job(job) {}
     virtual ~PyJobShell();
 
-    void postSetup();
-    void handleWork(std::unique_ptr<SerializedPython> work);
+    void postSetup() override;
+    void handleWork(std::unique_ptr<SerializedPython> work) override;
 
 private:
     PyJob* _job;
@@ -173,12 +193,12 @@ public:
         //Entry point to python!  Reacquire the GIL to deserialize and run our
         //code
         _PyGilAcquire gilLock;
-        bp::object workObj = job_stream::python::decodeStr(work->data);
         try {
+            bp::object workObj = job_stream::python::decodeStr(work->data);
             this->pyHandleWork(workObj);
         }
         catch (...) {
-            printPythonError();
+            CHECK_PYTHON_ERROR("PyJob::handleWork()");
             throw;
         }
     }
@@ -190,7 +210,7 @@ public:
             this->pyPostSetup();
         }
         catch (...) {
-            printPythonError();
+            CHECK_PYTHON_ERROR("PyJob::postSetup()");
             throw;
         }
     }
@@ -271,24 +291,327 @@ void PyJobShell::handleWork(std::unique_ptr<SerializedPython> work) {
 }
 
 
-void registerEncoding(bp::object repr, bp::object encode, bp::object decode) {
-    job_stream::python::repr = repr;
+/*********************************************************************/
+//Reducer
+
+
+/** Since our reducers are technically allocated from Python, but job_stream expects
+    jobs to belong to it (and subsequently frees them), we use a shell around
+    the python reducer for interacting with job_stream.
+    */
+class PyReducerShell : public job_stream::Reducer<PyReducerShell,
+        SerializedPython, SerializedPython> {
+public:
+    //TODO - Remove _AutoRegister for this case, so we don't need NAME() or
+    //pyHandleWork != 0 in base class.
+    static const char* NAME() { return "_pyReducerBase"; }
+
+    PyReducerShell() : _reducer(0) {}
+    PyReducerShell(PyReducer* reducer) : _reducer(reducer) {}
+    virtual ~PyReducerShell();
+
+    void postSetup() override;
+    void handleInit(SerializedPython& current) override;
+    void handleAdd(SerializedPython& current,
+            std::unique_ptr<SerializedPython> work) override;
+    void handleJoin(SerializedPython& current,
+            std::unique_ptr<SerializedPython> other) override;
+    void handleDone(SerializedPython& current) override;
+
+private:
+    PyReducer* _reducer;
+};
+
+
+class PyReducer {
+public:
+    PyReducer() {}
+    virtual ~PyReducer() {}
+
+
+    void pyEmit(bp::object o) {
+        SerializedPython obj = pythonToSerialized(o);
+
+        //Let other threads do stuff while we're emitting
+        _PyGilRelease gilLock;
+        this->_shell->emit(obj);
+    }
+
+
+    void pyRecur(bp::object o) {
+        this->pyRecur(o, "");
+    }
+
+
+    void pyRecur(bp::object o, const std::string& target) {
+        SerializedPython obj = pythonToSerialized(o);
+
+        //Let other threads do stuff while we're recurring
+        _PyGilRelease gilLock;
+        this->_shell->recur(obj, target);
+    }
+
+
+    void handleAdd(SerializedPython& current,
+            std::unique_ptr<SerializedPython> work) {
+        //Entry point to python!  Reacquire the GIL to deserialize and run our
+        //code
+        _PyGilAcquire gilLock;
+        try {
+            bp::object stash = serializedToPython(current.data);
+            bp::object workObj = serializedToPython(work->data);
+            this->pyHandleAdd(stash, workObj);
+            current = pythonToSerialized(stash);
+        }
+        catch (...) {
+            CHECK_PYTHON_ERROR("PyReducer::handleAdd");
+            throw;
+        }
+    }
+
+
+    void handleDone(SerializedPython& current) {
+        //Entry point to python!  Reacquire the GIL to deserialize and run our
+        //code
+        _PyGilAcquire gilLock;
+        try {
+            bp::object stash = serializedToPython(current.data);
+            this->pyHandleDone(stash);
+            current = pythonToSerialized(stash);
+        }
+        catch (...) {
+            CHECK_PYTHON_ERROR("PyReducer::handleDone");
+            throw;
+        }
+    }
+
+
+    void handleInit(SerializedPython& current) {
+        //Entry point to python!  Reacquire the GIL to deserialize and run our
+        //code
+        _PyGilAcquire gilLock;
+        try {
+            //Current is uninitialized; make it a python object()
+            bp::object stash = job_stream::python::object();
+            this->pyHandleInit(stash);
+            current = pythonToSerialized(stash);
+        }
+        catch (...) {
+            CHECK_PYTHON_ERROR("PyReducer::handleInit");
+            throw;
+        }
+    }
+
+
+    void handleJoin(SerializedPython& current,
+            std::unique_ptr<SerializedPython> other) {
+        //Entry point to python!  Reacquire the GIL to deserialize and run our
+        //code
+        _PyGilAcquire gilLock;
+        try {
+            bp::object stash = serializedToPython(current.data);
+            bp::object otter = serializedToPython(other->data);
+            this->pyHandleJoin(stash, otter);
+            current = pythonToSerialized(stash);
+        }
+        catch (...) {
+            CHECK_PYTHON_ERROR("PyReducer::handleJoin");
+            throw;
+        }
+    }
+
+
+    void postSetup() {
+        _PyGilAcquire gilLock;
+        try {
+            this->pyPostSetup();
+        }
+        catch (...) {
+            CHECK_PYTHON_ERROR("PyReducer::postSetup");
+            throw;
+        }
+    }
+
+
+    virtual void pyHandleAdd(bp::object stash, bp::object work) {
+        throw std::runtime_error("Python handleAdd() not implemented");
+    }
+
+
+    virtual void pyHandleDone(bp::object stash) {
+        throw std::runtime_error("Python handleDone() not implemented");
+    }
+
+
+    virtual void pyHandleInit(bp::object stash) {
+        throw std::runtime_error("Python handleInit() not implemented");
+    }
+
+
+    virtual void pyHandleJoin(bp::object stash, bp::object other) {
+        throw std::runtime_error("Python handleJoin() not implemented");
+    }
+
+
+    virtual void pyPostSetup() {
+        throw std::runtime_error("Python postSetup() not implemented");
+    }
+
+
+    void setPythonObject(bp::object o) {
+        this->_pythonObject = o;
+    }
+
+
+    void setShell(PyReducerShell* shell) {
+        this->_shell = shell;
+    }
+
+
+    void releaseShell() {
+        this->_shell = 0;
+        _PyGilAcquire runningPyCode;
+        //We no longer need to exist, so let the python GC clean up
+        this->_pythonObject = bp::object();
+    }
+
+private:
+    //Prevent our derivative class from being cleaned up.
+    bp::object _pythonObject;
+    PyReducerShell* _shell;
+};
+
+
+class PyReducerExt : public PyReducer {
+public:
+    PyReducerExt(PyObject* p) : self(p) {}
+    PyReducerExt(PyObject* p, const PyReducer& j) : PyReducer(j), self(p) {}
+    virtual ~PyReducerExt() {}
+
+    void pyHandleAdd(bp::object stash, bp::object work) override {
+        bp::call_method<void>(this->self, "handleAdd", stash, work);
+    }
+
+    static void default_pyHandleAdd(PyReducer& self_, bp::object stash,
+            bp::object work) {
+        self_.PyReducer::pyHandleAdd(stash, work);
+    }
+
+    void pyHandleDone(bp::object stash) override {
+        bp::call_method<void>(this->self, "handleDone", stash);
+    }
+
+    static void default_pyHandleDone(PyReducer& self_, bp::object stash) {
+        self_.PyReducer::pyHandleDone(stash);
+    }
+
+    void pyHandleInit(bp::object stash) override {
+        bp::call_method<void>(this->self, "handleInit", stash);
+    }
+
+    static void default_pyHandleInit(PyReducer& self_, bp::object stash) {
+        self_.PyReducer::pyHandleInit(stash);
+    }
+
+    void pyHandleJoin(bp::object stash, bp::object other) override {
+        bp::call_method<void>(this->self, "handleJoin", stash, other);
+    }
+
+    static void default_pyHandleJoin(PyReducer& self_, bp::object stash,
+            bp::object other) {
+        self_.PyReducer::pyHandleJoin(stash, other);
+    }
+
+    void pyPostSetup() override {
+        bp::call_method<void>(this->self, "postSetup");
+    }
+
+    static void default_pyPostSetup(PyReducer& self_) {
+        self_.PyReducer::pyPostSetup();
+    }
+
+private:
+    PyObject* self;
+};
+
+
+PyReducerShell::~PyReducerShell() {
+    if (this->_reducer) {
+        this->_reducer->releaseShell();
+        this->_reducer = 0;
+    }
+}
+void PyReducerShell::postSetup() {
+    this->_reducer->postSetup();
+}
+void PyReducerShell::handleInit(SerializedPython& current) {
+    this->_reducer->handleInit(current);
+}
+void PyReducerShell::handleAdd(SerializedPython& current,
+        std::unique_ptr<SerializedPython> work) {
+    this->_reducer->handleAdd(current, std::move(work));
+}
+void PyReducerShell::handleJoin(SerializedPython& current,
+        std::unique_ptr<SerializedPython> other) {
+    this->_reducer->handleJoin(current, std::move(other));
+}
+void PyReducerShell::handleDone(SerializedPython& current) {
+    this->_reducer->handleDone(current);
+}
+
+
+/*********************************************************************/
+
+
+void registerEncoding(bp::object object, bp::object encode, bp::object decode) {
+    job_stream::python::object = object;
     job_stream::python::encodeObj = encode;
     job_stream::python::decodeStr = decode;
+
+    bp::handle<> builtinH(PyEval_GetBuiltins());
+    bp::object builtins(builtinH);
+    job_stream::python::repr = builtins["repr"];
 }
 
 
 void registerJob(std::string name, bp::object cls) {
     job_stream::job::addJob(name,
-            [cls]() -> PyJobShell* {
+            [cls, name]() -> PyJobShell* {
                 _PyGilAcquire allocateInPython;
-                bp::object holder = cls();
-                //Remember, this pointer belongs to python!
-                PyJob* r = bp::extract<PyJob*>(holder);
-                r->setPythonObject(holder);
-                PyJobShell* p = new PyJobShell(r);
-                r->setShell(p);
-                return p;
+                try {
+                    bp::object holder = cls();
+                    //Remember, this pointer belongs to python!
+                    PyJob* r = bp::extract<PyJob*>(holder);
+                    r->setPythonObject(holder);
+                    PyJobShell* p = new PyJobShell(r);
+                    r->setShell(p);
+                    return p;
+                }
+                catch (...) {
+                    CHECK_PYTHON_ERROR("Job allocation: " << name);
+                    throw;
+                }
+            });
+}
+
+
+void registerReducer(std::string name, bp::object cls) {
+    job_stream::job::addReducer(name,
+            [cls, name]() -> PyReducerShell* {
+                _PyGilAcquire allocateInPython;
+                try {
+                    bp::object holder = cls();
+                    //Pointer belongs to python!
+                    PyReducer* r = bp::extract<PyReducer*>(holder);
+                    r->setPythonObject(holder);
+                    PyReducerShell* p = new PyReducerShell(r);
+                    r->setShell(p);
+                    return p;
+                }
+                catch (...) {
+                    CHECK_PYTHON_ERROR("Reducer allocation: " << name);
+                    throw;
+                }
             });
 }
 
@@ -323,15 +646,35 @@ BOOST_PYTHON_MODULE(_job_stream) {
     bp::def("registerEncoding", registerEncoding, "Registers the encoding and "
             "decoding functions used by C code.");
     bp::def("registerJob", registerJob, "Registers a job");
+    bp::def("registerReducer", registerReducer, "Registers a reducer");
     bp::def("runProcessor", runProcessor, "Run the given blah blah");
 
-    void (PyJob::*emit1)(bp::object) = &PyJob::pyEmit;
-    void (PyJob::*emit2)(bp::object, const std::string&) = &PyJob::pyEmit;
-    bp::class_<PyJob, PyJobExt>("Job", "A basic job")
-            .def(bp::init<>())
-            .def("emit", emit1, "Emit to only target")
-            .def("emit", emit2, "Emit to specific target out of list")
-            .def("handleWork", PyJobExt::default_pyHandleWork)
-            .def("postSetup", PyJobExt::default_pyPostSetup)
-            ;
+    { //PyJob
+        void (PyJob::*emit1)(bp::object) = &PyJob::pyEmit;
+        void (PyJob::*emit2)(bp::object, const std::string&) = &PyJob::pyEmit;
+        bp::class_<PyJob, PyJobExt>("Job", "A basic job")
+                .def(bp::init<>())
+                .def("emit", emit1, "Emit to only target")
+                .def("emit", emit2, "Emit to specific target out of list")
+                .def("handleWork", PyJobExt::default_pyHandleWork)
+                .def("postSetup", PyJobExt::default_pyPostSetup)
+                ;
+    }
+
+    { //PyReducer
+        void (PyReducer::*emit1)(bp::object) = &PyReducer::pyEmit;
+        void (PyReducer::*recur1)(bp::object) = &PyReducer::pyRecur;
+        void (PyReducer::*recur2)(bp::object, const std::string&) = &PyReducer::pyRecur;
+        bp::class_<PyReducer, PyReducerExt>("Reducer", "A basic reducer")
+                .def(bp::init<>())
+                .def("emit", emit1, "Emit to only target (outside of reducer)")
+                .def("recur", recur1, "Recur to only target")
+                .def("recur", recur2, "Recur to specific target")
+                .def("handleAdd", PyReducerExt::default_pyHandleAdd)
+                .def("handleDone", PyReducerExt::default_pyHandleDone)
+                .def("handleInit", PyReducerExt::default_pyHandleInit)
+                .def("handleJoin", PyReducerExt::default_pyHandleJoin)
+                .def("postSetup", PyReducerExt::default_pyPostSetup)
+                ;
+    }
 }

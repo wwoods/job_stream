@@ -11,6 +11,17 @@ struct SerializedPython {
 
     SerializedPython() {}
     SerializedPython(std::string src) : data(std::move(src)) {}
+    SerializedPython(SerializedPython&& other) : data(std::move(other.data)) {}
+
+    SerializedPython& operator=(const SerializedPython& rhs) {
+        this->data = rhs.data;
+        return *this;
+    }
+
+    SerializedPython& operator=(SerializedPython&& rhs) {
+        this->data = std::move(rhs.data);
+        return *this;
+    }
 
     /** Implemented in _job_stream.cpp.  Takes a string and turns it into a
         python pickled string. */

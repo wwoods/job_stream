@@ -29,10 +29,14 @@ def _encode(o):
     return pickle.dumps(o)
 
 
+class Object(object):
+    """A generic object with no attributes of its own."""
+
+
 # Initialize the encode and decode values first so that they can be used in
 # debug code (if left uninitialized, any attempt to pickle something from within
 # C++ code will crash with NoneType cannot be called)
-_j.registerEncoding(repr, _encode, _decode)
+_j.registerEncoding(Object, _encode, _decode)
 
 
 class _Work(list):
@@ -72,6 +76,56 @@ class Job(_j.Job):
     def handleWork(self, work):
         """Handle incoming work, maybe call self.emit() to generate more work
         for jobs further down the pipe."""
+        raise NotImplementedError()
+
+
+
+class Reducer(_j.Reducer):
+    """Base class for a Reducer (starts with...
+    TODO
+    """
+    class __metaclass__(type(_j.Reducer)):
+        def __init__(cls, name, bases, attrs):
+            type(_j.Reducer).__init__(cls, name, bases, attrs)
+
+            # Derived hierarchical name, use that in config
+            fullname = cls.__module__
+            if fullname == '__main__':
+                fullname = name
+            else:
+                fullname += '.' + name
+
+            # Metaclasses are called for their first rendition as well, so...
+            if fullname == 'job_stream.Reducer':
+                return
+
+            _j.registerReducer(fullname, cls)
+
+
+    def postSetup(self):
+        """Called when self.config is set and the Job is fully ready for work,
+        but before any work is accepted."""
+        pass
+
+
+    def handleInit(self, store):
+        """Called when a reduction is started.  Store is a python object that
+        should be modified to remember information between invocations."""
+
+
+    def handleAdd(self, store, work):
+        """Called when new work arrives at the reducer."""
+        raise NotImplementedError()
+
+
+    def handleJoin(self, store, other):
+        """Called to merge two stores from the same reducer."""
+        raise NotImplementedError()
+
+
+    def handleDone(self, store):
+        """Called when the reduction is finished.  The reduction will be marked
+        as unfinished if a recur() happens."""
         raise NotImplementedError()
 
 
