@@ -114,12 +114,12 @@ class Reducer(_j.Reducer):
 
 
     def handleAdd(self, store, work):
-        """Called when new work arrives at the reducer."""
+        """Called when new work arrives at the Reducer."""
         raise NotImplementedError()
 
 
     def handleJoin(self, store, other):
-        """Called to merge two stores from the same reducer."""
+        """Called to merge two stores from the same Reducer."""
         raise NotImplementedError()
 
 
@@ -127,6 +127,49 @@ class Reducer(_j.Reducer):
         """Called when the reduction is finished.  The reduction will be marked
         as unfinished if a recur() happens."""
         raise NotImplementedError()
+
+
+
+class Frame(_j.Frame):
+    """Base class for a Frame
+    TODO
+    """
+    class __metaclass__(type(_j.Frame)):
+        def __init__(cls, name, bases, attrs):
+            # Derived hierarchical name, use that in config
+            fullname = cls.__module__
+            if fullname == '__main__':
+                fullname = name
+            else:
+                fullname += '.' + name
+
+            # Metaclasses are called for their first rendition as well, so...
+            if fullname == 'job_stream.Frame':
+                return
+
+            _j.registerFrame(fullname, cls)
+
+
+    def handleFirst(self, store, work):
+        """Called for the first work, which starts a reduction.  Store is an
+        empty Object() to which this method may assign attributes."""
+        raise NotImplementedError()
+
+
+    def handleNext(self, store, work):
+        """Called when finished work arrives at the Frame."""
+        raise NotImplementedError()
+
+
+    def handleDone(self, store):
+        """Called when the reduction is finished.  The reduction will be marked
+        as unfinished if a recur() happens."""
+        raise NotImplementedError()
+
+
+    def postSetup(self):
+        """Called when self.config is set and the Frame is fully ready for work,
+        but before any work is accepted."""
 
 
 

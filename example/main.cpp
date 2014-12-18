@@ -47,7 +47,7 @@ public:
         this->recur(current.trials++);
     }
 
-    void handleWork(PiCalculatorState& current, unique_ptr<float> work) {
+    void handleNext(PiCalculatorState& current, unique_ptr<float> work) {
         current.piSum += *work;
     }
 
@@ -197,7 +197,7 @@ public:
         }
     }
 
-    void handleWork(std::vector<int>& current, unique_ptr<int> work) {
+    void handleNext(std::vector<int>& current, unique_ptr<int> work) {
         current.push_back(*work);
     }
 

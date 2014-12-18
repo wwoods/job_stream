@@ -1257,52 +1257,67 @@ bool Processor::processInThread(int workerId) {
     uint64_t workReduceTag = 0;
 
     int tag = message->tag;
-    if (tag == Processor::TAG_WORK || tag == Processor::TAG_REDUCE_WORK) {
-        auto& wr = *message->getTypedData<message::WorkRecord>();
-        wr.markStarted();
+    std::exception_ptr error;
+    //Catch-all to make sure cleanup happens even if we have an error
+    try {
+        if (tag == Processor::TAG_WORK || tag == Processor::TAG_REDUCE_WORK) {
+            auto& wr = *message->getTypedData<message::WorkRecord>();
+            wr.markStarted();
 
-        wasWork = true;
-        workReduceTag = wr.getReduceTag();
+            wasWork = true;
+            workReduceTag = wr.getReduceTag();
 
-        try {
-            this->root->dispatchWork(wr);
-        }
-        catch (const std::exception& e) {
-            JobLog log;
-            log << "While processing work with target: ";
-            const std::vector<std::string>& target = wr.getTarget();
-            for (int i = 0, m = target.size(); i < m; i++) {
-                if (i != 0) {
-                    log << "::";
-                }
-                log << target[i];
+            try {
+                this->root->dispatchWork(wr);
             }
-            throw;
+            catch (const std::exception& e) {
+                JobLog log;
+                log << "While processing work with target: ";
+                const std::vector<std::string>& target = wr.getTarget();
+                for (int i = 0, m = target.size(); i < m; i++) {
+                    if (i != 0) {
+                        log << "::";
+                    }
+                    log << target[i];
+                }
+                throw;
+            }
+        }
+        else if (tag == Processor::TAG_DEAD_RING_IS_DEAD) {
+            this->handleDeadRing(std::move(message));
+        }
+        else if (tag == Processor::TAG_DEAD_RING_TEST) {
+            this->handleRingTest(std::move(message));
+        }
+        else if (tag == Processor::TAG_STEAL) {
+            //This must be handled in the main thread; send it to ourselves.  It
+            //was probably laid over to a work thread so that a checkpoint could
+            //go through.
+            this->workerWorkThisThread->outboundMessages.emplace_back(
+                    new message::_Message(
+                        message::Header(tag, this->getRank()),
+                            message->getSerializedData()));
+        }
+        else {
+            ERROR("Unrecognized tag: " << tag);
         }
     }
-    else if (tag == Processor::TAG_DEAD_RING_IS_DEAD) {
-        this->handleDeadRing(std::move(message));
-    }
-    else if (tag == Processor::TAG_DEAD_RING_TEST) {
-        this->handleRingTest(std::move(message));
-    }
-    else if (tag == Processor::TAG_STEAL) {
-        //This must be handled in the main thread; send it to ourselves.  It
-        //was probably laid over to a work thread so that a checkpoint could
-        //go through.
-        this->workerWorkThisThread->outboundMessages.emplace_back(
-                new message::_Message(
-                    message::Header(tag, this->getRank()),
-                        message->getSerializedData()));
-    }
-    else {
-        ERROR("Unrecognized tag: " << tag);
+    catch (...) {
+        error = std::current_exception();
+        //We set shouldRun to false here to accomplish the following:
+        //1. Abort other threads as soon as possible
+        //2. Since our cleanup takes our lock, we guarantee that no
+        //   checkpoints will occur between cleanup and the rethrowing
+        //   of an error.
+        this->shouldRun = false;
     }
 
     {
         //Cleanup work, start rings, commit to send.  By acquiring the lock
         //we ensure that no checkpoint is happening (and as a bonus, wait for
         //any pending checkpoint to finish).
+        //Note - We _MUST_ do this step even if an error occurred!  Otherwise,
+        //reduction locks that were acquired will not be released.
         Lock lock(this->_mutex);
         for (auto& m : this->workerWorkThisThread->outboundRings) {
             this->_startRingTest(m.reduceTag, m.parentTag, m.reducer);
@@ -1332,6 +1347,10 @@ bool Processor::processInThread(int workerId) {
 
         this->workerWork.erase(this->workerWorkThisThread);
         this->workerWorkThisThread = Processor::_WorkerInfoList::iterator();
+    }
+
+    if (error) {
+        std::rethrow_exception(error);
     }
 
     return true;

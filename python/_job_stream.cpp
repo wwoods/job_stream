@@ -89,7 +89,7 @@ private:
         /* Print stack and move error into sys.last_type, sys.last_value, \
            sys.last_traceback.  Also clears the error. */ \
         PyErr_Print(); \
-        ERROR("Python exception caught: " << m); \
+        ERROR("Python exception caught, stack trace printed: " << m); \
     }
 
 
@@ -140,6 +140,7 @@ std::ostream& operator<<(std::ostream& os,
 } //python
 } //job_stream
 
+class PyFrame;
 class PyJob;
 class PyReducer;
 
@@ -561,6 +562,241 @@ void PyReducerShell::handleDone(SerializedPython& current) {
 
 
 /*********************************************************************/
+//Frame
+
+
+/** Since our frames are technically allocated from Python, but job_stream expects
+    jobs to belong to it (and subsequently frees them), we use a shell around
+    the python reducer for interacting with job_stream.
+    */
+class PyFrameShell : public job_stream::Frame<PyFrameShell,
+        SerializedPython, SerializedPython> {
+public:
+    //TODO - Remove _AutoRegister for this case, so we don't need NAME() or
+    //pyHandleWork != 0 in base class.
+    static const char* NAME() { return "_pyFrameBase"; }
+
+    PyFrameShell() : _frame(0) {}
+    PyFrameShell(PyFrame* frame) : _frame(frame) {}
+    virtual ~PyFrameShell();
+
+    void postSetup() override;
+    void handleDone(SerializedPython& current) override;
+    void handleFirst(SerializedPython& current,
+            std::unique_ptr<SerializedPython> work) override;
+    void handleNext(SerializedPython& current,
+            std::unique_ptr<SerializedPython> work) override;
+
+private:
+    PyFrame* _frame;
+};
+
+
+class PyFrame {
+public:
+    PyFrame() {}
+    virtual ~PyFrame() {}
+
+
+    void pyEmit(bp::object o) {
+        SerializedPython obj = pythonToSerialized(o);
+
+        //Let other threads do stuff while we're emitting
+        _PyGilRelease gilLock;
+        this->_shell->emit(obj);
+    }
+
+
+    void pyRecur(bp::object o) {
+        this->pyRecur(o, "");
+    }
+
+
+    void pyRecur(bp::object o, const std::string& target) {
+        SerializedPython obj = pythonToSerialized(o);
+
+        //Let other threads do stuff while we're recurring
+        _PyGilRelease gilLock;
+        this->_shell->recur(obj, target);
+    }
+
+
+    void handleDone(SerializedPython& current) {
+        //Entry point to python!  Reacquire the GIL to deserialize and run our
+        //code
+        _PyGilAcquire gilLock;
+        try {
+            bp::object stash = serializedToPython(current.data);
+            this->pyHandleDone(stash);
+            current = pythonToSerialized(stash);
+        }
+        catch (...) {
+            CHECK_PYTHON_ERROR("PyFrame::handleDone");
+            throw;
+        }
+    }
+
+
+    void handleFirst(SerializedPython& current,
+            std::unique_ptr<SerializedPython> work) {
+        //Entry point to python!  Reacquire the GIL to deserialize and run our
+        //code
+        _PyGilAcquire gilLock;
+        try {
+            bp::object stash = job_stream::python::object();
+            bp::object workObj = serializedToPython(work->data);
+            this->pyHandleFirst(stash, workObj);
+            current = pythonToSerialized(stash);
+        }
+        catch (...) {
+            CHECK_PYTHON_ERROR("PyFrame::handleFirst");
+            throw;
+        }
+    }
+
+
+    void handleNext(SerializedPython& current,
+            std::unique_ptr<SerializedPython> work) {
+        //Entry point to python!  Reacquire the GIL to deserialize and run our
+        //code
+        _PyGilAcquire gilLock;
+        try {
+            bp::object stash = serializedToPython(current.data);
+            bp::object workObj = serializedToPython(work->data);
+            this->pyHandleNext(stash, workObj);
+            current = pythonToSerialized(stash);
+        }
+        catch (...) {
+            CHECK_PYTHON_ERROR("PyFrame::handleNext");
+            throw;
+        }
+    }
+
+
+    void postSetup() {
+        _PyGilAcquire gilLock;
+        try {
+            this->pyPostSetup();
+        }
+        catch (...) {
+            CHECK_PYTHON_ERROR("PyFrame::postSetup");
+            throw;
+        }
+    }
+
+
+    virtual void pyHandleDone(bp::object stash) {
+        throw std::runtime_error("Python handleDone() not implemented");
+    }
+
+
+    virtual void pyHandleFirst(bp::object stash, bp::object work) {
+        throw std::runtime_error("Python handleFirst() not implemented");
+    }
+
+
+    virtual void pyHandleNext(bp::object stash, bp::object work) {
+        throw std::runtime_error("Python handleNext() not implemented");
+    }
+
+
+    virtual void pyPostSetup() {
+        throw std::runtime_error("Python postSetup() not implemented");
+    }
+
+
+    void setPythonObject(bp::object o) {
+        this->_pythonObject = o;
+    }
+
+
+    void setShell(PyFrameShell* shell) {
+        this->_shell = shell;
+    }
+
+
+    void releaseShell() {
+        this->_shell = 0;
+        _PyGilAcquire runningPyCode;
+        //We no longer need to exist, so let the python GC clean up
+        this->_pythonObject = bp::object();
+    }
+
+private:
+    //Prevent our derivative class from being cleaned up.
+    bp::object _pythonObject;
+    PyFrameShell* _shell;
+};
+
+
+class PyFrameExt : public PyFrame {
+public:
+    PyFrameExt(PyObject* p) : self(p) {}
+    PyFrameExt(PyObject* p, const PyFrame& j) : PyFrame(j), self(p) {}
+    virtual ~PyFrameExt() {}
+
+    void pyHandleDone(bp::object stash) override {
+        bp::call_method<void>(this->self, "handleDone", stash);
+    }
+
+    static void default_pyHandleDone(PyFrame& self_, bp::object stash) {
+        self_.PyFrame::pyHandleDone(stash);
+    }
+
+    void pyHandleFirst(bp::object stash, bp::object work) override {
+        bp::call_method<void>(this->self, "handleFirst", stash, work);
+    }
+
+    static void default_pyHandleFirst(PyFrame& self_, bp::object stash,
+            bp::object work) {
+        self_.PyFrame::pyHandleFirst(stash, work);
+    }
+
+    void pyHandleNext(bp::object stash, bp::object work) override {
+        bp::call_method<void>(this->self, "handleNext", stash, work);
+    }
+
+    static void default_pyHandleNext(PyFrame& self_, bp::object stash,
+            bp::object work) {
+        self_.PyFrame::pyHandleNext(stash, work);
+    }
+
+    void pyPostSetup() override {
+        bp::call_method<void>(this->self, "postSetup");
+    }
+
+    static void default_pyPostSetup(PyFrame& self_) {
+        self_.PyFrame::pyPostSetup();
+    }
+
+private:
+    PyObject* self;
+};
+
+
+PyFrameShell::~PyFrameShell() {
+    if (this->_frame) {
+        this->_frame->releaseShell();
+        this->_frame = 0;
+    }
+}
+void PyFrameShell::postSetup() {
+    this->_frame->postSetup();
+}
+void PyFrameShell::handleDone(SerializedPython& current) {
+    this->_frame->handleDone(current);
+}
+void PyFrameShell::handleFirst(SerializedPython& current,
+        std::unique_ptr<SerializedPython> work) {
+    this->_frame->handleFirst(current, std::move(work));
+}
+void PyFrameShell::handleNext(SerializedPython& current,
+        std::unique_ptr<SerializedPython> work) {
+    this->_frame->handleNext(current, std::move(work));
+}
+
+
+/*********************************************************************/
 
 
 void registerEncoding(bp::object object, bp::object encode, bp::object decode) {
@@ -571,6 +807,27 @@ void registerEncoding(bp::object object, bp::object encode, bp::object decode) {
     bp::handle<> builtinH(PyEval_GetBuiltins());
     bp::object builtins(builtinH);
     job_stream::python::repr = builtins["repr"];
+}
+
+
+void registerFrame(std::string name, bp::object cls) {
+    job_stream::job::addReducer(name,
+            [cls, name]() -> PyFrameShell* {
+                _PyGilAcquire allocateInPython;
+                try {
+                    bp::object holder = cls();
+                    //Pointer belongs to python!
+                    PyFrame* r = bp::extract<PyFrame*>(holder);
+                    r->setPythonObject(holder);
+                    PyFrameShell* p = new PyFrameShell(r);
+                    r->setShell(p);
+                    return p;
+                }
+                catch (...) {
+                    CHECK_PYTHON_ERROR("Frame allocation: " << name);
+                    throw;
+                }
+            });
 }
 
 
@@ -645,6 +902,7 @@ BOOST_PYTHON_MODULE(_job_stream) {
 
     bp::def("registerEncoding", registerEncoding, "Registers the encoding and "
             "decoding functions used by C code.");
+    bp::def("registerFrame", registerFrame, "Registers a frame");
     bp::def("registerJob", registerJob, "Registers a job");
     bp::def("registerReducer", registerReducer, "Registers a reducer");
     bp::def("runProcessor", runProcessor, "Run the given blah blah");
@@ -675,6 +933,22 @@ BOOST_PYTHON_MODULE(_job_stream) {
                 .def("handleInit", PyReducerExt::default_pyHandleInit)
                 .def("handleJoin", PyReducerExt::default_pyHandleJoin)
                 .def("postSetup", PyReducerExt::default_pyPostSetup)
+                ;
+    }
+
+    { //PyFrame
+        void (PyFrame::*emit1)(bp::object) = &PyFrame::pyEmit;
+        void (PyFrame::*recur1)(bp::object) = &PyFrame::pyRecur;
+        void (PyFrame::*recur2)(bp::object, const std::string&) = &PyFrame::pyRecur;
+        bp::class_<PyFrame, PyFrameExt>("Frame", "A basic frame")
+                .def(bp::init<>())
+                .def("emit", emit1, "Emit to only target (outside of frame)")
+                .def("recur", recur1, "Recur to only target")
+                .def("recur", recur2, "Recur to specific target")
+                .def("handleDone", PyFrameExt::default_pyHandleDone)
+                .def("handleFirst", PyFrameExt::default_pyHandleFirst)
+                .def("handleNext", PyFrameExt::default_pyHandleNext)
+                .def("postSetup", PyFrameExt::default_pyPostSetup)
                 ;
     }
 }

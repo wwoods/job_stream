@@ -1,4 +1,7 @@
-build/
-doc/html
-include/
-lib/
+*.pyc
+
+/build/
+/doc/html
+/example/build/
+/include/
+/lib/

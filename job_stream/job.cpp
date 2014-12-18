@@ -3,9 +3,8 @@
 #include "message.h"
 #include "module.h"
 #include "processor.h"
+#include "pythonType.h"
 #include "yaml.h"
-
-#include <job_stream/pythonType.h>
 
 #include <boost/lexical_cast.hpp>
 #include <exception>

@@ -564,7 +564,7 @@ namespace job_stream {
         virtual void handleFirst(T_accum& current,
                 std::unique_ptr<T_first> first) = 0;
         /** Handles any subsequent work in this Reduce loop (from recur) */
-        virtual void handleWork(T_accum& current,
+        virtual void handleNext(T_accum& current,
                 std::unique_ptr<T_work> work) = 0;
 
         /** The AnyType resolution of handleAdd */
@@ -574,7 +574,7 @@ namespace job_stream {
                 this->handleFirst(current, std::move(work->as<T_first>()));
             }
             else {
-                this->handleWork(current, std::move(work->as<T_work>()));
+                this->handleNext(current, std::move(work->as<T_work>()));
             }
         }
 

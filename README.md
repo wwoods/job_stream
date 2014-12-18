@@ -590,6 +590,8 @@ early on.  So handleDone() gets called with 20, 62, and finally 188.
 
 Recent Changelog
 ----------------
+* 2014-12-18 - Python support.  Frame methods renamed for clarity
+  (handleWork -> handleNext).
 * 2014-12-04 - Checkpoints no longer are allowed for interactive mode.  All
   input must be spooled into the system before a checkpoint will be allowed.
 * 2014-11-14 - Fixed job_stream checkpoints to be continuous.  That is, a

@@ -2,6 +2,10 @@
     objects. */
 #pragma once
 
+#include <boost/serialization/serialization.hpp>
+
+#include <iostream>
+
 namespace job_stream {
 namespace python {
 

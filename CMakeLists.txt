@@ -72,6 +72,7 @@ add_library(job_stream
         job_stream/message.cpp
         job_stream/module.cpp
         job_stream/processor.cpp
+        job_stream/pythonType_noPython.cpp
         job_stream/serialization.cpp
         job_stream/types.cpp
         job_stream/workerThread.cpp
@@ -122,7 +123,15 @@ add_custom_target(test DEPENDS test_job_stream)
 add_custom_command(TARGET test
         POST_BUILD COMMAND test_job_stream "\${ARGS}")
 
-# Since
+# Since some tests may intermittently fail, test-long just re-runs the tests
+# forever, until something fails.
 add_custom_target(test-long DEPENDS test_job_stream)
 add_custom_command(TARGET test-long
         POST_BUILD COMMAND /bin/sh -c 'echo \"Starting tests\" && while [ $$? -eq 0 ]\; do ./test_job_stream "\${ARGS}"\; done')
+
+# Test the python module
+add_custom_target(test-python)
+add_custom_command(TARGET test-python
+        POST_BUILD COMMAND /bin/sh -c 'cd .. && /usr/bin/python setup.py install --user')
+add_custom_command(TARGET test-python
+        POST_BUILD COMMAND /bin/sh -c 'cd ../python && nosetests')
