@@ -622,7 +622,17 @@ namespace job_stream {
     typename Frame<T_derived, T_accum, T_first, T_work>::_AutoRegister
     Frame<T_derived, T_accum, T_first, T_work>::_autoRegister;
 
+    /** Add work to the initialWork queue, which overrides stdin or the
+        argc, argv combination. */
+    template<typename T>
+    void queueInitialWork(T&& work) {
+        processor::initialWork.emplace_back(serialization::encodeAsPtr(work));
+    }
 
+
+    /** Run the processor, processing either the input line specified in
+        (argc, argv) excepting flags, the job_stream::processor::initialWork
+        queue (populated through job_stream::queueInitialWork), or stdin. */
     void runProcessor(int argc, char** argv);
 }
 

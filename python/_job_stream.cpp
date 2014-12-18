@@ -30,7 +30,6 @@ namespace job_stream {
 namespace python {
 
 bp::object repr, encodeObj, decodeStr;
-PyThreadState* gilThread = 0;
 
 } //python
 } //job_stream
@@ -57,14 +56,13 @@ private:
 class _PyGilAcquire {
 public:
     _PyGilAcquire() {
-        ASSERT(job_stream::python::gilThread != 0, "GIL not unlocked?");
-        PyEval_RestoreThread(job_stream::python::gilThread);
-        job_stream::python::gilThread = 0;
+        this->gilState = PyGILState_Ensure();
     }
     ~_PyGilAcquire() {
-        ASSERT(job_stream::python::gilThread == 0, "GIL wasn't locked?");
-        job_stream::python::gilThread = PyEval_SaveThread();
+        PyGILState_Release(this->gilState);
     }
+private:
+    PyGILState_STATE gilState;
 };
 
 
@@ -73,20 +71,31 @@ public:
 class _PyGilRelease {
 public:
     _PyGilRelease() {
-        ASSERT(job_stream::python::gilThread == 0, "GIL wasn't locked?");
-        job_stream::python::gilThread = PyEval_SaveThread();
+        this->_save = PyEval_SaveThread();
     }
     ~_PyGilRelease() {
-        ASSERT(job_stream::python::gilThread != 0, "GIL not unlocked?");
-        PyEval_RestoreThread(job_stream::python::gilThread);
-        job_stream::python::gilThread = 0;
+        PyEval_RestoreThread(this->_save);
     }
+private:
+    PyThreadState* _save;
 };
 
 
 SerializedPython pythonToSerialized(const bp::object& o) {
     return SerializedPython(bp::extract<std::string>(
             job_stream::python::encodeObj(o)));
+}
+
+
+/** If an error occurred in python, print its stack trace and information, then
+    raise a C++ exception.  To be used in catch blocks around python code. */
+void printPythonError() {
+    if (PyErr_Occurred()) {
+        //Print stack and move error into sys.last_type, sys.last_value,
+        //sys.last_traceback.  Also clears the error.
+        PyErr_Print();
+        throw std::runtime_error("Python exception caught; stacktrace printed");
+    }
 }
 
 
@@ -115,27 +124,52 @@ std::ostream& operator<<(std::ostream& os,
 } //python
 } //job_stream
 
+class PyJob;
 
-class Job : public job_stream::Job<Job, SerializedPython> {
+
+/** Since our jobs are technically allocated from Python, but job_stream expects
+    jobs to belong to it (and subsequently frees them), we use a shell around
+    the python job for interacting with job_stream.
+    */
+class PyJobShell : public job_stream::Job<PyJobShell, SerializedPython> {
 public:
     //TODO - Remove _AutoRegister for this case, so we don't need NAME() or
     //pyHandleWork != 0 in base class.
     static const char* NAME() { return "_pyJobBase"; }
 
+    PyJobShell() : _job(0) {}
+    PyJobShell(PyJob* job) : _job(job) {}
+    virtual ~PyJobShell();
+
+    void postSetup();
+    void handleWork(std::unique_ptr<SerializedPython> work);
+
+private:
+    PyJob* _job;
+};
+
+
+class PyJob {
+public:
+    PyJob() {}
+    virtual ~PyJob() {}
+
+
     void pyEmit(bp::object o) {
         this->pyEmit(o, "");
     }
+
 
     void pyEmit(bp::object o, const std::string& target) {
         SerializedPython obj = pythonToSerialized(o);
 
         //Let other threads do stuff while we're emitting
         _PyGilRelease gilLock;
-        this->emit(obj, target);
+        this->_shell->emit(obj, target);
     }
 
-    void handleWork(std::unique_ptr<SerializedPython> work)
-            override {
+
+    void handleWork(std::unique_ptr<SerializedPython> work) {
         //Entry point to python!  Reacquire the GIL to deserialize and run our
         //code
         _PyGilAcquire gilLock;
@@ -143,60 +177,98 @@ public:
         try {
             this->pyHandleWork(workObj);
         }
-        catch (bp::error_already_set&) {
-            PyObject* pType, *pValue, *pTraceback;
-            PyErr_Fetch(&pType, &pValue, &pTraceback);
-            bp::handle<> hType(pType);
-            bp::object exType(hType);
-            bp::handle<> hTraceback(pTraceback);
-            bp::object traceback(hTraceback);
-
-            std::string strError = bp::extract<std::string>(pValue);
-            long lineno = bp::extract<long>(traceback.attr("tb_lineno"));
-            std::string filename = bp::extract<std::string>(
-                    traceback.attr("tb_frame").attr("f_code")
-                    .attr("co_filename"));
-            std::string funcname = bp::extract<std::string>(
-                    traceback.attr("tb_frame").attr("f_code")
-                    .attr("co_name"));
-            printf("Got error: %s:%s:%u %s\n", filename.c_str(),
-                    funcname.c_str(), lineno, strError.c_str());
+        catch (...) {
+            printPythonError();
             throw;
         }
     }
 
-    virtual void pyHandleWork(bp::object work) {
-        throw new std::runtime_error("Unimplemented handleWork");
+
+    void postSetup() {
+        _PyGilAcquire gilLock;
+        try {
+            this->pyPostSetup();
+        }
+        catch (...) {
+            printPythonError();
+            throw;
+        }
     }
+
+
+    virtual void pyHandleWork(bp::object work) {
+        throw std::runtime_error("Python handleWork() not implemented");
+    }
+
+
+    virtual void pyPostSetup() {
+        throw std::runtime_error("Python postSetup() not implemented");
+    }
+
 
     void setPythonObject(bp::object o) {
         this->_pythonObject = o;
     }
 
+
+    void setShell(PyJobShell* shell) {
+        this->_shell = shell;
+    }
+
+
+    void releaseShell() {
+        this->_shell = 0;
+        _PyGilAcquire runningPyCode;
+        //We no longer need to exist, so let the python GC clean up
+        this->_pythonObject = bp::object();
+    }
+
 private:
     //Prevent our derivative class from being cleaned up.
     bp::object _pythonObject;
+    PyJobShell* _shell;
 };
 
 
-class JobExt : public Job {
+class PyJobExt : public PyJob {
 public:
-    JobExt(PyObject* p) : self(p) {}
-    JobExt(PyObject* p, const Job& j) : Job(j), self(p) {}
-    virtual ~JobExt() {}
+    PyJobExt(PyObject* p) : self(p) {}
+    PyJobExt(PyObject* p, const PyJob& j) : PyJob(j), self(p) {}
+    virtual ~PyJobExt() {}
 
     void pyHandleWork(bp::object work) override {
         bp::call_method<void>(this->self, "handleWork", work);
     }
 
-    static void default_pyHandleWork(Job& self_, bp::object work) {
-        printf("Uh... pyHandleWork?\n");
-        self_.Job::pyHandleWork(work);
+    static void default_pyHandleWork(PyJob& self_, bp::object work) {
+        self_.PyJob::pyHandleWork(work);
+    }
+
+    void pyPostSetup() override {
+        bp::call_method<void>(this->self, "postSetup");
+    }
+
+    static void default_pyPostSetup(PyJob& self_) {
+        self_.PyJob::pyPostSetup();
     }
 
 private:
     PyObject* self;
 };
+
+
+PyJobShell::~PyJobShell() {
+    if (this->_job) {
+        this->_job->releaseShell();
+        this->_job = 0;
+    }
+}
+void PyJobShell::postSetup() {
+    this->_job->postSetup();
+}
+void PyJobShell::handleWork(std::unique_ptr<SerializedPython> work) {
+    this->_job->handleWork(std::move(work));
+}
 
 
 void registerEncoding(bp::object repr, bp::object encode, bp::object decode) {
@@ -208,24 +280,39 @@ void registerEncoding(bp::object repr, bp::object encode, bp::object decode) {
 
 void registerJob(std::string name, bp::object cls) {
     job_stream::job::addJob(name,
-            [cls]() -> Job* {
+            [cls]() -> PyJobShell* {
                 _PyGilAcquire allocateInPython;
                 bp::object holder = cls();
-                Job* r = bp::extract<Job*>(holder);
+                //Remember, this pointer belongs to python!
+                PyJob* r = bp::extract<PyJob*>(holder);
                 r->setPythonObject(holder);
-                return r;
+                PyJobShell* p = new PyJobShell(r);
+                r->setShell(p);
+                return p;
             });
 }
 
 
-void runProcessor(const std::string& yamlPath) {
+void runProcessor(const std::string& yamlPath, bp::object workList) {
     std::vector<const char*> args;
     args.push_back("job_stream_python");
     args.push_back(yamlPath.c_str());
 
+    for (int i = 0, m = bp::len(workList); i < m; i++) {
+        job_stream::queueInitialWork(SerializedPython(bp::extract<std::string>(
+                job_stream::python::encodeObj(boost::python::object(
+                    workList[i])))));
+    }
+
+    job_stream::processor::externalControlCode = []() -> void {
+    };
+
+    PyEval_InitThreads();
     _DlOpener holdItOpenGlobally("libmpi.so");
-    _PyGilRelease releaser;
-    job_stream::runProcessor(args.size(), const_cast<char**>(args.data()));
+    {
+        _PyGilRelease releaser;
+        job_stream::runProcessor(args.size(), const_cast<char**>(args.data()));
+    }
 }
 
 
@@ -238,12 +325,13 @@ BOOST_PYTHON_MODULE(_job_stream) {
     bp::def("registerJob", registerJob, "Registers a job");
     bp::def("runProcessor", runProcessor, "Run the given blah blah");
 
-    void (Job::*emit1)(bp::object) = &Job::pyEmit;
-    void (Job::*emit2)(bp::object, const std::string&) = &Job::pyEmit;
-    bp::class_<Job, JobExt>("Job", "A basic job")
+    void (PyJob::*emit1)(bp::object) = &PyJob::pyEmit;
+    void (PyJob::*emit2)(bp::object, const std::string&) = &PyJob::pyEmit;
+    bp::class_<PyJob, PyJobExt>("Job", "A basic job")
             .def(bp::init<>())
             .def("emit", emit1, "Emit to only target")
             .def("emit", emit2, "Emit to specific target out of list")
-            .def("handleWork", JobExt::default_pyHandleWork)
+            .def("handleWork", PyJobExt::default_pyHandleWork)
+            .def("postSetup", PyJobExt::default_pyPostSetup)
             ;
 }

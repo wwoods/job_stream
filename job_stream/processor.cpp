@@ -61,38 +61,13 @@ thread_local std::unique_ptr<uint64_t[]> Processor::localTimesByType;
 extern const int JOB_STREAM_DEBUG = 0;
 const int NO_STEALING = 0;
 
-class _Z_impl {
-public:
-    _Z_impl(std::string s) {
-        if (s.size() > 40) {
-            s = s.substr(s.size() - 40);
-        }
-        this->s = std::move(s);
-        printf("%i %s BEGIN\n", getpid(), this->s.c_str());
-    }
-    _Z_impl(int line) { printf("%i   %i CONTINUE\n", getpid(), line); }
-    ~_Z_impl() { if (!this->s.empty()) printf("%i %s END\n", getpid(),
-            this->s.c_str()); }
-
-    std::string s;
-
-private:
-    static std::vector<_Z_impl> list;
-};
-#if 0
-#define ZZ _Z_impl(std::string(__FILE__) + std::string(":") \
-        + boost::lexical_cast<std::string>(__LINE__) + std::string(":") \
-        + std::string(__FUNCTION__));
-#define ZZZ _Z_impl(__LINE__);
-#else
-#define ZZ
-#define ZZZ
-#endif
 
 /** STATICS **/
 const int DEFAULT_CHECKPOINT_SYNC_WAIT_MS = 10000;
 int Processor::CHECKPOINT_SYNC_WAIT_MS
         = DEFAULT_CHECKPOINT_SYNC_WAIT_MS;
+std::vector<std::string> initialWork;
+std::function<void ()> externalControlCode;
 
 
 /** Returns the current (1 min avg) system load */
@@ -477,35 +452,54 @@ void Processor::run(const std::string& inputLine) {
     std::unique_ptr<WorkTimer> outerTimer(new WorkTimer(this,
             Processor::TIME_IDLE));
 
-    int dest, tag;
-    std::unique_ptr<message::WorkRecord> work;
-    uint64_t tsLastLoop = message::Location::getCurrentTimeMs();
-    while (this->shouldRun) {
-        uint64_t tsThisLoop = message::Location::getCurrentTimeMs();
+    try {
+        int dest, tag;
+        std::unique_ptr<message::WorkRecord> work;
+        uint64_t tsLastLoop = message::Location::getCurrentTimeMs();
+        while (this->shouldRun) {
+            uint64_t tsThisLoop = message::Location::getCurrentTimeMs();
 
-        //Update communications
-        this->_checkMpi();
+            //Arbitrary external code?
+            if (job_stream::processor::externalControlCode) {
+                job_stream::processor::externalControlCode();
+            }
 
-        if (!this->sentEndRing0) {
-            //Eof found and we haven't sent ring!  Send it
-            if (this->sawEof) {
-                this->_startRingTest(0, 0, 0);
-                this->sentEndRing0 = true;
+            //Update communications
+            this->_checkMpi();
+
+            if (!this->sentEndRing0) {
+                //Eof found and we haven't sent ring!  Send it
+                if (this->sawEof) {
+                    this->_startRingTest(0, 0, 0);
+                    this->sentEndRing0 = true;
+                }
+            }
+
+            //Distribute any outbound work
+            while (this->workOutQueue.pop(work)) {
+                this->_distributeWork(std::move(work));
+            }
+
+            //Check on checkpointing
+            this->_updateCheckpoints(tsThisLoop - tsLastLoop);
+
+            tsLastLoop = tsThisLoop;
+
+            //Wait a bit
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+
+            //Check for errors; we don't re-raise until the end of this function
+            if (this->workerErrors.size() != 0) {
+                this->shouldRun = false;
             }
         }
-
-        //Distribute any outbound work
-        while (this->workOutQueue.pop(work)) {
-            this->_distributeWork(std::move(work));
-        }
-
-        //Check on checkpointing
-        this->_updateCheckpoints(tsThisLoop - tsLastLoop);
-
-        tsLastLoop = tsThisLoop;
-
-        //Wait a bit
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    catch (...) {
+        //If an exception happens in the main thread, then we will catch it and
+        //join our threads before re-raising.  Otherwise, for whatever reason,
+        //e.g. the python interpreter does not properly exit.
+        this->joinThreads();
+        throw;
     }
 
     //Stop timer, report on user vs not
@@ -591,6 +585,11 @@ void Processor::run(const std::string& inputLine) {
                 "quality %.2f cpus, ran %.3fs\n",
                 totalTime / 10, totalCpuTime / 10000,
                 (double)totalCpu / timesTotal, timesTotal * 0.001);
+    }
+
+    //Did we stop because of an error?  Rethrow it!
+    if (this->workerErrors.size() != 0) {
+        std::rethrow_exception(this->workerErrors[0]);
     }
 }
 
@@ -940,7 +939,21 @@ void Processor::processInputThread_main(const std::string& inputLine) {
             //checkpoints until all input is spooled.
             this->_mutex.lock();
         }
-        if (inputLine.empty()) {
+
+        if (!inputLine.empty()) {
+            //Use string of inputLine as initial work
+            this->_enqueueInputWork(inputLine);
+        }
+        else if (initialWork.size() != 0) {
+            //Initial work was set; send that
+            for (int i = 0, m = initialWork.size(); i < m; i++) {
+                std::vector<std::string> inputDest;
+                this->_addWork(std::unique_ptr<message::WorkRecord>(
+                        new message::WorkRecord(inputDest,
+                            std::move(initialWork[i]))));
+            }
+        }
+        else {
             //Read trimmed lines from stdin, use those as input.
             std::string line;
             while (!std::cin.eof()) {
@@ -950,9 +963,6 @@ void Processor::processInputThread_main(const std::string& inputLine) {
                     this->_enqueueInputWork(line);
                 }
             }
-        }
-        else {
-            this->_enqueueInputWork(inputLine);
         }
 
         //All input handled if we reach here, start a quit request

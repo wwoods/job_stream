@@ -22,10 +22,15 @@ void WorkerThread::main() {
     this->processor->localTimersInit();
     std::unique_ptr<Processor::WorkTimer> outerTimer(new Processor::WorkTimer(
             this->processor, Processor::TIME_IDLE));
-    while (this->shouldRun) {
-        if (!this->processor->processInThread(this->workerIndex)) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    try {
+        while (this->shouldRun) {
+            if (!this->processor->processInThread(this->workerIndex)) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            }
         }
+    }
+    catch (...) {
+        this->processor->workerErrors.emplace_back(std::current_exception());
     }
     outerTimer.reset();
     this->processor->localTimersMerge();

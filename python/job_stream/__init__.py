@@ -1,3 +1,18 @@
+"""job_stream's python module implementation.  Example usage:
+
+class AddOne(job_stream.Job):
+    def handleWork(self, work):
+        self.emit(work + 1)
+
+job_stream.work.append(8)
+job_stream.work.append(9)
+job_stream.run({
+    'jobs': [
+        { 'type': AddOne }
+    ]
+})
+# 9 and 10 will have been printed.
+"""
 
 import _job_stream as _j
 
@@ -18,6 +33,12 @@ def _encode(o):
 # debug code (if left uninitialized, any attempt to pickle something from within
 # C++ code will crash with NoneType cannot be called)
 _j.registerEncoding(repr, _encode, _decode)
+
+
+class _Work(list):
+    """List of initial work sent into job_stream.
+    If left empty, work comes from stdin."""
+work = _Work()
 
 
 class Job(_j.Job):
@@ -42,7 +63,15 @@ class Job(_j.Job):
             _j.registerJob(fullname, cls)
 
 
+    def postSetup(self):
+        """Called when self.config is set and the Job is fully ready for work,
+        but before any work is accepted."""
+        pass
+
+
     def handleWork(self, work):
+        """Handle incoming work, maybe call self.emit() to generate more work
+        for jobs further down the pipe."""
         raise NotImplementedError()
 
 
@@ -50,4 +79,4 @@ class Job(_j.Job):
 def run(yamlPath):
     """Runs the given YAML file."""
     cpuCount = multiprocessing.cpu_count()
-    _j.runProcessor(yamlPath)
+    _j.runProcessor(yamlPath, work)

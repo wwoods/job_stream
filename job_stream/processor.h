@@ -36,6 +36,14 @@ namespace processor {
   3 = overly verbose */
 extern const int JOB_STREAM_DEBUG;
 
+/** A queue of serialized initial work.  If populated (non-zero size), then this
+    is used in lieu of either an initial input line or stdin. */
+extern std::vector<std::string> initialWork;
+
+/** An external callback that gets called once per loop in the main thread.
+    Useful for e.g. python. */
+extern std::function<void ()> externalControlCode;
+
 /** Generic thread-safe queue class with unique_ptrs. */
 template<typename T>
 class ThreadSafeQueue {
@@ -562,6 +570,8 @@ private:
     bool shouldRun;
     /* True if and only if this processor was restored from a checkpoint. */
     bool wasRestored;
+    /** Exceptions from worker threads. */
+    std::vector<std::exception_ptr> workerErrors;
     /** Allocated threads doing work. */
     std::vector<std::unique_ptr<WorkerThread>> workers;
     //Any work waiting to be done on this Processor.
