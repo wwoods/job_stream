@@ -67,7 +67,6 @@ const int DEFAULT_CHECKPOINT_SYNC_WAIT_MS = 10000;
 int Processor::CHECKPOINT_SYNC_WAIT_MS
         = DEFAULT_CHECKPOINT_SYNC_WAIT_MS;
 std::vector<std::string> initialWork;
-std::function<void ()> externalControlCode;
 
 
 /** Returns the current (1 min avg) system load */
@@ -458,11 +457,6 @@ void Processor::run(const std::string& inputLine) {
         uint64_t tsLastLoop = message::Location::getCurrentTimeMs();
         while (this->shouldRun) {
             uint64_t tsThisLoop = message::Location::getCurrentTimeMs();
-
-            //Arbitrary external code?
-            if (job_stream::processor::externalControlCode) {
-                job_stream::processor::externalControlCode();
-            }
 
             //Update communications
             this->_checkMpi();

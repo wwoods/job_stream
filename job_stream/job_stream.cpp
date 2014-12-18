@@ -205,4 +205,24 @@ void runProcessor(int argc, char** argv) {
     std::remove(checkpoint.c_str());
 }
 
+
+void runProcessor(const SystemArguments& args) {
+    //Fire up MPI and launch
+    std::unique_ptr<mpi::environment> env(new mpi::environment());
+    mpi::communicator world;
+
+    processor::Processor p(std::move(env), world, args.config,
+            args.checkpointFile);
+    p.setCheckpointInterval(args.checkpointIntervalMs);
+    if (args.checkpointSyncIntervalMs >= 0) {
+        processor::Processor::CHECKPOINT_SYNC_WAIT_MS
+                = args.checkpointSyncIntervalMs;
+    }
+    p.setStealEnabled(!args.disableSteal);
+    p.run(args.inputLine);
+
+    //If we get here, there were no errors, so we should delete the checkpoint
+    std::remove(args.checkpointFile.c_str());
+}
+
 } //job_stream

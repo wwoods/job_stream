@@ -622,6 +622,32 @@ namespace job_stream {
     typename Frame<T_derived, T_accum, T_first, T_work>::_AutoRegister
     Frame<T_derived, T_accum, T_first, T_work>::_autoRegister;
 
+    /** A structure used to launch the system with non-argc, argv arguments.
+        */
+    struct SystemArguments {
+        /** The YAML text that is used as the config file */
+        std::string config;
+        /** The file to use for checkpointing, if any */
+        std::string checkpointFile;
+        /** The interval between the completion of one checkpoint and the
+            beginning of another, in milliseconds. */
+        int checkpointIntervalMs;
+        /** The time between all nodes being ready for a checkpoint and the
+            checkpoint actually starting.  Used to account for e.g. different
+            times on different machines for send and receive (send finishes, so
+            gets cleared, but then receive starts afterward). */
+        int checkpointSyncIntervalMs;
+        /** Useful mostly for debugging, disables the steal ring */
+        bool disableSteal;
+        /** The initial input string, if any.  Leave empty for stdin or work
+            enqueued via queueInitialWork() */
+        std::string inputLine;
+
+        SystemArguments() : checkpointIntervalMs(600 * 1000),
+                checkpointSyncIntervalMs(-1), disableSteal(false) {}
+    };
+
+
     /** Add work to the initialWork queue, which overrides stdin or the
         argc, argv combination. */
     template<typename T>
@@ -634,6 +660,7 @@ namespace job_stream {
         (argc, argv) excepting flags, the job_stream::processor::initialWork
         queue (populated through job_stream::queueInitialWork), or stdin. */
     void runProcessor(int argc, char** argv);
+    void runProcessor(const SystemArguments& args);
 }
 
 #endif//JOB_STREAM_H_

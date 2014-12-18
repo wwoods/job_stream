@@ -172,8 +172,63 @@ class Frame(_j.Frame):
         but before any work is accepted."""
 
 
+def _convertDictToYaml(c):
+    levels = [ { 'type': dict, 'vals': c.iteritems() } ]
+    result = []
+    def cueLine():
+        result.append("  " * (len(levels) - 1))
+    while levels:
+        try:
+            val = levels[-1]['vals'].next()
+        except StopIteration:
+            levels.pop()
+            continue
 
-def run(yamlPath):
-    """Runs the given YAML file."""
+        cueLine()
+        if levels[-1]['type'] == dict:
+            key, dval = val
+            result.append(key)
+            result.append(": ")
+            val = dval
+        elif levels[-1]['type'] == list:
+            result.append("- ")
+
+        # Now, the value part
+        if isinstance(val, dict):
+            levels.append({ 'type': dict, 'vals': val.iteritems() })
+        elif isinstance(val, list):
+            levels.append({ 'type': list, 'vals': iter(val) })
+        elif isinstance(val, (int, float, basestring)):
+            result.append(str(val))
+        elif issubclass(val, (Frame, Job, Reducer)):
+            result.append(val.__name__)
+        else:
+            raise ValueError("Unrecognized YAML object: {}: {}".format(key,
+                    val))
+
+        result.append("\n")
+
+    result = ''.join(result)
+    return result
+
+
+def run(configDictOrPath, **kwargs):
+    """Runs the given YAML file or config dictionary.
+
+    Acceptable kwargs:
+        checkpointFile - (string) The file to use for checkpoint / restore
+        checkpointInterval - (float) The time between the completion of one
+                checkpoint and the starting of the next, in seconds.
+        checkpointSyncInterval - (float) The time between all processors
+                thinking they're ready to checkpoint and the actual checkpoint.
+    """
+    if isinstance(configDictOrPath, basestring):
+        # Path to file
+        config = open(configDictOrPath).read()
+    elif isinstance(configDictOrPath, dict):
+        config = _convertDictToYaml(configDictOrPath)
+    else:
+        raise ValueError("configDictOrPath was not dict or filename!")
+
     cpuCount = multiprocessing.cpu_count()
-    _j.runProcessor(yamlPath, work)
+    _j.runProcessor(config, work, **kwargs)

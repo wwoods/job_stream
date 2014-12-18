@@ -134,4 +134,4 @@ add_custom_target(test-python)
 add_custom_command(TARGET test-python
         POST_BUILD COMMAND /bin/sh -c 'cd .. && /usr/bin/python setup.py install --user')
 add_custom_command(TARGET test-python
-        POST_BUILD COMMAND /bin/sh -c 'cd ../python && nosetests')
+        POST_BUILD COMMAND /bin/sh -c 'cd ../python && nosetests "\${ARGS}"')

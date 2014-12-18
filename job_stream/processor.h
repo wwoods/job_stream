@@ -40,10 +40,6 @@ extern const int JOB_STREAM_DEBUG;
     is used in lieu of either an initial input line or stdin. */
 extern std::vector<std::string> initialWork;
 
-/** An external callback that gets called once per loop in the main thread.
-    Useful for e.g. python. */
-extern std::function<void ()> externalControlCode;
-
 /** Generic thread-safe queue class with unique_ptrs. */
 template<typename T>
 class ThreadSafeQueue {
@@ -556,7 +552,6 @@ private:
     /* The current number of assigned tags for reductions */
     uint64_t reduceTagCount;
     std::map<uint64_t, ProcessorReduceInfo> reduceInfoMap;
-    /* We have to keep track of how many
     /* The root module defined by the main config file */
     std::unique_ptr<job::JobBase> root;
     /* Set when eof is reached on stdin (or input line), or if our index is not

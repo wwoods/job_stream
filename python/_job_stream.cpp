@@ -21,6 +21,7 @@ LD_LIBRARY_PATH=/u/wwoods/dev/boost_1_55_0/stage/lib/:~/dev/yaml-cpp-0.5.1/build
 #include <job_stream/pythonType.h>
 
 #include <boost/python.hpp>
+#include <boost/python/raw_function.hpp>
 #include <dlfcn.h>
 
 namespace bp = boost::python;
@@ -873,26 +874,48 @@ void registerReducer(std::string name, bp::object cls) {
 }
 
 
-void runProcessor(const std::string& yamlPath, bp::object workList) {
-    std::vector<const char*> args;
-    args.push_back("job_stream_python");
-    args.push_back(yamlPath.c_str());
+bp::object runProcessor(bp::tuple args, bp::dict kwargs) {
+    ASSERT(bp::len(args) == 2, "runProcessor() takes exactly 2 non-keyword "
+            "arguments");
 
+    job_stream::SystemArguments sa;
+    sa.config = bp::extract<std::string>(args[0]);
+
+    bp::object workList = bp::object(args[1]);
     for (int i = 0, m = bp::len(workList); i < m; i++) {
         job_stream::queueInitialWork(SerializedPython(bp::extract<std::string>(
-                job_stream::python::encodeObj(boost::python::object(
-                    workList[i])))));
+                job_stream::python::encodeObj(bp::object(workList[i])))));
     }
 
-    job_stream::processor::externalControlCode = []() -> void {
-    };
+    //Enumerate kwargs
+    bp::list keys = kwargs.keys();
+    for (int i = 0, m = bp::len(keys); i < m; i++) {
+        std::string key = bp::extract<std::string>(keys[i]);
+        bp::object val = kwargs[key];
+
+        if (key == "checkpointFile") {
+            sa.checkpointFile = bp::extract<std::string>(val);
+        }
+        else if (key == "checkpointInterval") {
+            sa.checkpointIntervalMs = (int)(bp::extract<double>(val) * 1000);
+        }
+        else if (key == "checkpointSyncInterval") {
+            sa.checkpointSyncIntervalMs = (int)(bp::extract<double>(val)
+                    * 1000);
+        }
+        else {
+            ERROR("Unrecognized kwarg to runProcessor: " << key);
+        }
+    }
 
     PyEval_InitThreads();
     _DlOpener holdItOpenGlobally("libmpi.so");
     {
         _PyGilRelease releaser;
-        job_stream::runProcessor(args.size(), const_cast<char**>(args.data()));
+        job_stream::runProcessor(sa);
     }
+
+    return bp::object();
 }
 
 
@@ -905,7 +928,8 @@ BOOST_PYTHON_MODULE(_job_stream) {
     bp::def("registerFrame", registerFrame, "Registers a frame");
     bp::def("registerJob", registerJob, "Registers a job");
     bp::def("registerReducer", registerReducer, "Registers a reducer");
-    bp::def("runProcessor", runProcessor, "Run the given blah blah");
+    //Does not accept docstring!!!
+    bp::def("runProcessor", bp::raw_function(runProcessor));
 
     { //PyJob
         void (PyJob::*emit1)(bp::object) = &PyJob::pyEmit;

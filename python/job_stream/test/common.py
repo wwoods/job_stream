@@ -19,11 +19,13 @@ class JobStreamTest(unittest.TestCase):
     def execute(self, args):
         if not isinstance(args, list):
             args = [ args ]
-        p = subprocess.Popen([ sys.executable ] + args,
-                stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+        #nargs = [ '/usr/bin/mpirun', '-np', '4', sys.executable ] + args
+        nargs = [ sys.executable ] + args
+        p = subprocess.Popen(nargs, stdout = subprocess.PIPE,
+                stderr = subprocess.PIPE)
         out, err = p.communicate()
         r = p.wait()
         if r != 0:
-            self.fail("Stdout: {}\nStderr: {}\nBad exit code from {}: {}".format(
-                    out, err, args, r))
+            self.fail("Stdout:\n{}\n\nStderr:\n{}\n\nBad exit code from {}: {}"
+                    .format(out, err, args, r))
         return out
