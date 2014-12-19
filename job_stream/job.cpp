@@ -80,7 +80,7 @@ void SharedBase::setup(processor::Processor* processor, module::Module* parent,
 
 
 void SharedBase::populateAfterRestore(YAML::GuardedNode* globalConfig,
-        const YAML::Node& config) {
+        const YAML::Node& config, ReducerReallocMap& reducerMap) {
     //Parent and id were populated by serialization, processor by parent.
     this->setup(this->processor, this->parent, this->id, config,
             globalConfig);

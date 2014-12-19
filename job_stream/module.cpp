@@ -19,18 +19,43 @@ Module::Module() : level(0) {
 
 
 void Module::populateAfterRestore(YAML::GuardedNode* globalConfig,
-        const YAML::Node& config) {
-    job::JobBase::populateAfterRestore(globalConfig, config);
+        const YAML::Node& config, job::ReducerReallocMap& reducerMap) {
+    job::JobBase::populateAfterRestore(globalConfig, config, reducerMap);
 
+    //Now this is weird, but because of e.g. python, which has its own method
+    //of allocation, we have to RE-allocate EVERYTHING using the correct
+    //allocation method.  This lets python have its python bits, and us
+    //restore our bits.
+    //TODO - This technically re-initializes the Nth level N-1 times, since
+    //we save and restore each level before reaching it...
     for (auto it = this->jobMap.begin(); it != this->jobMap.end(); it++) {
+        std::string ourData = serialization::encode(*it->second);
+        it->second.reset(this->processor->allocateJobForDeserialize(
+                it->second->getAllocationName()));
+        serialization::decode(ourData, *it->second);
+
+        //Initialize this member of the job map
+        it->second->parent = this;
         it->second->processor = this->processor;
         it->second->populateAfterRestore(globalConfig,
-                config["jobs"][it->second->id]);
+                config["jobs"][it->second->id], reducerMap);
     }
 
     if (this->reducer) {
+        job::ReducerBase* oldReducer = this->reducer.get();
+        std::string ourData = serialization::encode(*this->reducer);
+        this->reducer.reset(this->processor->allocateReducerForDeserialize(
+                this->reducer->getAllocationName()));
+        serialization::decode(ourData, *this->reducer);
+
+        ASSERT(reducerMap.count(oldReducer) == 0, "Reducer already in remap?");
+        reducerMap[oldReducer] = this->reducer.get();
+
+        //Initialize the reducer
+        this->reducer->parent = this;
         this->reducer->processor = this->processor;
-        this->reducer->populateAfterRestore(globalConfig, config["reducer"]);
+        this->reducer->populateAfterRestore(globalConfig, config["reducer"],
+                reducerMap);
     }
 }
 

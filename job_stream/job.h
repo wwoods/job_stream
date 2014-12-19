@@ -16,6 +16,7 @@ namespace module {
 namespace job {
     class JobBase;
     class ReducerBase;
+    typedef std::map<ReducerBase*, ReducerBase*> ReducerReallocMap;
 }
 namespace processor {
     class Processor;
@@ -56,6 +57,12 @@ namespace job {
         YAML::UnlockedNode config;
         YAML::UnlockedNode globalConfig;
 
+        /** Since mechanisms embedding job_stream (such as python) may have
+            their own allocation techniques, it is important that we allocate
+            the object through the native allocation methods and then serialize
+            our parts. */
+        std::string getAllocationName() const { return this->allocationName; }
+
         /* For debug; return double-colon delimited job id. */
         std::string getFullName() const;
 
@@ -76,9 +83,13 @@ namespace job {
             and then call postSetup.
             */
         virtual void populateAfterRestore(YAML::GuardedNode* globalConfig,
-                const YAML::Node& config);
+                const YAML::Node& config, ReducerReallocMap& reducerMap);
 
     protected:
+        /** Populated by the processor when we are allocated, the name of the
+            function used to allocate us.  Used to restore from checkpoints. */
+        std::string allocationName;
+
         /* The current WorkRecord being processed; NULL out of processing */
         static thread_local message::WorkRecord* currentRecord;
 
@@ -138,8 +149,8 @@ namespace job {
             //fingerprints need to link back to the correct objects.  So, we
             //archive the tree's shape in general, but then fill it in from the
             //config file.
-            ar & this->parent;
             ar & this->id;
+            ar & this->allocationName;
         }
     };
 

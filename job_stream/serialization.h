@@ -258,9 +258,15 @@ class RegisteredTypeBase {
 public:
     virtual const char* typeName() = 0;
     virtual const char* baseName() = 0;
+    virtual const char* typeNameRaw() = 0;
+    virtual const char* baseNameRaw() = 0;
     virtual bool tryDecode(IArchive& a, const std::string& archTypeName,
             const char* destTypeName, void** dest) = 0;
+    virtual bool tryDecodeRaw(IArchive& a, const std::string& archTypeName,
+            const char* destTypeName, void* dest) = 0;
     virtual bool tryEncode(OArchive& a, const char* srcTypeName, void* src) = 0;
+    virtual bool tryEncodeRaw(OArchive& a, const char* srcTypeName,
+            void* src) = 0;
 
     template<class U>
     bool isBaseClass() {
@@ -283,8 +289,10 @@ std::list<std::unique_ptr<RegisteredTypeBase>>& registeredTypes();
 template<class T, class B>
 class RegisteredType : public RegisteredTypeBase {
 public:
-    const char* typeName() { return typeid(T*).name(); }
     const char* baseName() { return typeid(B*).name(); }
+    const char* baseNameRaw() { return typeid(B).name(); }
+    const char* typeName() { return typeid(T*).name(); }
+    const char* typeNameRaw() { return typeid(T).name(); }
 
     bool tryDecode(IArchive& a, const std::string& archTypeName,
             const char* destTypeName, void** dest) {
@@ -294,6 +302,17 @@ public:
             return false;
         }
         a >> *(T**)dest;
+        return true;
+    }
+
+    bool tryDecodeRaw(IArchive& a, const std::string& archTypeName,
+            const char* destTypeName, void* dest) {
+        if ((strcmp(destTypeName, typeNameRaw()) != 0
+                && strcmp(destTypeName, baseNameRaw()) != 0)
+                || archTypeName != typeNameRaw()) {
+            return false;
+        }
+        a >> *(T*)dest;
         return true;
     }
 
@@ -308,6 +327,21 @@ public:
         std::string myType = typeName();
         a << myType;
         T* srcT = (T*)src;
+        a << srcT;
+        return true;
+    }
+
+    bool tryEncodeRaw(OArchive& a, const char* srcTypeName, void* src) {
+        bool isNull = (src == 0);
+        if (strcmp(srcTypeName, typeNameRaw()) != 0
+                && (strcmp(srcTypeName, baseNameRaw()) != 0
+                    || (!isNull && dynamic_cast<T*>((B*)src) == 0))) {
+            return false;
+        }
+
+        std::string myType = typeNameRaw();
+        a << myType;
+        T& srcT = *(T*)src;
         a << srcT;
         return true;
     }
@@ -449,11 +483,51 @@ struct _SerialHelper {
 template<typename T>
 struct _SerialHelper<T, typename boost::enable_if<
         boost::is_polymorphic<T>>::type> {
-    static_assert(sizeof(T) == 0, "When serializing polymorphic types, "
+    /*static_assert(sizeof(T) == 0, "When serializing polymorphic types, "
             "job_stream::serialization requires you to serialize a unique_ptr "
             "or shared_ptr instead of the direct object, since different "
             "types have different memory layouts, which will not be handled "
-            "correctly.");
+            "correctly.");*/
+    typedef typename boost::mpl::if_<
+            boost::is_pointer<T>,
+            typename boost::add_pointer<typename boost::remove_const<
+                typename boost::remove_pointer<T>::type>::type>::type,
+            typename boost::remove_const<T>::type
+            >::type T_noconst;
+    static const char* typeName() { return typeid(T_noconst).name(); }
+
+
+    static void encodeTypeAndObject(OArchive& a, T const & obj) {
+        //Any polymorphic class MUST be registered.  Otherwise, we can't guarantee
+        //type safety, and might end up encoding a base class representation of a non
+        //base class.
+        for (std::unique_ptr<RegisteredTypeBase>& m : registeredTypes()) {
+            if (m->tryEncodeRaw(a, typeName(), (void*)&obj)) {
+                return;
+            }
+        }
+
+        std::ostringstream ss;
+        ss << "Failed to encode polymorphic type '" << typeName() << "'.  ";
+        ss << "Did you call job_stream::serialization::registerType<Cls, Base>()?";
+        throw std::runtime_error(ss.str());
+    }
+
+    static void decodeTypeAndObject(IArchive& a, T& obj) {
+        std::string objTypeName;
+        a >> objTypeName;
+        for (std::unique_ptr<RegisteredTypeBase>& m : registeredTypes()) {
+            if (m->tryDecodeRaw(a, objTypeName, typeName(), (void*)&obj)) {
+                return;
+            }
+        }
+
+        std::ostringstream ss;
+        ss << "Failed to decode type '" << objTypeName << "' into polymorphic type '";
+        ss << typeName() << "'.  It is likely that these types are incompatible.  ";
+        ss << "Did you call job_stream::serialization::registerType<Cls, Base>()?";
+        throw std::runtime_error(ss.str());
+    }
 };
 
 

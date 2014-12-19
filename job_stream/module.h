@@ -34,7 +34,7 @@ public:
 
     /** Setup self, then any instantiated children. */
     virtual void populateAfterRestore(YAML::GuardedNode* globalConfig,
-            const YAML::Node& config);
+            const YAML::Node& config, job::ReducerReallocMap& reducerMap);
 
     /** Ensure that our config keys are set */
     virtual void postSetup();
@@ -60,6 +60,7 @@ private:
     std::unique_ptr<job::ReducerBase> reducer;
 
     friend class boost::serialization::access;
+
     template<class Archive>
     void serialize(Archive& ar, const unsigned int version) {
         ar & boost::serialization::base_object<job::JobBase>(*this);

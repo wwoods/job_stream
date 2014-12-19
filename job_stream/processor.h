@@ -362,6 +362,10 @@ public:
     /** Add work to our workInQueue when the current job finishes.  We now own
         wr. */
     void addWork(std::unique_ptr<message::WorkRecord> wr);
+    /** Ability to use registered method to allocate a JobBase derivative. */
+    static job::JobBase* allocateJobForDeserialize(const std::string& typeId);
+    /** Ability to use registered method to allocate a ReducerBase derivative. */
+    static job::ReducerBase* allocateReducerForDeserialize(const std::string& typeId);
     /** Allocate and return a new tag for reduction operations. */
     uint64_t getNextReduceTag();
     /** Return this Processor's rank */

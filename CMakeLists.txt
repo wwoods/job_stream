@@ -129,9 +129,11 @@ add_custom_target(test-long DEPENDS test_job_stream)
 add_custom_command(TARGET test-long
         POST_BUILD COMMAND /bin/sh -c 'echo \"Starting tests\" && while [ $$? -eq 0 ]\; do ./test_job_stream "\${ARGS}"\; done')
 
-# Test the python module
-add_custom_target(test-python)
-add_custom_command(TARGET test-python
+add_custom_target(job_stream_python)
+add_custom_command(TARGET job_stream_python
         POST_BUILD COMMAND /bin/sh -c 'cd .. && /usr/bin/python setup.py install --user')
+
+# Test the python module
+add_custom_target(test-python DEPENDS job_stream_python)
 add_custom_command(TARGET test-python
         POST_BUILD COMMAND /bin/sh -c 'cd ../python && nosetests "\${ARGS}"')

@@ -232,8 +232,21 @@ Processor::Processor(std::unique_ptr<mpi::environment> env,
                     "from a different config file");
 
             //Populate config for all of our jobs
+            this->root->parent = 0;
             this->root->processor = this;
-            this->root->populateAfterRestore(&this->globalConfig, config);
+            job::ReducerReallocMap reducerRemap;
+            this->root->populateAfterRestore(&this->globalConfig, config,
+                    reducerRemap);
+
+            //Remap our reduction info based on the remapping
+            for (auto it = this->reduceInfoMap.begin();
+                    it != this->reduceInfoMap.end(); it++) {
+                if (it->second.reducer) {
+                    auto it2 = reducerRemap.find(it->second.reducer);
+                    ASSERT(it2 != reducerRemap.end(), "Reducer not remapped?");
+                    it->second.reducer = it2->second;
+                }
+            }
 
             //Put work that was in progress back at the top of the queue
             for (auto& m : this->workerWork) {
@@ -254,9 +267,11 @@ Processor::Processor(std::unique_ptr<mpi::environment> env,
             this->wasRestored = true;
             JobLog() << "resumed from checkpoint (" << this->workInQueue.size()
                     << " pending messages)";
-            for (auto m = this->workInQueue.begin(), e = this->workInQueue.end();
-                    m != e; m++) {
-                JobLog() << "  message " << (*m)->tag;
+            if (JOB_STREAM_DEBUG) {
+                for (auto m = this->workInQueue.begin(),
+                        e = this->workInQueue.end(); m != e; m++) {
+                    JobLog() << "  message " << (*m)->tag;
+                }
             }
         }
     }
@@ -394,7 +409,12 @@ void Processor::run(const std::string& inputLine) {
 
     this->workTarget = 1;
     if (this->world.rank() == 0) {
+        bool usingStdin = false;
         if (!this->wasRestored) {
+            if (inputLine.empty() && initialWork.size() == 0) {
+                usingStdin = true;
+            }
+
             //The first work message MUST go to rank 0, so that ring 1 ends up
             //there
             this->workTarget = -1;
@@ -416,17 +436,17 @@ void Processor::run(const std::string& inputLine) {
         if (this->checkpointFileName.empty()) {
             this->checkpointInterval = -1;
         }
-        else if (isatty(fileno(stdin))) {
+        else if (usingStdin && isatty(fileno(stdin))) {
             //Checkpoints disabled for interactive mode
-            fprintf(stderr, "Checkpoint flags ignored; launched in interactive "
-                    "mode\n");
+            JobLog() << "Checkpoints disabled; launched in interactive mode ("
+                    "input is stdin and not a pipe)";
             this->checkpointFileName = "";
             this->checkpointInterval = -1;
         }
         else {
             //Using checkpoints
-            fprintf(stderr, "Using %s as checkpoint file\n",
-                    this->checkpointFileName.c_str());
+            JobLog() << "Using " << this->checkpointFileName << " as "
+                    "checkpoint file";
         }
         this->checkpointNext =  this->checkpointInterval;
     }
@@ -991,12 +1011,23 @@ job::JobBase* Processor::allocateJob(module::Module* parent,
     }
 
     auto job = allocatorIter->second();
+    job->allocationName = type;
     job->setup(this, parent, id, config, &this->globalConfig);
     if (!this->root) {
         this->root = std::unique_ptr<job::JobBase>(job);
     }
     job->postSetup();
     return job;
+}
+
+
+job::JobBase* Processor::allocateJobForDeserialize(const std::string& typeId) {
+    auto allocatorIter = jobTypeMap().find(typeId);
+    ASSERT(allocatorIter != jobTypeMap().end(), "Unknown job type: "
+            << typeId);
+
+    job::JobBase* r = allocatorIter->second();
+    return r;
 }
 
 
@@ -1021,10 +1052,22 @@ job::ReducerBase* Processor::allocateReducer(module::Module* parent,
     }
 
     auto reducer = allocatorIter->second();
+    reducer->allocationName = type;
     reducer->setup(this, parent, "output", *realConfig,
             &this->globalConfig);
     reducer->postSetup();
     return reducer;
+}
+
+
+job::ReducerBase* Processor::allocateReducerForDeserialize(
+        const std::string& typeId) {
+    auto allocatorIter = reducerTypeMap().find(typeId);
+    ASSERT(allocatorIter != reducerTypeMap().end(), "Unknown reducer type: "
+            << typeId);
+
+    job::ReducerBase* r = allocatorIter->second();
+    return r;
 }
 
 
@@ -1856,6 +1899,7 @@ void Processor::_updateCheckpoints(int msDiff) {
         }
     }
 }
+
 
 } //processor
 } //job_stream
