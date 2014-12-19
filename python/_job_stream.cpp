@@ -12,7 +12,7 @@ if __name__ == '__main__':
 
 DEBUG EXECUTION::
 
-LD_LIBRARY_PATH=/u/wwoods/dev/boost_1_55_0/stage/lib/:~/dev/yaml-cpp-0.5.1/build/:/usr/lib/openmpi/lib:/usr/lib YAML_CPP=~/dev/yaml-cpp-0.5.1/ bash -c "python setup.py install --user && python example/runAdder.py 2"
+LD_LIBRARY_PATH=/u/wwoods/dev/boost_1_55_0/stage/lib/:~/dev/yaml-cpp-0.5.1/build/:/usr/lib/openmpi/lib:/usr/lib YAML_CPP=~/dev/yaml-cpp-0.5.1/ bash -c "cmake .. && make -j8 test-python"
 */
 
 
@@ -177,6 +177,11 @@ public:
     virtual ~PyJob() {}
 
 
+    void forceCheckpoint(bool forceQuit) {
+        this->_shell->forceCheckpoint(forceQuit);
+    }
+
+
     void pyEmit(bp::object o) {
         this->pyEmit(o, "");
     }
@@ -329,6 +334,11 @@ class PyReducer {
 public:
     PyReducer() {}
     virtual ~PyReducer() {}
+
+
+    void forceCheckpoint(bool forceQuit) {
+        this->_shell->forceCheckpoint(forceQuit);
+    }
 
 
     void pyEmit(bp::object o) {
@@ -597,6 +607,11 @@ class PyFrame {
 public:
     PyFrame() {}
     virtual ~PyFrame() {}
+
+
+    void forceCheckpoint(bool forceQuit) {
+        this->_shell->forceCheckpoint(forceQuit);
+    }
 
 
     void pyEmit(bp::object o) {
@@ -940,6 +955,9 @@ BOOST_PYTHON_MODULE(_job_stream) {
                 .def("emit", emit2, "Emit to specific target out of list")
                 .def("handleWork", PyJobExt::default_pyHandleWork)
                 .def("postSetup", PyJobExt::default_pyPostSetup)
+                .def("_forceCheckpoint", &PyJob::forceCheckpoint, "Force a "
+                    "checkpoint after this work.  If True is passed, cause the "
+                    "program to crash afterwards.")
                 ;
     }
 
@@ -957,6 +975,9 @@ BOOST_PYTHON_MODULE(_job_stream) {
                 .def("handleInit", PyReducerExt::default_pyHandleInit)
                 .def("handleJoin", PyReducerExt::default_pyHandleJoin)
                 .def("postSetup", PyReducerExt::default_pyPostSetup)
+                .def("_forceCheckpoint", &PyReducer::forceCheckpoint, "Force a "
+                    "checkpoint after this work.  If True is passed, cause the "
+                    "program to crash afterwards.")
                 ;
     }
 
@@ -973,6 +994,9 @@ BOOST_PYTHON_MODULE(_job_stream) {
                 .def("handleFirst", PyFrameExt::default_pyHandleFirst)
                 .def("handleNext", PyFrameExt::default_pyHandleNext)
                 .def("postSetup", PyFrameExt::default_pyPostSetup)
+                .def("_forceCheckpoint", &PyFrame::forceCheckpoint, "Force a "
+                    "checkpoint after this work.  If True is passed, cause the "
+                    "program to crash afterwards.")
                 ;
     }
 }

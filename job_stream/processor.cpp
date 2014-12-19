@@ -1735,7 +1735,7 @@ void Processor::_updateCheckpoints(int msDiff) {
         if (this->checkpointNext >= 0) {
             this->checkpointNext -= msDiff;
             if (this->checkpointNext < 0) {
-                this->checkpointNext = -1;
+                this->checkpointNext = 0;
                 //Lock that mutex up.
                 this->_mutex.lock();
 
@@ -1759,7 +1759,7 @@ void Processor::_updateCheckpoints(int msDiff) {
         if (this->checkpointNext >= -Processor::CHECKPOINT_SYNC_WAIT_MS) {
             if (this->messageQueue.size() != 0
                     || this->sendRequests.size() != 0) {
-                this->checkpointNext = -1;
+                this->checkpointNext = 0;
             }
             else {
                 this->checkpointNext -= msDiff;
