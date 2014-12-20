@@ -23,9 +23,7 @@ class TestCheckpoints(JobStreamTest):
                 if (t == maxTries - 1
                         # OR if it DIDN'T exit due to forced checkpoint
                         or ', resuming computation' not in e.stderr):
-                    self.fail("Failed after {} tries:\nstdout\n{}\n\nstderr\n{}"
-                            .format(t+1, ''.join(allOut),
-                                ''.join(allErr)))
+                    self.fail("Failed after {} tries".format(t+1))
         return ''.join(allOut), ''.join(allErr), t
 
 

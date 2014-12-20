@@ -4,6 +4,8 @@ import os
 exDir = os.path.join(os.path.dirname(__file__), '../../../../example')
 
 class addOne(job_stream.Job):
+    USE_MULTIPROCESSING = False
+
     def postSetup(self):
         print("addOne setup")
 
@@ -13,6 +15,8 @@ class addOne(job_stream.Job):
 
 
 class sum(job_stream.Reducer):
+    USE_MULTIPROCESSING = False
+
     def postSetup(self):
         print("sum setup")
 

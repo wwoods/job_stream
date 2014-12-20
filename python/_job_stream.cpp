@@ -951,6 +951,7 @@ BOOST_PYTHON_MODULE(_job_stream) {
         void (PyJob::*emit2)(bp::object, const std::string&) = &PyJob::pyEmit;
         bp::class_<PyJob, PyJobExt>("Job", "A basic job")
                 .def(bp::init<>())
+                .enable_pickling()
                 .def("emit", emit1, "Emit to only target")
                 .def("emit", emit2, "Emit to specific target out of list")
                 .def("handleWork", PyJobExt::default_pyHandleWork)
@@ -967,6 +968,7 @@ BOOST_PYTHON_MODULE(_job_stream) {
         void (PyReducer::*recur2)(bp::object, const std::string&) = &PyReducer::pyRecur;
         bp::class_<PyReducer, PyReducerExt>("Reducer", "A basic reducer")
                 .def(bp::init<>())
+                .enable_pickling()
                 .def("emit", emit1, "Emit to only target (outside of reducer)")
                 .def("recur", recur1, "Recur to only target")
                 .def("recur", recur2, "Recur to specific target")
@@ -987,6 +989,7 @@ BOOST_PYTHON_MODULE(_job_stream) {
         void (PyFrame::*recur2)(bp::object, const std::string&) = &PyFrame::pyRecur;
         bp::class_<PyFrame, PyFrameExt>("Frame", "A basic frame")
                 .def(bp::init<>())
+                .enable_pickling()
                 .def("emit", emit1, "Emit to only target (outside of frame)")
                 .def("recur", recur1, "Recur to only target")
                 .def("recur", recur2, "Recur to specific target")

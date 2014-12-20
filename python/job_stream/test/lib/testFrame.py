@@ -4,6 +4,9 @@ import os
 exDir = os.path.join(os.path.dirname(__file__), '../../../../example')
 
 class addOne(job_stream.Job):
+    # Ensure postSetup() is only called once
+    USE_MULTIPROCESSING = False
+
     def postSetup(self):
         print("addOne setup")
 
@@ -13,6 +16,9 @@ class addOne(job_stream.Job):
 
 
 class runExperiments(job_stream.Frame):
+    # Only call postSetup once
+    USE_MULTIPROCESSING = False
+
     def postSetup(self):
         print("runExperiments setup")
 

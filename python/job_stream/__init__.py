@@ -18,6 +18,21 @@ import _job_stream as _j
 
 import cPickle as pickle
 import multiprocessing
+import traceback
+
+# Classes waiting for _patchForMultiprocessing.  We wait until _pool is initiated
+# so that A) classes inheriting from one another are rewritten backwards so that they
+# execute the original method, not the override, and B) so that their methods may be 
+# updated between class definition and job_stream.run()
+_classesToPatch = []
+_pool = [ None ]
+def _initMultiprocessingPool():
+    """The multiprocessing pool is initialized lazily by default, to avoid overhead
+    if no jobs are using multiprocessing"""
+    if _pool[0] is None:
+        _pool[0] = 'Do not re-init in multiprocessed pool'
+        _pool[0] = multiprocessing.Pool()
+
 
 def _decode(s):
     """Decodes an object with cPickle"""
@@ -44,6 +59,80 @@ class _Work(list):
     If left empty, work comes from stdin."""
 work = _Work()
 
+_localJobs = {}
+_localJobId = [ 0 ]
+def _localJobInit(obj):
+    _localJobs[obj.id] = obj
+    try:
+        obj.mPostSetup()
+    except:
+        traceback.print_exc()
+        raise
+    if hasattr(obj, 'emit'):
+        obj.emit = lambda *args: obj.emitters.append(args)
+    if hasattr(obj, 'recur'):
+        obj.recur = lambda *args: obj.recurs.append(args)
+    obj._forceCheckpoint = lambda *args: obj.forceCheckpoints.append(args)
+    def obj_reset():
+        obj.emitters = []
+        obj.recurs = []
+        obj.forceCheckpoints = []
+    obj._resetLocalJob = obj_reset
+def _localCallNoStore(obj, method, *args):
+    if obj not in _localJobs:
+        return (0, [], [], [])
+    o = _localJobs[obj]
+    o._resetLocalJob()
+    try:
+        getattr(o, method)(*args)
+    except:
+        traceback.print_exc()
+        raise
+    return (1, o.emitters, o.recurs, o.forceCheckpoints)
+def _localCallStoreFirst(obj, method, first, *args):
+    if obj not in _localJobs:
+        return (0, None, [], [], [])
+    o = _localJobs[obj]
+    o._resetLocalJob()
+    try:
+        getattr(o, method)(first, *args)
+    except:
+        traceback.print_exc()
+        raise
+    return (1, first, o.emitters, o.recurs, o.forceCheckpoints)
+
+
+def callNoStore(obj, method, *args):
+    while True:
+        r = _pool[0].apply(_localCallNoStore, args = (obj.id, method) + args)
+        if r[0] == 0:
+            _pool[0].apply(_localJobInit, args = (obj,))
+        else:
+            break
+    for eArgs in r[1]:
+        obj.emit(*eArgs)
+    for rArgs in r[2]:
+        obj.recur(*rArgs)
+    for fArgs in r[3]:
+        obj._forceCheckpoint(*fArgs)
+
+
+def callStoreFirst(obj, method, first, *args):
+    while True:
+        r = _pool[0].apply(_localCallStoreFirst,
+                args = (obj.id, method, first) + args)
+        if r[0] == 0:
+            _pool[0].apply(_localJobInit, args = (obj,))
+        else:
+            break
+    first.__dict__ = r[1].__dict__
+    for eArgs in r[2]:
+        obj.emit(*eArgs)
+    for rArgs in r[3]:
+        obj.recur(*rArgs)
+    for fArgs in r[4]:
+        obj._forceCheckpoint(*fArgs)
+
 
 class Job(_j.Job):
     """Base class for a standard job (starts with some work, and emits zero or
@@ -64,7 +153,36 @@ class Job(_j.Job):
             if fullname == 'job_stream.Job':
                 return
 
+            _classesToPatch.append(cls)
             _j.registerJob(fullname, cls)
+
+
+    USE_MULTIPROCESSING = True
+    USE_MULTIPROCESSING_doc = """If True [default {}], job_stream automatically handles 
+        overloading the class' methods and serializing everything so that the GIL is
+        circumvented.  While this defaults to True as it is low overhead, lots of jobs
+        do not need multiprocessing if they are using other python libraries or operations
+        that release the GIL.""".format(USE_MULTIPROCESSING)
+
+
+    @classmethod
+    def _patchForMultiprocessing(cls):
+        def newInit(self):
+            super(cls, self).__init__()
+            _initMultiprocessingPool()
+            self.id = _localJobId[0]
+            _localJobId[0] += 1
+        cls.__init__ = newInit
+
+        cls.mHandleWork = cls.handleWork
+        cls.handleWork = lambda self, *args: callNoStore(self, "mHandleWork",
+                *args)
+
+        # We do not call postSetup when job_stream requests it.  This is because
+        # our jobs must be set up in each thread, so we defer until it is called
+        # in a thread.
+        cls.mPostSetup = cls.postSetup
+        cls.postSetup = lambda self: True
 
 
     def postSetup(self):
@@ -100,6 +218,33 @@ class Reducer(_j.Reducer):
                 return
 
             _j.registerReducer(fullname, cls)
+
+
+    USE_MULTIPROCESSING = Job.USE_MULTIPROCESSING
+    USE_MULTIPROCESSING_doc = Job.USE_MULTIPROCESSING_doc
+
+
+    @classmethod
+    def _patchForMultiprocessing(cls):
+        def newInit(self):
+            super(cls, self).__init__()
+            _initMultiprocessingPool()
+            self.id = _localJobId[0]
+            _localJobId[0] += 1
+        cls.__init__ = newInit
+
+        for oldName in [ 'handleInit', 'handleAdd', 'handleJoin', 'handleDone' ]:
+            newName = 'm' + oldName[0].upper() + oldName[1:]
+            setattr(cls, newName, getattr(cls, oldName))
+            closure = lambda newName: lambda self, *args: callStoreFirst(self,
+                    newName, *args)
+            setattr(cls, oldName, closure(newName))
+
+        # We do not call postSetup when job_stream requests it.  This is because
+        # our jobs must be set up in each thread, so we defer until it is called
+        # in a thread.
+        cls.mPostSetup = cls.postSetup
+        cls.postSetup = lambda self: True
 
 
     def postSetup(self):
@@ -147,7 +292,35 @@ class Frame(_j.Frame):
             if fullname == 'job_stream.Frame':
                 return
 
+            _classesToPatch.append(cls)
             _j.registerFrame(fullname, cls)
+
+
+    USE_MULTIPROCESSING = Job.USE_MULTIPROCESSING
+    USE_MULTIPROCESSING_doc = Job.USE_MULTIPROCESSING_doc
+
+
+    @classmethod
+    def _patchForMultiprocessing(cls):
+        def newInit(self):
+            super(cls, self).__init__()
+            _initMultiprocessingPool()
+            self.id = _localJobId[0]
+            _localJobId[0] += 1
+        cls.__init__ = newInit
+
+        for oldName in [ 'handleFirst', 'handleNext', 'handleDone' ]:
+            newName = 'm' + oldName[0].upper() + oldName[1:]
+            setattr(cls, newName, getattr(cls, oldName))
+            closure = lambda newName: lambda self, *args: callStoreFirst(self,
+                    newName, *args)
+            setattr(cls, oldName, closure(newName))
+
+        # We do not call postSetup when job_stream requests it.  This is because
+        # our jobs must be set up in each thread, so we defer until it is called
+        # in a thread.
+        cls.mPostSetup = cls.postSetup
+        cls.postSetup = lambda self: True
 
 
     def handleFirst(self, store, work):
@@ -230,5 +403,8 @@ def run(configDictOrPath, **kwargs):
     else:
         raise ValueError("configDictOrPath was not dict or filename!")
 
-    cpuCount = multiprocessing.cpu_count()
+    for cls in reversed(_classesToPatch):
+        if cls.USE_MULTIPROCESSING:
+            cls._patchForMultiprocessing()
+
     _j.runProcessor(config, work, **kwargs)

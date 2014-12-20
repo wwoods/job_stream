@@ -136,4 +136,4 @@ add_custom_command(TARGET job_stream_python
 # Test the python module
 add_custom_target(test-python DEPENDS job_stream_python)
 add_custom_command(TARGET test-python
-        POST_BUILD COMMAND /bin/sh -c 'cd ../python && nosetests "\${ARGS}"')
+        POST_BUILD COMMAND /bin/sh -c 'cd ../python && nosetests \${ARGS}')
