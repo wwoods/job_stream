@@ -58,7 +58,7 @@ thread_local std::vector<Processor::_WorkTimerRecord> Processor::workTimers;
 thread_local std::unique_ptr<uint64_t[]> Processor::localClksByType;
 thread_local std::unique_ptr<uint64_t[]> Processor::localTimesByType;
 
-extern const int JOB_STREAM_DEBUG = 1;
+extern const int JOB_STREAM_DEBUG = 0;
 const int NO_STEALING = 0;
 
 
@@ -1039,6 +1039,7 @@ job::ReducerBase* Processor::allocateReducer(module::Module* parent,
     YAML::Node blank;
     if (config.IsScalar()) {
         type = config.as<std::string>();
+        blank["type"] = YAML::Clone(config);
         realConfig = &blank;
     }
     else {
@@ -1478,7 +1479,7 @@ bool Processor::tryReceive() {
             if (this->checkpointState == Processor::CHECKPOINT_NONE) {
                 this->_mutex.lock();
                 this->checkpointState = Processor::CHECKPOINT_SYNC;
-                this->checkpointNext = -1;
+                this->checkpointNext = 0;
             }
             else if (this->checkpointState == Processor::CHECKPOINT_SYNC) {
                 this->checkpointState = Processor::CHECKPOINT_GATHER;
@@ -1501,7 +1502,8 @@ bool Processor::tryReceive() {
         }
         else if (tag == Processor::TAG_CHECKPOINT_READY) {
             if (JOB_STREAM_DEBUG >= 1) {
-                JobLog() << "got TAG_CHECKPOINT_READY";
+                JobLog() << "got TAG_CHECKPOINT_READY from "
+                        << (int)recv.source();
             }
             if (this->getRank() != 0) {
                 throw std::runtime_error(

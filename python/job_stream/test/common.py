@@ -30,7 +30,7 @@ class JobStreamTest(unittest.TestCase):
             args = [ args ]
         nargs = [ '/usr/bin/mpirun', '-np', str(np), sys.executable ] + args
         p = subprocess.Popen(nargs, stdin = subprocess.PIPE,
-                )#stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+                stdout = subprocess.PIPE, stderr = subprocess.PIPE)
         out, err = p.communicate()
         r = p.wait()
         if r != 0:

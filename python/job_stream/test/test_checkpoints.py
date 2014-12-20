@@ -20,7 +20,9 @@ class TestCheckpoints(JobStreamTest):
             except ExecuteError, e:
                 allOut.append(e.stdout)
                 allErr.append(e.stderr)
-                if t == maxTries - 1 or 'RuntimeError' in e.stderr:
+                if (t == maxTries - 1
+                        # OR if it DIDN'T exit due to forced checkpoint
+                        or ', resuming computation' not in e.stderr):
                     self.fail("Failed after {} tries:\nstdout\n{}\n\nstderr\n{}"
                             .format(t+1, ''.join(allOut),
                                 ''.join(allErr)))
@@ -30,7 +32,7 @@ class TestCheckpoints(JobStreamTest):
     def test_checkpoint1(self):
         self.safeRemove(tmpPath)
         args = [ os.path.join(libPath, "checkpoint_1.py"), tmpPath ]
-        allOut, allErr, trials = self.runTilDone(args, np = 4)
+        allOut, allErr, trials = self.runTilDone(args, np = 1)
         self.assertEqual("4\n", allOut)
         allOut, allErr, trials = self.runTilDone(args, np = 4)
         self.assertEqual("4\n", allOut)
@@ -40,4 +42,8 @@ class TestCheckpoints(JobStreamTest):
         self.safeRemove(tmpPath)
         args = [ os.path.join(libPath, "checkpoint_2.py"), tmpPath ]
         allOut, allErr, trials = self.runTilDone(args)
-        self.assertEqual("HIHIH", allOut)
+        self.assertTrue(10 <= trials)
+        self.assertLinesEqual("110\n143\n143\n143\n", allOut)
+        allOut, allErr, trials = self.runTilDone(args, np = 2)
+        self.assertTrue(10 <= trials)
+        self.assertLinesEqual("110\n143\n143\n143\n", allOut)

@@ -92,6 +92,16 @@ void Module::postSetup() {
         //Clone our frame into reducer in case frame is a reference (since we
         //change its recurTo parameter).
         conf["reducer"] = YAML::Clone(conf["frame"]);
+        conf.remove("frame");
+
+        if (conf["reducer"].IsScalar()) {
+            //The type, no config.  Normally allocateReducer() handles this,
+            //but we override [recurTo], so we have to do it here.
+            YAML::Node newReducer;
+            newReducer["type"] = conf["reducer"]._getNode();
+            conf["reducer"] = newReducer;
+        }
+
         if (conf["input"]) {
             conf["reducer"]["recurTo"] = conf["input"].as<
                     std::string>();
@@ -101,7 +111,6 @@ void Module::postSetup() {
         }
 
         conf["input"] = "output";
-        conf.remove("frame");
     }
 
     if (conf["jobs"].IsSequence()) {
@@ -159,6 +168,7 @@ void Module::postSetup() {
 
     //Set up reducer, unless we've started from a checkpoint
     if (conf["reducer"] && !this->reducer) {
+        //Auto converts scalar "reducer" into empty node with type
         this->reducer.reset(this->processor->allocateReducer(this,
                 conf["reducer"]._getNode()));
     }
