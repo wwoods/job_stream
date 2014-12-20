@@ -126,7 +126,7 @@ TEST_CASE("example/job_stream_example/checkpoint.yaml", "[checkpoint]") {
                         string("$1 Xms"));
                 stderr = boost::regex_replace(stderr, mpiFooter, "--mpi--");
                 stderr = boost::regex_replace(stderr, jobLogHeader, "$1");
-                REQUIRE_CONTAINS_LINES("Using test.chkpt as checkpoint file\n\
+                REQUIRE_CONTAINS_LINES("0 Using test.chkpt as checkpoint file\n\
 0 Checkpoint starting\n\
 0 Checkpoint activity synced after Xms, including mandatory 10ms quiet period\n\
 0 Checkpoint took Xms, resuming computation\n--mpi--", stderr);
@@ -163,7 +163,7 @@ TEST_CASE("example/job_stream_example/checkpoint.yaml", "[checkpoint]") {
                     REQUIRE(1 == p);
                 }
                 std::ostringstream expected;
-                expected << "Using test.chkpt as checkpoint file\n\
+                expected << "0 Using test.chkpt as checkpoint file\n\
 0 resumed from checkpoint (X pending messages)\n--mpi--";
                 if (std::get<0>(r) != 0) {
                     expected << "\n0 Checkpoint starting\n\
@@ -256,7 +256,7 @@ TEST_CASE("example/job_stream_example/exampleRecurBug.yaml", "[checkpoint]") {
                         string("$1 Xms"));
                 sstderr = boost::regex_replace(sstderr, jobLogHeader, "$1");
                 sstderr = boost::regex_replace(sstderr, mpiFooter, "--mpi--");
-                REQUIRE_CONTAINS_LINES("Using test.chkpt as checkpoint file\n\
+                REQUIRE_CONTAINS_LINES("0 Using test.chkpt as checkpoint file\n\
 0 Checkpoint starting\n\
 0 Checkpoint activity synced after Xms, including mandatory 100ms quiet period\n\
 0 Checkpoint took Xms, resuming computation\n--mpi--", sstderr);
@@ -285,7 +285,7 @@ TEST_CASE("example/job_stream_example/exampleRecurBug.yaml", "[checkpoint]") {
                 int p = _countAndFixPending(sstderr);
                 REQUIRE(0 != p);
                 std::ostringstream expected;
-                expected << "Using test.chkpt as checkpoint file\n\
+                expected << "0 Using test.chkpt as checkpoint file\n\
 0 resumed from checkpoint (X pending messages)\n--mpi--";
                 if (std::get<0>(r) != 0) {
                     expected << "\n0 Checkpoint starting\n\
@@ -385,7 +385,7 @@ TEST_CASE("example/job_stream_example/exampleRecurCheckpoint.yaml", "[checkpoint
                         string("$1 Xms"));
                 sstderr = boost::regex_replace(sstderr, jobLogHeader, "$1");
                 sstderr = boost::regex_replace(sstderr, mpiFooter, "--mpi--");
-                REQUIRE_CONTAINS_LINES("Using test.chkpt as checkpoint file\n\
+                REQUIRE_CONTAINS_LINES("0 Using test.chkpt as checkpoint file\n\
 0 Checkpoint starting\n\
 0 Checkpoint activity synced after Xms, including mandatory 100ms quiet period\n\
 0 Checkpoint took Xms, resuming computation\n--mpi--", sstderr);
@@ -413,7 +413,7 @@ TEST_CASE("example/job_stream_example/exampleRecurCheckpoint.yaml", "[checkpoint
                 int p = _countAndFixPending(sstderr);
                 REQUIRE(0 != p);
                 std::ostringstream expected;
-                expected << "Using test.chkpt as checkpoint file\n\
+                expected << "0 Using test.chkpt as checkpoint file\n\
 0 resumed from checkpoint (X pending messages)\n--mpi--";
                 if (std::get<0>(r) != 0) {
                     expected << "\n0 Checkpoint starting\n\

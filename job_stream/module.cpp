@@ -26,13 +26,16 @@ void Module::populateAfterRestore(YAML::GuardedNode* globalConfig,
     //of allocation, we have to RE-allocate EVERYTHING using the correct
     //allocation method.  This lets python have its python bits, and us
     //restore our bits.
-    //TODO - This technically re-initializes the Nth level N-1 times, since
-    //we save and restore each level before reaching it...
     for (auto it = this->jobMap.begin(); it != this->jobMap.end(); it++) {
-        std::string ourData = serialization::encode(*it->second);
-        it->second.reset(this->processor->allocateJobForDeserialize(
-                it->second->getAllocationName()));
-        serialization::decode(ourData, *it->second);
+        //However, we do NOT re-allocate modules, so that we avoid serializing
+        //and deserializing the Nth layer N-1 times.  Otherwise, our reduction
+        //pointers get messed up and the reducerMap becomes invalid.
+        if (dynamic_cast<Module*>(it->second.get()) == 0) {
+            std::string ourData = serialization::encode(*it->second);
+            it->second.reset(this->processor->allocateJobForDeserialize(
+                    it->second->getAllocationName()));
+            serialization::decode(ourData, *it->second);
+        }
 
         //Initialize this member of the job map
         it->second->parent = this;

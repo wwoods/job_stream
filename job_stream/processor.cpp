@@ -58,7 +58,7 @@ thread_local std::vector<Processor::_WorkTimerRecord> Processor::workTimers;
 thread_local std::unique_ptr<uint64_t[]> Processor::localClksByType;
 thread_local std::unique_ptr<uint64_t[]> Processor::localTimesByType;
 
-extern const int JOB_STREAM_DEBUG = 0;
+extern const int JOB_STREAM_DEBUG = 1;
 const int NO_STEALING = 0;
 
 
@@ -243,7 +243,8 @@ Processor::Processor(std::unique_ptr<mpi::environment> env,
                     it != this->reduceInfoMap.end(); it++) {
                 if (it->second.reducer) {
                     auto it2 = reducerRemap.find(it->second.reducer);
-                    ASSERT(it2 != reducerRemap.end(), "Reducer not remapped?");
+                    ASSERT(it2 != reducerRemap.end(),
+                            "Reducer not remapped?  " << it->second.reducer);
                     it->second.reducer = it2->second;
                 }
             }

@@ -1,7 +1,16 @@
 
+import os
 import subprocess
 import sys
 import unittest
+
+class ExecuteError(Exception):
+    def __init__(self, cmd, returnCode, stdout, stderr):
+        Exception.__init__(self, "Bad exit code from {}: {}\nStdout:\n{}\n\n"
+                "Stderr:\n{}".format(cmd, returnCode, stdout, stderr))
+        self.stdout = stdout
+        self.stderr = stderr
+
 
 class JobStreamTest(unittest.TestCase):
     def assertLinesEqual(self, a, b):
@@ -16,16 +25,23 @@ class JobStreamTest(unittest.TestCase):
         self.assertEqual(al, bl)
 
 
-    def execute(self, args):
+    def execute(self, args, np = 1):
         if not isinstance(args, list):
             args = [ args ]
-        #nargs = [ '/usr/bin/mpirun', '-np', '4', sys.executable ] + args
-        nargs = [ sys.executable ] + args
+        nargs = [ '/usr/bin/mpirun', '-np', str(np), sys.executable ] + args
         p = subprocess.Popen(nargs, stdin = subprocess.PIPE,
-                stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+                )#stdout = subprocess.PIPE, stderr = subprocess.PIPE)
         out, err = p.communicate()
         r = p.wait()
         if r != 0:
-            self.fail("Stdout:\n{}\n\nStderr:\n{}\n\nBad exit code from {}: {}"
-                    .format(out, err, args, r))
-        return out
+            raise ExecuteError(args, r, out, err)
+        return out, err
+
+
+    def safeRemove(self, path):
+        try:
+            os.remove(path)
+        except OSError, e:
+            # Doesn't exit
+            if e.errno != 2:
+                raise
