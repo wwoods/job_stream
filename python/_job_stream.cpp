@@ -116,6 +116,42 @@ bp::object serializedToPython(const SerializedPython& sp) {
 }
 
 
+/** Must be called with GIL locked; translate a YAML node into a python object that can
+    be read. */
+bp::object configToPython(const YAML::LockedNode& n) {
+    if (n.IsNull()) {
+        return bp::object();
+    }
+    else if (n.IsSequence()) {
+        bp::list l;
+        for (int i = 0, m = n.size(); i < m; i++) {
+            l.append(configToPython(n[i]));
+        }
+        return l;
+    }
+    else if (n.IsMap()) {
+        bp::dict d;
+        for (auto it = n.begin(); it != n.end(); it++) {
+            YAML::GuardedNode gn;
+            gn.set(it->second);
+            d[it->first.as<std::string>()] = configToPython(gn.acquire());
+        }
+        return d;
+    }
+    else if (n.IsScalar()) {
+        //We need to ascertain the type, somehow.  Assume it's a double, otherwise a str?
+        #define TRY_TYPE(t) try { return bp::object(n.as<t>()); } catch (...) {}
+        TRY_TYPE(int)
+        TRY_TYPE(double)
+        return bp::object(n.as<std::string>());
+        #undef TRY_TYPE
+    }
+    else {
+        ERROR("Unknown node type: " << n.Type());
+    }
+}
+
+
 namespace job_stream {
 namespace python {
 std::istream& operator>>(std::istream& is,
@@ -214,6 +250,8 @@ public:
     void postSetup() {
         _PyGilAcquire gilLock;
         try {
+            this->_pythonObject.attr("config") = configToPython(
+                    this->_shell->config.get());
             this->pyPostSetup();
         }
         catch (...) {
@@ -436,6 +474,8 @@ public:
     void postSetup() {
         _PyGilAcquire gilLock;
         try {
+            this->_pythonObject.attr("config") = configToPython(
+                    this->_shell->config.get());
             this->pyPostSetup();
         }
         catch (...) {
@@ -692,6 +732,8 @@ public:
     void postSetup() {
         _PyGilAcquire gilLock;
         try {
+            this->_pythonObject.attr("config") = configToPython(
+                    this->_shell->config.get());
             this->pyPostSetup();
         }
         catch (...) {

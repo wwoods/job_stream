@@ -12,8 +12,8 @@ boost (mpi, serialization, thread)
 yaml-cpp
 
 
-Building
---------
+Building Shared Library
+-----------------------
 
 Create a build/ folder, cd into it, and run:
 
@@ -23,11 +23,30 @@ This will instruct you on how to configure the build environment, and then will
 build the library.
 
 
+Building and Installing Python Module
+-------------------------------------
+
+The python module job\_stream can be built and installed via:
+    
+    python setup.py install
+
+or:
+
+    pip install job_stream
+
+Currently, it is necessary to have two environment variables defined:
+
+* LD\_LIBRARY\_PATH - Specifies where the boost and yaml-cpp compiled libraries can be 
+  found.
+
+* YAML\_CPP - Specifies the root directory for yaml-cpp.
+
+
 Testing
 -------
 
 Making the "test" target (with optional ARGS passed to test executable) will
-make and run any tests packaged with job_stream:
+make and run any tests packaged with job\_stream:
 
     cmake .. && make -j8 test [ARGS="[serialization]"]
 
@@ -35,11 +54,11 @@ make and run any tests packaged with job_stream:
 Running
 -------
 
-A typical job_stream application would be run like this:
+A typical job\_stream application would be run like this:
 
     mpirun -host a,b,c my_application path/to/config.yaml [-c checkpointFile] [-t hoursBetweenCheckpoints] Initial work string (or int or float or whatever)
 
-Note that -np to specify parallelism is not needed, as job_stream implicitly
+Note that -np to specify parallelism is not needed, as job\_stream implicitly
 multi-threads your application.  If a checkpointFile is provided, then the file
 will be used if it exists.  If it does not exist, it will be created and updated
 periodically to allow resume.  It is fairly simple to write a script that will
@@ -649,6 +668,8 @@ Roadmap
 -------
 
 * README update - Should mention symlinking.
+* More python tests
+* Python return -> emit last item
 * to: Should be a name or YAML reference, emit() or recur() should accept an
   argument of const YAML::Node& so that we can use e.g. stepTo: *priorRef as
   a normal config.  DO NOT overwrite to!  Allow it to be specified in pipes, e.g.

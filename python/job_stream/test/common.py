@@ -2,6 +2,8 @@
 import os
 import subprocess
 import sys
+import tempfile
+import textwrap
 import threading
 import unittest
 
@@ -55,6 +57,14 @@ class JobStreamTest(unittest.TestCase):
         if r != 0:
             raise ExecuteError(args, r, out, err)
         return out, err
+
+
+    def executePy(self, pySrc, np = 1):
+        with tempfile.NamedTemporaryFile() as f:
+            f.write(textwrap.dedent(pySrc))
+            f.flush()
+
+            return self.execute(f.name, np = np)
 
 
     def safeRemove(self, path):

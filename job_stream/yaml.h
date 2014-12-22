@@ -96,6 +96,7 @@ namespace YAML {
     class UnlockedNode {
     public:
         template<typename Key> LockedNode operator[](const Key& key);
+        inline LockedNode get();
         template<typename Key> bool remove(const Key& key);
 
         /** Points this UnlockedNode at the given GuardedNode, which must be
@@ -142,6 +143,7 @@ namespace YAML {
     /** Now that GuardedNode is defined, implement UnlockedNode. */
     template<typename Key> LockedNode UnlockedNode::operator[](const Key& key) {
             return this->node->acquire()[key]; }
+    LockedNode UnlockedNode::get() { return this->node->acquire(); }
     template<typename Key> bool UnlockedNode::remove(const Key& key) {
             return this->node->acquire().remove(key); }
 }
