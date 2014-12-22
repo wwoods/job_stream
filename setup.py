@@ -13,10 +13,6 @@ libdirs = []
 libraries = []
 if 'LD_LIBRARY_PATH' in os.environ:
     libdirs.extend(os.environ['LD_LIBRARY_PATH'].split(':'))
-if 'YAML_CPP' not in os.environ:
-    raise Exception("For now, YAML_CPP is required in environment")
-incdirs.append(os.path.join(os.environ['YAML_CPP'], "include"))
-libdirs.append(os.path.join(os.environ['YAML_CPP'], "build"))
 
 # Find MPI flags
 mpiCompiler = 'mpicxx'

@@ -1,6 +1,9 @@
 *.pyc
 
+/MANIFEST
+
 /build/
+/dist/
 /doc/html
 /example/build/
 /include/

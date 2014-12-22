@@ -25,43 +25,36 @@ SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x -ftemplate-backtrace-limit=0"
 #add_definitions(-pg)
 #SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -pg")
 
-# Set up paths
-SET(BOOST_INC "${CMAKE_SOURCE_DIR}/include/boost")
-SET(BOOST_LIB "${CMAKE_SOURCE_DIR}/lib/boost")
-SET(YAML_INC "${CMAKE_SOURCE_DIR}/include/yaml-cpp")
-SET(YAML_LIB "${CMAKE_SOURCE_DIR}/lib/yaml-cpp")
-
-# Check boost headers
-if(NOT EXISTS "${BOOST_INC}/mpi.hpp")
-    message(FATAL_ERROR "include/boost not configured; couldn't find "
-            "include/boost/mpi.hpp")
-endif()
-# Check boost libs
-if(NOT EXISTS "${BOOST_LIB}/libboost_mpi.a")
-    message(FATAL_ERROR "lib/boost not configured; couldn't find "
-            "lib/boost/libboost_mpi.a")
-endif()
-# Check yaml-cpp headers
-if(NOT EXISTS "${YAML_INC}/yaml.h")
-    message(FATAL_ERROR "include/yaml-cpp not configured; couldn't find "
-            "include/yaml-cpp/yaml.h")
-endif()
-# Check yaml-cpp libs
-if(NOT EXISTS "${YAML_LIB}/libyaml-cpp.a")
-    message(FATAL_ERROR "lib/yaml-cpp not configured; couldn't find "
-            "lib/yaml-cpp/build/lib-yaml.cpp.a")
-endif()
-
-include_directories("include/")
 include_directories("job_stream/boost_process/")
+find_library(BOOST_FILESYSTEM_LIBRARY
+        NAMES boost_filesystem
+        HINTS ENV LD_LIBRARY_PATH ENV LIBRARY_PATH)
+find_library(BOOST_SYSTEM_LIBRARY
+        NAMES boost_system
+        HINTS ENV LD_LIBRARY_PATH ENV LIBRARY_PATH)
+find_library(BOOST_THREAD_LIBRARY
+        NAMES libboost_thread.so
+        HINTS ENV LD_LIBRARY_PATH ENV LIBRARY_PATH)
+find_library(BOOST_SERIALIZATION_LIBRARY
+        NAMES boost_serialization
+        HINTS ENV LD_LIBRARY_PATH ENV LIBRARY_PATH)
+find_library(BOOST_MPI_LIBRARY
+        NAMES boost_mpi
+        HINTS ENV LD_LIBRARY_PATH ENV LIBRARY_PATH)
+find_library(BOOST_REGEX_LIBRARY
+        NAMES boost_regex
+        HINTS ENV LD_LIBRARY_PATH ENV LIBRARY_PATH)
+find_library(YAML_CPP_LIBRARY
+        NAMES yaml-cpp
+        HINTS ENV LD_LIBRARY_PATH ENV LIBRARY_PATH)
 
 SET(REQ_LIB
-        ${BOOST_LIB}/libboost_filesystem.a
-        ${BOOST_LIB}/libboost_system.a
-        ${BOOST_LIB}/libboost_thread.a
-        ${BOOST_LIB}/libboost_serialization.a
-        ${BOOST_LIB}/libboost_mpi.a
-        ${YAML_LIB}/libyaml-cpp.a
+        ${BOOST_FILESYSTEM_LIBRARY}
+        ${BOOST_SYSTEM_LIBRARY}
+        ${BOOST_THREAD_LIBRARY}
+        ${BOOST_SERIALIZATION_LIBRARY}
+        ${BOOST_MPI_LIBRARY}
+        ${YAML_CPP_LIBRARY}
         # rt must be last
         rt)
 
@@ -112,9 +105,8 @@ target_link_libraries(test_job_stream
         job_stream
         ${REQ_LIB}
         # std::regex is horribly, horribly broken in gcc 4.8.  @&#^%&
-        ${BOOST_LIB}/libboost_regex.a)
+        ${BOOST_REGEX_LIBRARY})
 target_include_directories(test_job_stream PUBLIC
-        "include/"
         "./"
         "test/libexecstream/")
 add_dependencies(test_job_stream example)

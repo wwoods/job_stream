@@ -1,58 +1,102 @@
 Job Stream
 ==========
 
-A tiny C library based on OpenMPI for distributing streamed batch processing
-across multi-threaded workers.
+A tiny C library and python module based on OpenMPI for distributing streamed
+batch processing across multi-threaded workers.
+
+* [Requirements](#requirements)
+* [Building job_stream](#building-job_stream)
+    * [Building Shared Library](#building-shared-library)
+    * [Building and Installing the Python Module](#building-and-installing-the-python-module)
+    * [Build Paths](#build-paths)
+        * [Linux](#linux)
+* [Running the Tests](#running-the-tests)
+* [Running a job_stream Application](#running-a-job_stream-application)
+* [Running in Python](#running-in-python)
+* [Basics](#basics)
+* [Reducers and Frames](#reducers-and-frames)
+* [Words of Warning](#words-of-warning)
+* [Unfriendly Examples](#unfriendly-examples)
+* [Recent Changelog](#recent-changelog)
+* [Roadmap](#roadmap)
 
 
-Requirements
-------------
+##<a name="requirements"></a>Requirements
 
-boost (mpi, serialization, thread)
-yaml-cpp
+* [boost](http://www.boost.org/) (filesystem, mpi, regex, serialization, system, thread)
+* mpi (perhaps [OpenMPI](http://www.open-mpi.org/))
+* [yaml-cpp](https://code.google.com/p/yaml-cpp/).  **Must be compiled as shared
+  library for python!**
 
 
-Building Shared Library
------------------------
+##<a name="building-job-stream"></a>Building job_stream
+
+###<a name="building-shared-library"></a>Building Shared Library
 
 Create a build/ folder, cd into it, and run:
 
-    cmake .. && make -j8
+    cmake .. && make -j8 test
 
-This will instruct you on how to configure the build environment, and then will
-build the library.
+_Note: You will probably need to put at least the yaml-cpp include and build
+directories into your compiler's compilation path, perhaps with an environment
+variable like this:
+_
+
+    CPLUS_INCLUDE_PATH=~/yaml-cpp-0.5.1/include/ \
+        LD_LIBRARY_PATH=~/yaml-cpp-0.5.1/build/ \
+        bash -c "cmake .. && make -j8"
 
 
-Building and Installing Python Module
--------------------------------------
+###<a name="building-and-installing-the-python-module"></a>Building and Installing the Python Module
 
 The python module job\_stream can be built and installed via:
-    
-    python setup.py install
-
-or:
 
     pip install job_stream
 
-Currently, it is necessary to have two environment variables defined:
+or locally:
 
-* LD\_LIBRARY\_PATH - Specifies where the boost and yaml-cpp compiled libraries can be 
-  found.
+    python setup.py install
 
-* YAML\_CPP - Specifies the root directory for yaml-cpp.
+_Note: Similarly to building the shared library, you will probably need to put
+at least the yaml-cpp include directory into your compiler's path, perhaps
+with an environment variable as follows:
+_
+
+    CPLUS_INCLUDE_PATH=~/yaml-cpp-0.5.1/include/ \
+        LD_LIBRARY_PATH=~/yaml-cpp-0.5.1/build/ \
+        pip install job_stream
+
+_Different mpicxx: If you want to use an mpicxx other than your system's
+default, you may specify MPICXX=... as an environment variable.
+_
 
 
-Testing
--------
+###<a name="build-paths"></a>Build Paths
+
+Since job\_stream uses some of the compiled boost libraries as well as yaml-cpp,
+know your platform's mechanisms of amending default build and run paths:
+
+####<a name="linux"></a>Linux
+
+* CPLUS_INCLUDE_PATH=... - Colon-delimited paths to include directories
+* LIBRARY_PATH=... - Colon-delimited paths to static libraries for linking only
+* LD_LIBRARY_PATH=... - Colon-delimited paths to shared libraries for linking
+  and running binaries
+
+
+##<a name="running-the-tests"></a>Running the Tests
 
 Making the "test" target (with optional ARGS passed to test executable) will
 make and run any tests packaged with job\_stream:
 
     cmake .. && make -j8 test [ARGS="[serialization]"]
 
+Or to test the python library:
 
-Running
--------
+    cmake .. && make -j8 test-python [ARGS="../python/job_stream/test/"]
+
+
+##<a name="running-a-job_stream-application"></a>Running a job_stream Application
 
 A typical job\_stream application would be run like this:
 
@@ -61,8 +105,8 @@ A typical job\_stream application would be run like this:
 Note that -np to specify parallelism is not needed, as job\_stream implicitly
 multi-threads your application.  If a checkpointFile is provided, then the file
 will be used if it exists.  If it does not exist, it will be created and updated
-periodically to allow resume.  It is fairly simple to write a script that will
-execute the application until success:
+periodically to allow resuming with a minimal loss of computation time.  It is
+fairly simple to write a script that will execute the application until success:
 
     RESULT=1
     for i in `seq 1 100`; do
@@ -75,29 +119,24 @@ execute the application until success:
 
     exit $RESULT
 
-If -t is not specified, checkpoints will be taken every 10 minutes.  Sometimes
-checkpointing is a very slow process though; -t 24 will only checkpoint once
-per day, for instance.
+If -t is not specified, checkpoints will be taken every 10 minutes.
 
 
-Running in Python
------------------
+##<a name="running-in-python"></a>Running in Python
 
-Like this:
+Python is much more straightforward:
 
-    LD_LIBRARY_PATH=/path/to/boost/libs YAML_CPP=/path/to/yaml-cpp [MPICXX=mpicxx] python setup.py install
-    python
+    LD_LIBRARY_PATH=... ipython
     >>> import job_stream
-    >>> job_stream.run()
+    >>> class T(job_stream.Job):
+            def handleWork(self, w):
+                self.emit(w * 2)
+    # Omit this next line to use stdin for initial work
+    >>> job_stream.work = [ 1, 2, 3 ]
+    >>> job_stream.run({ 'jobs': [ T ] })
 
-Other notes:
-* Had to change yaml-cpp's CMake to include SHARED keyword to add_library(yaml-cpp SHARED.
-* I sym-linked an awful lot of mpi libraries into yaml-cpp's build dir.  Problem was .0 extension added? (libmpi.so.0
-  instead of libmpi.so)
 
-
-Basics
-------
+##<a name="basics"></a>Basics
 
 job_stream works by allowing you to specify various "streams" through your
 application's logic.  The most basic unit of work in job_stream is the job,
@@ -176,8 +215,8 @@ Running this with some input produces the expected result:
     (some stats will be printed on termination)
     local$
 
-Reducers and Frames
--------------------
+##<a name="reducers-and-frames"></a>Reducers and Frames
+
 Of course, if we could only transform and potentially duplicate input then
 job_stream wouldn't be very powerful.  job_stream has two mechanisms that make
 it much more useful - reducers, which allow several independently processed
@@ -341,8 +380,7 @@ becomes beneficial.  On our modest research cluster, I have jobs that routinely
 report a user-code quality of 200+ cpus.
 
 
-Words of Warning
-----------------
+##<a name="words-of-warning"></a>Words of Warning
 
 fork()ing a child process can be difficult in a threaded MPI application.  To
 work around these difficulties, it is suggested that your application use
@@ -366,8 +404,7 @@ Sometimes, passing -bind-to-core to mpirun can have a profoundly positive impact
 on performance.
 
 
-Unfriendly Examples
--------------------
+##<a name="unfriendly-examples"></a>Unfriendly Examples
 
 *These are old and aren't laid out quite as nicely.  However, there is reasonably
 good information here that isn't covered above.  So, it's left here for now.*
@@ -607,8 +644,8 @@ early on.  So handleDone() gets called with 20, 62, and finally 188.
 
 
 
-Recent Changelog
-----------------
+##<a name="recent-changelog"></a>Recent Changelog
+
 * 2014-12-18 - Python support.  Frame methods renamed for clarity
   (handleWork -> handleNext).  Frames may now be specified as a string for
   type, just like reducers.
@@ -664,8 +701,7 @@ Recent Changelog
   allocations and copies.  Default implementation with += removed.
 
 
-Roadmap
--------
+##<a name="roadmap"></a>Roadmap
 
 * README update - Should mention symlinking.
 * More python tests
