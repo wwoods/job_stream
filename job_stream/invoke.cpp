@@ -2,7 +2,6 @@
 #include "invoke.h"
 
 #include "job_stream.h"
-#include "josuttis/fdstream.hpp"
 
 #include <boost/algorithm/string.hpp>
 #include <boost/asio.hpp>
