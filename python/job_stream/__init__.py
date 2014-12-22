@@ -63,11 +63,6 @@ _localJobs = {}
 _localJobId = [ 0 ]
 def _localJobInit(obj):
     _localJobs[obj.id] = obj
-    try:
-        obj.mPostSetup()
-    except:
-        traceback.print_exc()
-        raise
     if hasattr(obj, 'emit'):
         obj.emit = lambda *args: obj.emitters.append(args)
     if hasattr(obj, 'recur'):
@@ -78,6 +73,14 @@ def _localJobInit(obj):
         obj.recurs = []
         obj.forceCheckpoints = []
     obj._resetLocalJob = obj_reset
+
+    # Now call postSetup.  Note that since we haven't called reset() yet, none of the
+    # arrays exist and so emit(), recur(), and _forceCheckpoint() will all crash
+    try:
+        obj.mPostSetup()
+    except:
+        traceback.print_exc()
+        raise Exception("Multiprocessing error raised")
 def _localCallNoStore(obj, method, *args):
     if obj not in _localJobs:
         return (0, [], [], [])
@@ -87,7 +90,7 @@ def _localCallNoStore(obj, method, *args):
         getattr(o, method)(*args)
     except:
         traceback.print_exc()
-        raise
+        raise Exception("Multiprocessing error raised")
     return (1, o.emitters, o.recurs, o.forceCheckpoints)
 def _localCallStoreFirst(obj, method, first, *args):
     if obj not in _localJobs:
@@ -98,7 +101,7 @@ def _localCallStoreFirst(obj, method, first, *args):
         getattr(o, method)(first, *args)
     except:
         traceback.print_exc()
-        raise
+        raise Exception("Multiprocessing error raised")
     return (1, first, o.emitters, o.recurs, o.forceCheckpoints)
 
 
