@@ -1,5 +1,6 @@
 
 #include "death_handler/death_handler.h"
+#include "debug_internals.h"
 #include "invoke.h"
 #include "job_stream.h"
 #include "processor.h"
@@ -15,6 +16,14 @@
 namespace mpi = boost::mpi;
 
 namespace job_stream {
+
+/** For e.g. interactive python, we keep the mpi environment alive as long as
+    we possibly can.  In other words, when we start a processor, if anything
+    goes wrong, we release the environment into this variable before crashing.
+    This ensures that MPI_Finalize is not called, letting the interpreter keep
+    running to report the error.  Additionally, this lets multiple job_stream
+    jobs be run in series from an interactive interpreter. */
+std::shared_ptr<mpi::environment> mpiEnvHolder;
 
 void checkpointInfo(const std::string& path, processor::Processor& p) {
     std::ifstream cf(path);
@@ -208,10 +217,12 @@ void runProcessor(int argc, char** argv) {
 
 void runProcessor(const SystemArguments& args) {
     //Fire up MPI and launch
-    std::unique_ptr<mpi::environment> env(new mpi::environment());
+    if (!mpiEnvHolder) {
+        mpiEnvHolder.reset(new mpi::environment());
+    }
     mpi::communicator world;
 
-    processor::Processor p(std::move(env), world, args.config,
+    processor::Processor p(mpiEnvHolder, world, args.config,
             args.checkpointFile);
     p.setCheckpointInterval(args.checkpointIntervalMs);
     if (args.checkpointSyncIntervalMs >= 0) {

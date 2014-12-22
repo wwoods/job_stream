@@ -646,6 +646,9 @@ early on.  So handleDone() gets called with 20, 62, and finally 188.
 
 ##<a name="recent-changelog"></a>Recent Changelog
 
+* 2014-12-22 - Finished python support (initial version, anyway).  Supports
+  config, multiprocessing, proper error reporting.  Pushed version 0.1.2 to
+  PyPI :)
 * 2014-12-18 - Python support.  Frame methods renamed for clarity
   (handleWork -> handleNext).  Frames may now be specified as a string for
   type, just like reducers.

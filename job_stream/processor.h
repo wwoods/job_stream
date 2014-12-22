@@ -354,7 +354,7 @@ public:
     static void addReducer(const std::string& typeName,
             std::function<job::ReducerBase* ()> allocator);
 
-    Processor(std::unique_ptr<boost::mpi::environment> env,
+    Processor(std::shared_ptr<boost::mpi::environment> env,
             boost::mpi::communicator world,
             const std::string& config, const std::string& checkpointName);
     ~Processor();
@@ -530,12 +530,15 @@ private:
         existing checkpoint file matches what the user wanted. */
     std::string _configStr;
     /** Our environment */
-    std::unique_ptr<boost::mpi::environment> env;
+    std::shared_ptr<boost::mpi::environment> env;
     /** Global array; see localClksByType */
     std::unique_ptr<uint64_t[]> globalClksByType;
     /** The root global config node, which is globally guarded. */
     YAML::GuardedNode globalConfig;
     std::unique_ptr<uint64_t[]> globalTimesByType;
+    /** The queue of serialized, initial work.  Stolen into our possession on
+        construction. */
+    std::vector<std::string> initialWork;
     /** Array containing how many cpu clocks were spent in each type of
         operation.  Indexed by ProcessorTimeType */
     static thread_local std::unique_ptr<uint64_t[]> localClksByType;

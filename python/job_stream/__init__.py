@@ -22,7 +22,7 @@ import traceback
 
 # Classes waiting for _patchForMultiprocessing.  We wait until _pool is initiated
 # so that A) classes inheriting from one another are rewritten backwards so that they
-# execute the original method, not the override, and B) so that their methods may be 
+# execute the original method, not the override, and B) so that their methods may be
 # updated between class definition and job_stream.run()
 _classesToPatch = []
 _pool = [ None ]
@@ -140,7 +140,18 @@ def callStoreFirst(obj, method, first, *args):
 class Job(_j.Job):
     """Base class for a standard job (starts with some work, and emits zero or
     more times).  Handles registration of job class with the job_stream
-    system."""
+    system.
+
+    Example:
+    import job_stream
+    class MyJob(job_stream.Job):
+        '''Adds 8 to an integer or floating point number'''
+        def handleWork(self, work):
+            self.emit(work + 8)
+    job_stream.work = [ 1, 2, 3.0 ]
+    # This will print 9, 10, and 11.0
+    job_stream.run({ 'jobs': [ MyJob ] })
+    """
     class __metaclass__(type(_j.Job)):
         def __init__(cls, name, bases, attrs):
             type(_j.Job).__init__(cls, name, bases, attrs)
@@ -161,7 +172,7 @@ class Job(_j.Job):
 
 
     USE_MULTIPROCESSING = True
-    USE_MULTIPROCESSING_doc = """If True [default {}], job_stream automatically handles 
+    USE_MULTIPROCESSING_doc = """If True [default {}], job_stream automatically handles
         overloading the class' methods and serializing everything so that the GIL is
         circumvented.  While this defaults to True as it is low overhead, lots of jobs
         do not need multiprocessing if they are using other python libraries or operations
@@ -170,6 +181,10 @@ class Job(_j.Job):
 
     @classmethod
     def _patchForMultiprocessing(cls):
+        if hasattr(cls, '_MULTIPROCESSING_PATCHED'):
+            return
+
+        cls._MULTIPROCESSING_PATCHED = True
         def newInit(self):
             super(cls, self).__init__()
             _initMultiprocessingPool()
@@ -202,8 +217,46 @@ class Job(_j.Job):
 
 
 class Reducer(_j.Reducer):
-    """Base class for a Reducer (starts with...
-    TODO
+    """Base class for a Reducer.  A Reducer combines work emitted from the last
+    stage of a reduction, eventually emitting its own result to the next link
+    in the processing chain.  A reduction starts when a piece of work enters
+    a module guarded by a Reducer.
+
+    Example:
+    import job_stream
+    class AddLetterA(job_stream.Job):
+        def handleWork(self, w):
+            self.emit(w + 'A')
+    class CountLetters(job_stream.Reducer):
+        '''Counts the number of letters passed to it'''
+        def handleInit(self, store):
+            store.count = 0
+        def handleAdd(self, store, work):
+            store.count += len(work)
+        def handleJoin(self, store, other):
+            store.count += other.count
+        def handleDone(self, store):
+            self.emit(store.count)
+    job_stream.work = [ 'Hello', 'World' ]
+    # Here the reduction starts at the global scope, so it will print out 12,
+    # which is the original 10 letters plus the two new letter A's.
+    print("First:")
+    job_stream.run({
+            'reducer': CountLetters,
+            'jobs': [ AddLetterA ]
+    })
+    # This config has the reduction starting as part of the first job rather
+    # than the global scope, so this will print 6 twice (once for each work that
+    # we initially passed in).
+    print("Second:")
+    job_stream.run({
+            'jobs': [
+                {
+                    'reducer': CountLetters,
+                    'jobs': [ AddLetterA ]
+                }
+            ]
+    })
     """
     class __metaclass__(type(_j.Reducer)):
         def __init__(cls, name, bases, attrs):
@@ -229,6 +282,10 @@ class Reducer(_j.Reducer):
 
     @classmethod
     def _patchForMultiprocessing(cls):
+        if hasattr(cls, '_MULTIPROCESSING_PATCHED'):
+            return
+
+        cls._MULTIPROCESSING_PATCHED = True
         def newInit(self):
             super(cls, self).__init__()
             _initMultiprocessingPool()
@@ -279,8 +336,35 @@ class Reducer(_j.Reducer):
 
 
 class Frame(_j.Frame):
-    """Base class for a Frame
-    TODO
+    """Base class for a Frame.  A Frame is a special type of reducer that
+    performs some special behavior based on the work that begins the reduction.
+    Typically this is used for checking termination conditions in a recurring
+    algorithm:
+
+    import job_stream
+    class AddAb(job_stream.Job):
+        def handleWork(self, w):
+            self.emit(w + 'Ab')
+    class MakeAtLeastTenLetters(job_stream.Frame):
+        def handleFirst(self, store, w):
+            store.word = w
+        def handleNext(self, store, w):
+            store.word = w
+        def handleDone(self, store):
+            if len(store.word) < 10:
+                self.recur(store.word)
+            else:
+                self.emit(store.word)
+
+    job_stream.work = [ 'abracadabra', 'Hey', 'Apples' ]
+    # This'll print out the unmodified abracadabra, add two Ab's to Apples, and
+    # four Ab's to Hey
+    job_stream.run({
+            'jobs': [ {
+                'frame': MakeAtLeastTenLetters,
+                'jobs': [ AddAb ]
+            } ]
+    })
     """
     class __metaclass__(type(_j.Frame)):
         def __init__(cls, name, bases, attrs):
@@ -305,6 +389,10 @@ class Frame(_j.Frame):
 
     @classmethod
     def _patchForMultiprocessing(cls):
+        if hasattr(cls, '_MULTIPROCESSING_PATCHED'):
+            return
+
+        cls._MULTIPROCESSING_PATCHED = True
         def newInit(self):
             super(cls, self).__init__()
             _initMultiprocessingPool()
@@ -410,4 +498,13 @@ def run(configDictOrPath, **kwargs):
         if cls.USE_MULTIPROCESSING:
             cls._patchForMultiprocessing()
 
-    _j.runProcessor(config, work, **kwargs)
+    try:
+        _j.runProcessor(config, work, **kwargs)
+    finally:
+        # Close our multiprocessing pool; especially in the interpreter, the
+        # pool must be launched AFTER all classes are defined.  So if we define
+        # a class in between invocations of run(), we still want them to work
+        if _pool[0] is not None:
+            _pool[0].close()
+            _pool[0].join()
+            _pool[0] = None

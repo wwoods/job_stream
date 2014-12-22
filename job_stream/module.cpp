@@ -127,7 +127,14 @@ void Module::postSetup() {
 
         int jobId = 0;
         for (int i = 0, m = conf["jobs"].size(); i < m; i++) {
+            if (conf["jobs"][i].IsScalar()) {
+                //Was the type...
+                YAML::Node nc;
+                nc["type"] = conf["jobs"][i]._getNode();
+                conf["jobs"][i] = nc;
+            }
             YAML::LockedNode n = conf["jobs"][i];
+
             if (n["to"]) {
                 std::ostringstream ss;
                 ss << "Job " << jobId << " under " << this->getFullName();

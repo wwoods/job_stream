@@ -61,7 +61,7 @@ job_stream = Extension('_job_stream',
         extra_link_args = [])
 
 setup(name = 'job_stream',
-        version = '0.1.1',
+        version = '0.1.2',
         description = 'job_stream: easy and sophisticated parallelization',
         author = 'Walt Woods',
         author_email = 'woodswalben@gmail.com',

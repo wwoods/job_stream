@@ -87,9 +87,8 @@ void Processor::addJob(const std::string& typeName,
     }
 
     if (jtm.count(typeName) != 0) {
-        std::ostringstream ss;
-        ss << "Job type already defined: " << typeName;
-        throw std::runtime_error(ss.str());
+        fprintf(stderr, "WARNING: Job type already defined: %s\n",
+                typeName.c_str());
     }
 
     jtm[typeName] = allocator;
@@ -100,9 +99,8 @@ void Processor::addReducer(const std::string& typeName,
         std::function<job::ReducerBase* ()> allocator) {
     ReducerTypeMapType& rtm = reducerTypeMap();
     if (rtm.count(typeName) != 0) {
-        std::ostringstream ss;
-        ss << "Reducer type already defined: " << typeName;
-        throw std::runtime_error(ss.str());
+        fprintf(stderr, "WARNING: Reducer type already defined: %s\n",
+                typeName.c_str());
     }
 
     rtm[typeName] = allocator;
@@ -169,12 +167,17 @@ void Processor::_WorkerInfo::lockForWork() {
 
 
 
-Processor::Processor(std::unique_ptr<mpi::environment> env,
+Processor::Processor(std::shared_ptr<mpi::environment> env,
         mpi::communicator world,
         const std::string& configStr, const std::string& checkpointFile)
             : checkpointFileName(checkpointFile), checkpointQuit(false),
-                reduceTagCount(0), env(std::move(env)), sentEndRing0(false),
+                reduceTagCount(0), env(env), sentEndRing0(false),
                 wasRestored(0), world(world), _configStr(configStr) {
+    //Step 1 - steal queued initialWork, so that if we throw an error, it
+    //does not get repeated without being requeued.
+    this->initialWork = job_stream::processor::initialWork;
+    job_stream::processor::initialWork.clear();
+
     if (world.size() >= (1 << message::WorkRecord::TAG_ADDRESS_BITS)) {
         throw std::runtime_error("MPI world too large.  See TAG_ADDRESS_BITS "
                 "in message.h");
@@ -412,7 +415,7 @@ void Processor::run(const std::string& inputLine) {
     if (this->world.rank() == 0) {
         bool usingStdin = false;
         if (!this->wasRestored) {
-            if (inputLine.empty() && initialWork.size() == 0) {
+            if (inputLine.empty() && this->initialWork.size() == 0) {
                 usingStdin = true;
             }
 
@@ -959,13 +962,13 @@ void Processor::processInputThread_main(const std::string& inputLine) {
             //Use string of inputLine as initial work
             this->_enqueueInputWork(inputLine);
         }
-        else if (initialWork.size() != 0) {
+        else if (this->initialWork.size() != 0) {
             //Initial work was set; send that
-            for (int i = 0, m = initialWork.size(); i < m; i++) {
+            for (int i = 0, m = this->initialWork.size(); i < m; i++) {
                 std::vector<std::string> inputDest;
                 this->_addWork(std::unique_ptr<message::WorkRecord>(
                         new message::WorkRecord(inputDest,
-                            std::move(initialWork[i]))));
+                            std::move(this->initialWork[i]))));
             }
         }
         else {
