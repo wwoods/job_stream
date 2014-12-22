@@ -7,6 +7,16 @@ import os
 import re
 import subprocess
 
+# Copy documentation into restructured text (pypi's choice)
+try:
+    import pandoc
+    pandoc.core.PANDOC_PATH = '/path/to/pandoc/todo'
+    doc = pandoc.Document()
+    doc.markdown = open('README.md').read()
+    long_desc = doc.rst
+except:
+    long_desc = open('README.md').read()
+
 # Extra directories coming from non-system paths.
 incdirs = [ '.', 'job_stream/boost_process' ]
 libdirs = []
@@ -63,6 +73,7 @@ job_stream = Extension('_job_stream',
 setup(name = 'job_stream',
         version = '0.1.2',
         description = 'job_stream: easy and sophisticated parallelization',
+        long_description = long_desc,
         author = 'Walt Woods',
         author_email = 'woodswalben@gmail.com',
         url = 'https://github.com/wwoods/job_stream',
