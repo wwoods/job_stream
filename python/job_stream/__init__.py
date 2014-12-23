@@ -108,7 +108,7 @@ def _localCallStoreFirst(obj, method, first, *args):
     return (1, first, o.emitters, o.recurs, o.forceCheckpoints)
 
 
-def callNoStore(obj, method, *args):
+def _callNoStore(obj, method, *args):
     while True:
         r = _pool[0].apply(_localCallNoStore, args = (obj.id, method) + args)
         if r[0] == 0:
@@ -123,7 +123,7 @@ def callNoStore(obj, method, *args):
         obj._forceCheckpoint(*fArgs)
 
 
-def callStoreFirst(obj, method, first, *args):
+def _callStoreFirst(obj, method, first, *args):
     while True:
         r = _pool[0].apply(_localCallStoreFirst,
                 args = (obj.id, method, first) + args)
@@ -196,7 +196,7 @@ class Job(_j.Job):
         cls.__init__ = newInit
 
         cls.mHandleWork = cls.handleWork
-        cls.handleWork = lambda self, *args: callNoStore(self, "mHandleWork",
+        cls.handleWork = lambda self, *args: _callNoStore(self, "mHandleWork",
                 *args)
 
         # We do not call postSetup when job_stream requests it.  This is because
@@ -299,7 +299,7 @@ class Reducer(_j.Reducer):
         for oldName in [ 'handleInit', 'handleAdd', 'handleJoin', 'handleDone' ]:
             newName = 'm' + oldName[0].upper() + oldName[1:]
             setattr(cls, newName, getattr(cls, oldName))
-            closure = lambda newName: lambda self, *args: callStoreFirst(self,
+            closure = lambda newName: lambda self, *args: _callStoreFirst(self,
                     newName, *args)
             setattr(cls, oldName, closure(newName))
 
@@ -406,7 +406,7 @@ class Frame(_j.Frame):
         for oldName in [ 'handleFirst', 'handleNext', 'handleDone' ]:
             newName = 'm' + oldName[0].upper() + oldName[1:]
             setattr(cls, newName, getattr(cls, oldName))
-            closure = lambda newName: lambda self, *args: callStoreFirst(self,
+            closure = lambda newName: lambda self, *args: _callStoreFirst(self,
                     newName, *args)
             setattr(cls, oldName, closure(newName))
 
@@ -502,7 +502,7 @@ def run(configDictOrPath, **kwargs):
             cls._patchForMultiprocessing()
 
     try:
-        _j.runProcessor(config, work, **kwargs)
+        _j.runProcessor(config, list(work), **kwargs)
     finally:
         # Close our multiprocessing pool; especially in the interpreter, the
         # pool must be launched AFTER all classes are defined.  So if we define
