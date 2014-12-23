@@ -1,3 +1,5 @@
 # Include header files
+include README.md
 graft job_stream
+graft yaml-cpp-0.5.1
 

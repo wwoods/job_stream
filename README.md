@@ -23,10 +23,11 @@ batch processing across multi-threaded workers.
 
 ##<a name="requirements"></a>Requirements
 
-* [boost](http://www.boost.org/) (filesystem, mpi, regex, serialization, system, thread)
+* [boost](http://www.boost.org/) (filesystem, mpi, python, regex, serialization, system, thread)
 * mpi (perhaps [OpenMPI](http://www.open-mpi.org/))
-* [yaml-cpp](https://code.google.com/p/yaml-cpp/).  **Must be compiled as shared
-  library for python!**
+
+Note that job_stream also uses [yaml-cpp](https://code.google.com/p/yaml-cpp/),
+but for convenience it is packaged with job_stream.
 
 
 ##<a name="building-job-stream"></a>Building job_stream
@@ -37,14 +38,14 @@ Create a build/ folder, cd into it, and run:
 
     cmake .. && make -j8 test
 
-_Note: You will probably need to put at least the yaml-cpp include and build
-directories into your compiler's compilation path, perhaps with an environment
-variable like this:
+_Note: You may need to tell the compiler where boost's libraries or include
+files are located.  If they are not in the system's default paths, extra paths
+may be specified with e.g. environment variables like this:
 _
 
-    CPLUS_INCLUDE_PATH=~/yaml-cpp-0.5.1/include/ \
-        LD_LIBRARY_PATH=~/yaml-cpp-0.5.1/build/ \
-        bash -c "cmake .. && make -j8"
+    CPLUS_INCLUDE_PATH=~/my/path/to/boost/ \
+        LD_LIBRARY_PATH=~/my/path/to/boost/stage/lib/ \
+        bash -c "cmake .. && make -j8 test"
 
 
 ###<a name="building-and-installing-the-python-module"></a>Building and Installing the Python Module
@@ -57,23 +58,22 @@ or locally:
 
     python setup.py install
 
-_Note: Similarly to building the shared library, you will probably need to put
-at least the yaml-cpp include directory into your compiler's path, perhaps
-with an environment variable as follows:
+_Note: Similarly to building the shared library, you may need to specify
+custom include or library paths:
 _
 
-    CPLUS_INCLUDE_PATH=~/yaml-cpp-0.5.1/include/ \
-        LD_LIBRARY_PATH=~/yaml-cpp-0.5.1/build/ \
+    CPLUS_INCLUDE_PATH=~/my/path/to/boost/ \
+        LD_LIBRARY_PATH=~/my/path/to/boost/stage/lib/ \
         pip install job_stream
 
 _Different mpicxx: If you want to use an mpicxx other than your system's
-default, you may specify MPICXX=... as an environment variable.
+default, you may also specify MPICXX=... as an environment variable.
 _
 
 
 ###<a name="build-paths"></a>Build Paths
 
-Since job\_stream uses some of the compiled boost libraries as well as yaml-cpp,
+Since job\_stream uses some of the compiled boost libraries,
 know your platform's mechanisms of amending default build and run paths:
 
 ####<a name="linux"></a>Linux
@@ -646,6 +646,8 @@ early on.  So handleDone() gets called with 20, 62, and finally 188.
 
 ##<a name="recent-changelog"></a>Recent Changelog
 
+* 2014-12-23 - Embedded yaml-cpp into job_stream's source to ease compilation.
+  Bumped PyPI to 0.1.3.
 * 2014-12-22 - Finished python support (initial version, anyway).  Supports
   config, multiprocessing, proper error reporting.  Pushed version 0.1.2 to
   PyPI :)

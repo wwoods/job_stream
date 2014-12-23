@@ -18,7 +18,7 @@ except:
     long_desc = open('README.md').read()
 
 # Extra directories coming from non-system paths.
-incdirs = [ '.', 'job_stream/boost_process' ]
+incdirs = [ '.', 'job_stream/boost_process', 'yaml-cpp-0.5.1/include' ]
 libdirs = []
 libraries = []
 if 'LD_LIBRARY_PATH' in os.environ:
@@ -51,8 +51,8 @@ job_stream = Extension('_job_stream',
             ('MINOR_VERSION', '1') ],
         include_dirs = incdirs + [ '/usr/local/include' ],
         libraries = libraries + [ 'boost_filesystem', 'boost_python',
-            'boost_system', 'boost_thread', 'boost_serialization', 'boost_mpi',
-            'yaml-cpp', 'rt' ],
+            'boost_system', 'boost_thread', 'boost_serialization', 'boost_mpi'
+        ],
         library_dirs = libdirs,
         sources = [
             'python/_job_stream.cpp',
@@ -66,12 +66,43 @@ job_stream = Extension('_job_stream',
             'job_stream/types.cpp',
             'job_stream/workerThread.cpp',
             'job_stream/death_handler/death_handler.cc',
+
+            # yaml-cpp 0.5.1, embedded into job_stream for compilation ease
+            'yaml-cpp-0.5.1/src/binary.cpp',
+            'yaml-cpp-0.5.1/src/convert.cpp',
+            'yaml-cpp-0.5.1/src/directives.cpp',
+            'yaml-cpp-0.5.1/src/emit.cpp',
+            'yaml-cpp-0.5.1/src/emitfromevents.cpp',
+            'yaml-cpp-0.5.1/src/emitter.cpp',
+            'yaml-cpp-0.5.1/src/emitterstate.cpp',
+            'yaml-cpp-0.5.1/src/emitterutils.cpp',
+            'yaml-cpp-0.5.1/src/exp.cpp',
+            'yaml-cpp-0.5.1/src/memory.cpp',
+            'yaml-cpp-0.5.1/src/nodebuilder.cpp',
+            'yaml-cpp-0.5.1/src/node.cpp',
+            'yaml-cpp-0.5.1/src/node_data.cpp',
+            'yaml-cpp-0.5.1/src/nodeevents.cpp',
+            'yaml-cpp-0.5.1/src/null.cpp',
+            'yaml-cpp-0.5.1/src/ostream_wrapper.cpp',
+            'yaml-cpp-0.5.1/src/parse.cpp',
+            'yaml-cpp-0.5.1/src/parser.cpp',
+            'yaml-cpp-0.5.1/src/regex.cpp',
+            'yaml-cpp-0.5.1/src/scanner.cpp',
+            'yaml-cpp-0.5.1/src/scanscalar.cpp',
+            'yaml-cpp-0.5.1/src/scantag.cpp',
+            'yaml-cpp-0.5.1/src/scantoken.cpp',
+            'yaml-cpp-0.5.1/src/simplekey.cpp',
+            'yaml-cpp-0.5.1/src/singledocparser.cpp',
+            'yaml-cpp-0.5.1/src/stream.cpp',
+            'yaml-cpp-0.5.1/src/tag.cpp',
+            'yaml-cpp-0.5.1/src/contrib/graphbuilder.cpp',
+            'yaml-cpp-0.5.1/src/contrib/graphbuilderadapter.cpp',
         ],
         extra_compile_args = [ '-std=c++0x' ],
         extra_link_args = [])
 
 setup(name = 'job_stream',
-        version = '0.1.2',
+        version = '0.1.3',
         description = 'job_stream: easy and sophisticated parallelization',
         long_description = long_desc,
         author = 'Walt Woods',

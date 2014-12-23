@@ -25,7 +25,7 @@ SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x -ftemplate-backtrace-limit=0"
 #add_definitions(-pg)
 #SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -pg")
 
-include_directories("job_stream/boost_process/")
+include_directories(job_stream/boost_process/ yaml-cpp-0.5.1/include/)
 find_library(BOOST_FILESYSTEM_LIBRARY
         NAMES boost_filesystem
         HINTS ENV LD_LIBRARY_PATH ENV LIBRARY_PATH)
@@ -43,9 +43,6 @@ find_library(BOOST_MPI_LIBRARY
         HINTS ENV LD_LIBRARY_PATH ENV LIBRARY_PATH)
 find_library(BOOST_REGEX_LIBRARY
         NAMES boost_regex
-        HINTS ENV LD_LIBRARY_PATH ENV LIBRARY_PATH)
-find_library(YAML_CPP_LIBRARY
-        NAMES yaml-cpp
         HINTS ENV LD_LIBRARY_PATH ENV LIBRARY_PATH)
 
 # CMake bug?  If we reference libraries in target_link_libraries as in their
@@ -69,19 +66,13 @@ set_property(TARGET boost_mpi PROPERTY IMPORTED_LOCATION
 add_library(boost_regex UNKNOWN IMPORTED)
 set_property(TARGET boost_regex PROPERTY IMPORTED_LOCATION 
         "${BOOST_REGEX_LIBRARY}")
-add_library(yaml_cpp UNKNOWN IMPORTED)
-set_property(TARGET yaml_cpp PROPERTY IMPORTED_LOCATION 
-        "${YAML_CPP_LIBRARY}")
 
 SET(REQ_LIB
         boost_filesystem
         boost_system
         boost_thread
         boost_serialization
-        boost_mpi
-        yaml_cpp
-        # rt must be last
-        rt)
+        boost_mpi)
 
 add_library(job_stream
         job_stream/invoke.cpp
@@ -94,7 +85,39 @@ add_library(job_stream
         job_stream/serialization.cpp
         job_stream/types.cpp
         job_stream/workerThread.cpp
-        job_stream/death_handler/death_handler.cc)
+        job_stream/death_handler/death_handler.cc
+
+        # yaml-cpp-0.5.1 - Packaged with job_stream for convenience
+        yaml-cpp-0.5.1/src/binary.cpp
+        yaml-cpp-0.5.1/src/convert.cpp
+        yaml-cpp-0.5.1/src/directives.cpp
+        yaml-cpp-0.5.1/src/emit.cpp
+        yaml-cpp-0.5.1/src/emitfromevents.cpp
+        yaml-cpp-0.5.1/src/emitter.cpp
+        yaml-cpp-0.5.1/src/emitterstate.cpp
+        yaml-cpp-0.5.1/src/emitterutils.cpp
+        yaml-cpp-0.5.1/src/exp.cpp
+        yaml-cpp-0.5.1/src/memory.cpp
+        yaml-cpp-0.5.1/src/nodebuilder.cpp
+        yaml-cpp-0.5.1/src/node.cpp
+        yaml-cpp-0.5.1/src/node_data.cpp
+        yaml-cpp-0.5.1/src/nodeevents.cpp
+        yaml-cpp-0.5.1/src/null.cpp
+        yaml-cpp-0.5.1/src/ostream_wrapper.cpp
+        yaml-cpp-0.5.1/src/parse.cpp
+        yaml-cpp-0.5.1/src/parser.cpp
+        yaml-cpp-0.5.1/src/regex.cpp
+        yaml-cpp-0.5.1/src/scanner.cpp
+        yaml-cpp-0.5.1/src/scanscalar.cpp
+        yaml-cpp-0.5.1/src/scantag.cpp
+        yaml-cpp-0.5.1/src/scantoken.cpp
+        yaml-cpp-0.5.1/src/simplekey.cpp
+        yaml-cpp-0.5.1/src/singledocparser.cpp
+        yaml-cpp-0.5.1/src/stream.cpp
+        yaml-cpp-0.5.1/src/tag.cpp
+        yaml-cpp-0.5.1/src/contrib/graphbuilder.cpp
+        yaml-cpp-0.5.1/src/contrib/graphbuilderadapter.cpp
+        )
 target_link_libraries(job_stream ${REQ_LIB})
 
 # Examples
