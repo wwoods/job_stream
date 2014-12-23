@@ -27,10 +27,13 @@ import traceback
 _classesToPatch = []
 _pool = [ None ]
 def _initMultiprocessingPool():
-    """The multiprocessing pool is initialized lazily by default, to avoid overhead
-    if no jobs are using multiprocessing"""
+    """The multiprocessing pool is initialized lazily by default, to avoid 
+    overhead if no jobs are using multiprocessing"""
     if _pool[0] is None:
-        _pool[0] = 'Do not re-init in multiprocessed pool'
+        class NoDoubleInit(object):
+            def __getattribute__(self, name):
+                raise ValueError("Cannot use _pool in a worker process")
+        _pool[0] = NoDoubleInit()
         _pool[0] = multiprocessing.Pool()
 
 
@@ -505,6 +508,7 @@ def run(configDictOrPath, **kwargs):
         # pool must be launched AFTER all classes are defined.  So if we define
         # a class in between invocations of run(), we still want them to work
         if _pool[0] is not None:
-            _pool[0].close()
-            _pool[0].join()
+            p = _pool[0]
             _pool[0] = None
+            p.terminate()
+            p.join()

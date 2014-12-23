@@ -224,6 +224,7 @@ void runProcessor(const SystemArguments& args) {
 
     processor::Processor p(mpiEnvHolder, world, args.config,
             args.checkpointFile);
+    p.checkExternalSignals = args.checkExternalSignals;
     p.setCheckpointInterval(args.checkpointIntervalMs);
     if (args.checkpointSyncIntervalMs >= 0) {
         processor::Processor::CHECKPOINT_SYNC_WAIT_MS

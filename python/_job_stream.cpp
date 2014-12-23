@@ -938,6 +938,14 @@ bp::object runProcessor(bp::tuple args, bp::dict kwargs) {
     job_stream::SystemArguments sa;
     sa.config = bp::extract<std::string>(args[0]);
 
+    sa.checkExternalSignals = []() -> bool {
+        _PyGilAcquire errCheck;
+        if (PyErr_CheckSignals()) {
+            return true;
+        }
+        return false;
+    };
+
     bp::object workList = bp::object(args[1]);
     for (int i = 0, m = bp::len(workList); i < m; i++) {
         job_stream::queueInitialWork(SerializedPython(bp::extract<std::string>(

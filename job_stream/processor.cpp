@@ -510,6 +510,11 @@ void Processor::run(const std::string& inputLine) {
             if (this->workerErrors.size() != 0) {
                 this->shouldRun = false;
             }
+
+            //Check external control signals
+            if (this->checkExternalSignals && this->checkExternalSignals()) {
+                this->shouldRun = false;
+            }
         }
     }
     catch (...) {
@@ -520,12 +525,12 @@ void Processor::run(const std::string& inputLine) {
         throw;
     }
 
+    //Stop all threads
+    this->joinThreads();
+
     //Stop timer, report on user vs not
     outerTimer.reset();
     this->localTimersMerge();
-
-    //Stop all threads
-    this->joinThreads();
 
     uint64_t timesTotal = 0;
     //Aggregate main thread localTimes to get total sim time

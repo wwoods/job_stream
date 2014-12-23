@@ -366,6 +366,11 @@ public:
     static job::JobBase* allocateJobForDeserialize(const std::string& typeId);
     /** Ability to use registered method to allocate a ReducerBase derivative. */
     static job::ReducerBase* allocateReducerForDeserialize(const std::string& typeId);
+    /** Useful for systems such as python; this function is called once per loop
+        in the main thread.  If it returns true, operation stops (shouldRun is
+        set to false).
+        */
+    std::function<bool ()> checkExternalSignals;
     /** Allocate and return a new tag for reduction operations. */
     uint64_t getNextReduceTag();
     /** Return this Processor's rank */

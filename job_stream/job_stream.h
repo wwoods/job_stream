@@ -627,6 +627,9 @@ namespace job_stream {
     struct SystemArguments {
         /** The YAML text that is used as the config file */
         std::string config;
+        /** The callback function called every loop.  If it returns true, then
+            processing is aborted. */
+        std::function<bool ()> checkExternalSignals;
         /** The file to use for checkpointing, if any */
         std::string checkpointFile;
         /** The interval between the completion of one checkpoint and the
