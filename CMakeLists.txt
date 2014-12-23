@@ -48,13 +48,38 @@ find_library(YAML_CPP_LIBRARY
         NAMES yaml-cpp
         HINTS ENV LD_LIBRARY_PATH ENV LIBRARY_PATH)
 
+# CMake bug?  If we reference libraries in target_link_libraries as in their
+# resolved variable form above (${BOOST_MPI_LIBRARY}), then this doesn't
+# build.
+add_library(boost_filesystem UNKNOWN IMPORTED)
+set_property(TARGET boost_filesystem PROPERTY IMPORTED_LOCATION 
+        "${BOOST_FILESYSTEM_LIBRARY}")
+add_library(boost_system UNKNOWN IMPORTED)
+set_property(TARGET boost_system PROPERTY IMPORTED_LOCATION 
+        "${BOOST_SYSTEM_LIBRARY}")
+add_library(boost_thread UNKNOWN IMPORTED)
+set_property(TARGET boost_thread PROPERTY IMPORTED_LOCATION 
+        "${BOOST_THREAD_LIBRARY}")
+add_library(boost_serialization UNKNOWN IMPORTED)
+set_property(TARGET boost_serialization PROPERTY IMPORTED_LOCATION 
+        "${BOOST_SERIALIZATION_LIBRARY}")
+add_library(boost_mpi UNKNOWN IMPORTED)
+set_property(TARGET boost_mpi PROPERTY IMPORTED_LOCATION 
+        "${BOOST_MPI_LIBRARY}")
+add_library(boost_regex UNKNOWN IMPORTED)
+set_property(TARGET boost_regex PROPERTY IMPORTED_LOCATION 
+        "${BOOST_REGEX_LIBRARY}")
+add_library(yaml_cpp UNKNOWN IMPORTED)
+set_property(TARGET yaml_cpp PROPERTY IMPORTED_LOCATION 
+        "${YAML_CPP_LIBRARY}")
+
 SET(REQ_LIB
-        ${BOOST_FILESYSTEM_LIBRARY}
-        ${BOOST_SYSTEM_LIBRARY}
-        ${BOOST_THREAD_LIBRARY}
-        ${BOOST_SERIALIZATION_LIBRARY}
-        ${BOOST_MPI_LIBRARY}
-        ${YAML_CPP_LIBRARY}
+        boost_filesystem
+        boost_system
+        boost_thread
+        boost_serialization
+        boost_mpi
+        yaml_cpp
         # rt must be last
         rt)
 
@@ -76,19 +101,19 @@ target_link_libraries(job_stream ${REQ_LIB})
 add_executable(example/job_stream_example example/main.cpp)
 add_custom_command(TARGET example/job_stream_example
         PRE_BUILD COMMAND mkdir -p example)
-target_link_libraries(example/job_stream_example job_stream ${REQ_LIB})
+target_link_libraries(example/job_stream_example job_stream)
 target_include_directories(example/job_stream_example PUBLIC .)
 
 add_executable(example/job_stream_neuron example/neuron.cpp)
 add_custom_command(TARGET example/job_stream_neuron
         PRE_BUILD COMMAND mkdir -p example)
-target_link_libraries(example/job_stream_neuron job_stream ${REQ_LIB})
+target_link_libraries(example/job_stream_neuron job_stream)
 target_include_directories(example/job_stream_neuron PUBLIC .)
 
 add_executable(example/job_stream_stable example/stable.cpp)
 add_custom_command(TARGET example/job_stream_stable
         PRE_BUILD COMMAND mkdir -p example)
-target_link_libraries(example/job_stream_stable job_stream ${REQ_LIB})
+target_link_libraries(example/job_stream_stable job_stream)
 target_include_directories(example/job_stream_stable PUBLIC .)
 
 add_custom_target(example)
@@ -105,7 +130,7 @@ target_link_libraries(test_job_stream
         job_stream
         ${REQ_LIB}
         # std::regex is horribly, horribly broken in gcc 4.8.  @&#^%&
-        ${BOOST_REGEX_LIBRARY})
+        boost_regex)
 target_include_directories(test_job_stream PUBLIC
         "./"
         "test/libexecstream/")
