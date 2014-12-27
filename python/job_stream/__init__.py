@@ -49,6 +49,16 @@ def _encode(o):
 
 class Object(object):
     """A generic object with no attributes of its own."""
+    def __init__(self, **kwargs):
+        self.__dict__.update(kwargs)
+
+
+    def __repr__(self):
+        r = [ 'job_stream.Object(' ]
+        for k, v in self.__dict__.iteritems():
+            r.append('{}={}, '.format(k, repr(v)))
+        r.append(')')
+        return ''.join(r)
 
 
 # Initialize the encode and decode values first so that they can be used in
@@ -138,6 +148,14 @@ def _callStoreFirst(obj, method, first, *args):
         obj.recur(*rArgs)
     for fArgs in r[4]:
         obj._forceCheckpoint(*fArgs)
+def _hierarchicalName(cls, name = None):
+    fullname = cls.__module__
+    n = name or cls.__name__
+    if fullname == '__main__':
+        fullname = n
+    else:
+        fullname += '.' + n
+    return fullname
 
 
 class Job(_j.Job):
@@ -160,11 +178,7 @@ class Job(_j.Job):
             type(_j.Job).__init__(cls, name, bases, attrs)
 
             # Derived hierarchical name, use that in config
-            fullname = cls.__module__
-            if fullname == '__main__':
-                fullname = name
-            else:
-                fullname += '.' + name
+            fullname = _hierarchicalName(cls, name)
 
             # Metaclasses are called for their first rendition as well, so...
             if fullname == 'job_stream.Job':
@@ -266,11 +280,7 @@ class Reducer(_j.Reducer):
             type(_j.Reducer).__init__(cls, name, bases, attrs)
 
             # Derived hierarchical name, use that in config
-            fullname = cls.__module__
-            if fullname == '__main__':
-                fullname = name
-            else:
-                fullname += '.' + name
+            fullname = _hierarchicalName(cls, name)
 
             # Metaclasses are called for their first rendition as well, so...
             if fullname == 'job_stream.Reducer':
@@ -372,11 +382,7 @@ class Frame(_j.Frame):
     class __metaclass__(type(_j.Frame)):
         def __init__(cls, name, bases, attrs):
             # Derived hierarchical name, use that in config
-            fullname = cls.__module__
-            if fullname == '__main__':
-                fullname = name
-            else:
-                fullname += '.' + name
+            fullname = _hierarchicalName(cls, name)
 
             # Metaclasses are called for their first rendition as well, so...
             if fullname == 'job_stream.Frame':
@@ -464,11 +470,14 @@ def _convertDictToYaml(c):
         if isinstance(val, dict):
             levels.append({ 'type': dict, 'vals': val.iteritems() })
         elif isinstance(val, list):
-            levels.append({ 'type': list, 'vals': iter(val) })
+            if len(val) == 0:
+                result.append("[]")
+            else:
+                levels.append({ 'type': list, 'vals': iter(val) })
         elif isinstance(val, (int, float, basestring)):
             result.append(str(val))
         elif issubclass(val, (Frame, Job, Reducer)):
-            result.append(val.__name__)
+            result.append(_hierarchicalName(val))
         else:
             raise ValueError("Unrecognized YAML object: {}: {}".format(key,
                     val))
@@ -488,6 +497,11 @@ def run(configDictOrPath, **kwargs):
                 checkpoint and the starting of the next, in seconds.
         checkpointSyncInterval - (float) The time between all processors
                 thinking they're ready to checkpoint and the actual checkpoint.
+        handleResult - (callable) The default is to print out repr(result).  If specified,
+                this function will be called instead with the output work as an argument.
+                Note that this goes outside of checkpointing!  If you are saving work into
+                an array, for example, and want to be checkpoint-safe, this method MUST
+                save what it needs to file.
     """
     if isinstance(configDictOrPath, basestring):
         # Path to file
@@ -501,8 +515,17 @@ def run(configDictOrPath, **kwargs):
         if cls.USE_MULTIPROCESSING:
             cls._patchForMultiprocessing()
 
+    if 'handleResult' not in kwargs:
+        def handleResult(r):
+            """Process an output work.  Note that this function is responsible for 
+            checkpointing!
+            """
+            print(repr(r))
+    else:
+        handleResult = kwargs.pop('handleResult')
+
     try:
-        _j.runProcessor(config, list(work), **kwargs)
+        _j.runProcessor(config, list(work), handleResult, **kwargs)
     finally:
         # Close our multiprocessing pool; especially in the interpreter, the
         # pool must be launched AFTER all classes are defined.  So if we define
@@ -512,3 +535,4 @@ def run(configDictOrPath, **kwargs):
             _pool[0] = None
             p.terminate()
             p.join()
+

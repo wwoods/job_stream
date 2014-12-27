@@ -375,6 +375,12 @@ public:
     uint64_t getNextReduceTag();
     /** Return this Processor's rank */
     int getRank() const { return this->world.rank(); }
+    /** If set, called instead of printing any output work.  Note that when this is called,
+        the work is NO LONGER UNDER CHECKPOINT!  That is, if the work needs to be 
+        checkpoint-safe, then the application defining this callback must write it to disk
+        or make it safe in its own way. */
+    std::function<void (std::unique_ptr<serialization::AnyType> output)> 
+            handleOutputCallback;
     /** Returns statistics about some processor from a serialized checkpoint
         buffer. */
     void populateCheckpointInfo(CheckpointInfo& info,

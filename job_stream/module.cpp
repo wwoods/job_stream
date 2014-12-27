@@ -73,12 +73,23 @@ void Module::postSetup() {
     else if (conf["jobs"].IsSequence()) {
         if (conf["input"]) {
             ERROR("Module " << this->getFullName() << " has input defined but "
-                    "jobs is a list");
+                    "jobs is a list or empty");
+        }
+
+        //Specify default input
+        if (conf["jobs"].size() == 0) {
+            conf["input"] = "output";
+        }
+        else {
+            conf["input"] = "[0]";
         }
     }
     else if (!conf["input"]) {
         ERROR("Module " << this->getFullName() << " has no input defined");
     }
+
+    //conf["input"] should now be defined
+    ASSERT(conf["input"], "Input should have been defined?");
 
     //Is this module framed?
     if (conf["frame"]) {
@@ -102,14 +113,7 @@ void Module::postSetup() {
             conf["reducer"] = newReducer;
         }
 
-        if (conf["input"]) {
-            conf["reducer"]["recurTo"] = conf["input"].as<
-                    std::string>();
-        }
-        else {
-            conf["reducer"]["recurTo"] = "[0]";
-        }
-
+        conf["reducer"]["recurTo"] = conf["input"].as<std::string>();
         conf["input"] = "output";
     }
 
@@ -118,12 +122,6 @@ void Module::postSetup() {
         //are more flexible, we have to replace the jobs node with a named
         //version.
         YAML::Node newJobs;
-
-        //If there is no input, then we need to set it to the first job in the
-        //sequence.
-        if (!conf["input"]) {
-            conf["input"] = "[0]";
-        }
 
         int jobId = 0;
         for (int i = 0, m = conf["jobs"].size(); i < m; i++) {
@@ -231,9 +229,21 @@ void Module::dispatchWork(message::WorkRecord& work) {
                     throw std::runtime_error(ss.str());
                 }
                 else {
-                    //Print as str to stdout for root module by default
+                    //This only affects tests, but by locking out checkpoints to dole out
+                    //output, we prevent double-output if an output occurs during a 
+                    //checkpoint.  In a real crash mid-checkpoint, the output would be
+                    //duplicated since the application would resume from the previous
+                    //checkpoint.
                     this->lockOutCheckpointsUntilCompletion();
-                    printf("%s\n", work.getWorkAsString().c_str());
+                    if (this->processor->handleOutputCallback) {
+                        std::unique_ptr<serialization::AnyType> workObj;
+                        work.putWorkInto(workObj);
+                        this->processor->handleOutputCallback(std::move(workObj));
+                    }
+                    else  {
+                        //Print as str to stdout for root module by default
+                        printf("%s\n", work.getWorkAsString().c_str());
+                    }
                 }
             }
             else {

@@ -4,21 +4,97 @@ Job Stream
 A tiny C library and python module based on OpenMPI for distributing streamed
 batch processing across multi-threaded workers.
 
+* [Introduction](#introduction)
 * [Requirements](#requirements)
 * [Building job_stream](#building-job_stream)
-    * [Building Shared Library](#building-shared-library)
     * [Building and Installing the Python Module](#building-and-installing-the-python-module)
+    * [Building the C++ Shared Library](#building-shared-library)
     * [Build Paths](#build-paths)
         * [Linux](#linux)
-* [Running the Tests](#running-the-tests)
-* [Running a job_stream Application](#running-a-job_stream-application)
-* [Running in Python](#running-in-python)
-* [Basics](#basics)
-* [Reducers and Frames](#reducers-and-frames)
+* [Python Recipes](#python-recipes)
+    * [for x in ...](#for-x-in)
+    * [Nested for i in x](#nested-for-i-in-x)
+* [C++ Basics](#c-basics)
+    * [Reducers and Frames](#reducers-and-frames)
 * [Words of Warning](#words-of-warning)
 * [Unfriendly Examples](#unfriendly-examples)
 * [Recent Changelog](#recent-changelog)
 * [Roadmap](#roadmap)
+* [Appendix](#appendix)
+    * [Running the Tests](#running-the-tests)
+    * [Running a job_stream C++ Application](#running-a-job_stream-application)
+    * [Running in Python](#running-in-python)
+
+##<a name="introduction"></a>Introduction
+
+job_stream is a straightforward and effective way to implement distributed computations.  How straightforward?  Well, if we wanted to find all primes between 0 and 999:
+
+    # Import the main Work object that makes using job_stream dead simple
+    from job_stream.inline import Work
+    import math
+
+    # Start by declaring work based on the list of numbers between 0 and 999
+    w = Work(range(1000))
+    
+    # For each of those numbers, execute this method to see if that number is prime
+    @w.job
+    def isPrime(x):
+        for i in range(2, int(math.sqrt(x)) + 1):
+            if x % i == 0:
+                return
+        print(x)
+
+    # Run the job stream!
+    w.run()
+
+
+Neat, huh?  Or for more of a real-world example, if we wanted line counts for all of the files in a directory:
+
+    # Import the inline library of job_stream (works for 99% of cases and produces code
+    # that is easier to follow).  Object is a blank object, and Work is the workhorse of
+    # the job_stream.inline library.
+    from job_stream.inline import Object, Work
+    import os
+    import sys
+    path = sys.argv[1] if len(sys.argv) > 1 else '.'
+
+    # Start by defining our Work as the files in the given directory
+    w = Work([ p for p in os.listdir(path)
+            if os.path.isfile(p) ])
+
+    # For each file given, count the number of lines in the file and print 
+    @w.job
+    def countLines(filename):
+        count = len(list(open(filename)))
+        print("{}: {} lines".format(filename, count))
+        return count
+
+    # Join all of the prior line counts by summing them into an object's "total" attribute
+    @w.reduce(store = lambda: Object(total = 0))
+    def sumDirectory(store, inputs, others):
+        for count in inputs:
+            store.total += count
+        for o in others:
+            store.total += o.total
+
+    # Now that we have the total, print it
+    @w.job
+    def printTotal(store):
+        print("======")
+        print("Total: {} lines".format(store.total))
+
+    # Execute the job stream
+    w.run()
+
+
+Pretty simple, right?  job_stream lets developers write their code in an imperative style, and does all the heavy lifting behind the scenes.  While there are a lot of task processing libraries out there, job_stream bends over backwards to make writing distributed processing tasks easy.  What all is in the box?
+
+* **Easy python interface** to keep coding in a way that you are comfortable
+* **Jobs and reducers** to implement common map/reduce idioms.  However, job_stream reducers also allow *recurrence*!
+* **Frames** as a more powerful, recurrent addition to map/reduce.  If the flow of your data depends on that data, for instance when running a calculation until the result fits a specified tolerance, frames are a powerful tool to get the job done.
+* **Automatic checkpointing** so that you don't lose all of your progress if a multi-day computations crashes on the second day
+* **Intelligent job distribution** including job stealing, so that overloaded machines receive less work than idle ones
+* **Execution Statistics** so that you know exactly how effectively your code parallelizes
 
 
 ##<a name="requirements"></a>Requirements
@@ -32,22 +108,6 @@ but for convenience it is packaged with job_stream.
 
 ##<a name="building-job-stream"></a>Building job_stream
 
-###<a name="building-shared-library"></a>Building Shared Library
-
-Create a build/ folder, cd into it, and run:
-
-    cmake .. && make -j8 test
-
-_Note: You may need to tell the compiler where boost's libraries or include
-files are located.  If they are not in the system's default paths, extra paths
-may be specified with e.g. environment variables like this:
-_
-
-    CPLUS_INCLUDE_PATH=~/my/path/to/boost/ \
-        LD_LIBRARY_PATH=~/my/path/to/boost/stage/lib/ \
-        bash -c "cmake .. && make -j8 test"
-
-
 ###<a name="building-and-installing-the-python-module"></a>Building and Installing the Python Module
 
 The python module job\_stream can be built and installed via:
@@ -58,17 +118,29 @@ or locally:
 
     python setup.py install
 
-_Note: Similarly to building the shared library, you may need to specify
-custom include or library paths:
-_
+*Note: You may need to specify custom include or library paths:*
 
     CPLUS_INCLUDE_PATH=~/my/path/to/boost/ \
         LD_LIBRARY_PATH=~/my/path/to/boost/stage/lib/ \
         pip install job_stream
 
-_Different mpicxx: If you want to use an mpicxx other than your system's
-default, you may also specify MPICXX=... as an environment variable.
-_
+*Different mpicxx: If you want to use an mpicxx other than your system's
+default, you may also specify MPICXX=... as an environment variable.*
+
+
+###<a name="building-shared-library"></a>Building the C++ Shared Library
+
+Create a build/ folder, cd into it, and run:
+
+    cmake .. && make -j8 test
+
+*Note: You may need to tell the compiler where boost's libraries or include
+files are located.  If they are not in the system's default paths, extra paths
+may be specified with e.g. environment variables like this:*
+
+    CPLUS_INCLUDE_PATH=~/my/path/to/boost/ \
+        LD_LIBRARY_PATH=~/my/path/to/boost/stage/lib/ \
+        bash -c "cmake .. && make -j8 test"
 
 
 ###<a name="build-paths"></a>Build Paths
@@ -84,59 +156,137 @@ know your platform's mechanisms of amending default build and run paths:
   and running binaries
 
 
-##<a name="running-the-tests"></a>Running the Tests
+##<a name="python-recipes"></a>Python Recipes
 
-Making the "test" target (with optional ARGS passed to test executable) will
-make and run any tests packaged with job\_stream:
+###<a name="for-x-in"></a>for x in ...
 
-    cmake .. && make -j8 test [ARGS="[serialization]"]
+To parallelize this:
 
-Or to test the python library:
+    for x in range(10):
+        print x
 
-    cmake .. && make -j8 test-python [ARGS="../python/job_stream/test/"]
+Do this:
 
+    from job_stream.inline import Work
+    w = Work(range(10))
 
-##<a name="running-a-job_stream-application"></a>Running a job_stream Application
+    @w.job
+    def printer(x):
+        print x
+        # Any value returned (except for a list type) will be emitted from the job.
+        # A list type will be unwrapped (emit multiple)
+        return x
 
-A typical job\_stream application would be run like this:
-
-    mpirun -host a,b,c my_application path/to/config.yaml [-c checkpointFile] [-t hoursBetweenCheckpoints] Initial work string (or int or float or whatever)
-
-Note that -np to specify parallelism is not needed, as job\_stream implicitly
-multi-threads your application.  If a checkpointFile is provided, then the file
-will be used if it exists.  If it does not exist, it will be created and updated
-periodically to allow resuming with a minimal loss of computation time.  It is
-fairly simple to write a script that will execute the application until success:
-
-    RESULT=1
-    for i in `seq 1 100`; do
-        mpirun my_application config.yaml -c checkpoint.chkpt blahblah
-        RESULT=$?
-        if [ $RESULT -eq 0 ]; then
-            break
-        fi
-    done
-
-    exit $RESULT
-
-If -t is not specified, checkpoints will be taken every 10 minutes.
+    w.run()
 
 
-##<a name="running-in-python"></a>Running in Python
+###<a name="nested-for-i-in-x"></a>Nested for i in x
 
-Python is much more straightforward:
+To parallelize this:
 
-    LD_LIBRARY_PATH=... ipython
-    >>> import job_stream
-    >>> class T(job_stream.Job):
-            def handleWork(self, w):
-                self.emit(w * 2)
-    # Omit this next line to use stdin for initial work
-    >>> job_stream.work = [ 1, 2, 3 ]
-    >>> job_stream.run({ 'jobs': [ T ] })
+    for x in range(10):
+        sum = 0
+        for i in range(x):
+            sum += i
+        print("{}: {}".format(x, sum))
+
+Write this:
+
+    from job_stream.inline import Work
+    w = Work(range(10))
+
+    # For each of our initial bits of work, we open a frame to further parallelize within
+    # each bit of work
+    @w.frame
+    def innerFor(store, first):
+        """This function is called whenever everything in the frame is finished.  Usually,
+        that means it is called once when a frame should request more work, and once when
+        all of that work is done.
+        
+        Any work returned by this function will be processed by the jobs within the frame,
+        and finally aggregated into the 'store' variable at the frameEnd function."""
+
+        if not hasattr(store, 'init'):
+            # First run, uninitialized
+            store.init = True
+            store.value = 0
+            # Anything returned from a frame or frameEnd function will recur to all of the
+            # jobs between the frame and its corresponding frameEnd
+            return list(range(first))
+
+        # If we get here, we've already processed all of our earlier recurs.  To mimic the
+        # nested for loop above, that just means that we need to print our results
+        print("{}: {}".format(first, store.value))
+
+    @w.frameEnd
+    def innerForEnd(store, next):
+        store.value += next
+
+    w.run()
 
 
-##<a name="basics"></a>Basics
+###<a name="aggregating-outside-of-a-for-loop"></a>Aggregating outside of a for loop
+
+To parallelize this:
+
+    results = []
+    for i in range(10):
+        results.append(i * 2)
+    result = sum(results)
+
+Write this:
+
+    from job_stream.inline import Object, Work
+    w = Work(range(10))
+
+    @w.job
+    def timesTwo(i):
+        return i * 2
+
+    # reduce is 
+    @w.reduce(store = lambda: Object(value = 0), emit = lambda store: store.value)
+    def gatherResults(store, inputs, others):
+        for i in inputs:
+            store.value += i
+        for o in others:
+            store.value += o.value
+
+    # Run the job stream and collect the first (and only) result into our sum
+    result, = w.run()
+
+
+###<a name="aggregating-multiple-items-outside-of-a-for-loop"></a>Aggregating multiple items outside of a for loop
+
+To parallelize this:
+
+    results = []
+    for i in range(10):
+        results.append(i)
+        results.append(i * 2)
+    result = sum(results)
+
+Write this:
+
+    from job_stream.inline import Multiple, Object, Work
+    w = Work(range(10))
+
+    @w.job
+    def timesTwo(i):
+        return Multiple([ i, i * 2 ])
+
+    # reduce is 
+    @w.reduce(store = lambda: Object(value = 0), emit = lambda store: store.value)
+    def gatherResults(store, inputs, others):
+        for i in inputs:
+            store.value += i
+        for o in others:
+            store.value += o.value
+
+    # Run the job stream and collect the first (and only) result into our sum
+    result, = w.run()
+
+
+##<a name="c-basics"></a>C++ Basics
 
 job_stream works by allowing you to specify various "streams" through your
 application's logic.  The most basic unit of work in job_stream is the job,
@@ -773,3 +923,57 @@ early on.  So handleDone() gets called with 20, 62, and finally 188.
     * Note - decided to go with handleJoin(), which isn't used currently, but will be soon (I think this will become a small issue)
 * Tests
 * Subproject - executable integrated with python, for compile-less / easier work
+
+##<a name="appendix"></a>Appendix
+
+##<a name="running-the-tests"></a>Running the Tests
+
+Making the "test" target (with optional ARGS passed to test executable) will
+make and run any tests packaged with job\_stream:
+
+    cmake .. && make -j8 test [ARGS="[serialization]"]
+
+Or to test the python library:
+
+    cmake .. && make -j8 test-python [ARGS="../python/job_stream/test/"]
+
+
+##<a name="running-a-job_stream-application"></a>Running a job_stream C++ Application
+
+A typical job\_stream application would be run like this:
+
+    mpirun -host a,b,c my_application path/to/config.yaml [-c checkpointFile] [-t hoursBetweenCheckpoints] Initial work string (or int or float or whatever)
+
+Note that -np to specify parallelism is not needed, as job\_stream implicitly
+multi-threads your application.  If a checkpointFile is provided, then the file
+will be used if it exists.  If it does not exist, it will be created and updated
+periodically to allow resuming with a minimal loss of computation time.  It is
+fairly simple to write a script that will execute the application until success:
+
+    RESULT=1
+    for i in `seq 1 100`; do
+        mpirun my_application config.yaml -c checkpoint.chkpt blahblah
+        RESULT=$?
+        if [ $RESULT -eq 0 ]; then
+            break
+        fi
+    done
+
+    exit $RESULT
+
+If -t is not specified, checkpoints will be taken every 10 minutes.
+
+
+##<a name="running-in-python"></a>Running in Python
+
+Python is much more straightforward:
+
+    LD_LIBRARY_PATH=... ipython
+    >>> import job_stream
+    >>> class T(job_stream.Job):
+            def handleWork(self, w):
+                self.emit(w * 2)
+    # Omit this next line to use stdin for initial work
+    >>> job_stream.work = [ 1, 2, 3 ]
+    >>> job_stream.run({ 'jobs': [ T ] })
+

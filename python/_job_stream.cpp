@@ -932,8 +932,8 @@ void registerReducer(std::string name, bp::object cls) {
 
 
 bp::object runProcessor(bp::tuple args, bp::dict kwargs) {
-    ASSERT(bp::len(args) == 2, "runProcessor() takes exactly 2 non-keyword "
-            "arguments");
+    ASSERT(bp::len(args) == 3, "runProcessor() takes exactly 3 non-keyword "
+            "arguments: config, workList, handleResult");
 
     job_stream::SystemArguments sa;
     sa.config = bp::extract<std::string>(args[0]);
@@ -944,6 +944,10 @@ bp::object runProcessor(bp::tuple args, bp::dict kwargs) {
             return true;
         }
         return false;
+    };
+    sa.handleOutputCallback = [&args](std::unique_ptr<job_stream::AnyType> result) -> void {
+        _PyGilAcquire outSaver;
+        args[2](serializedToPython(*result->as<SerializedPython>()));
     };
 
     bp::object workList = bp::object(args[1]);

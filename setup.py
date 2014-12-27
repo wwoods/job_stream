@@ -29,8 +29,13 @@ mpiCompiler = 'mpicxx'
 if 'MPICXX' in os.environ:
     mpiCompiler = os.environ['MPICXX']
 def checkedRun(args):
-    p = subprocess.Popen(args, stdout = subprocess.PIPE,
-            stderr = subprocess.PIPE)
+    try:
+        p = subprocess.Popen(args, stdout = subprocess.PIPE,
+                stderr = subprocess.PIPE)
+    except OSError, e:
+        if e.errno != 2:
+            raise
+        raise Exception("Error executing program: {}".format(args))
     stdout, stderr = p.communicate()
     r = p.wait()
     if r != 0:

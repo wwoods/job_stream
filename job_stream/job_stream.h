@@ -642,6 +642,9 @@ namespace job_stream {
         int checkpointSyncIntervalMs;
         /** Useful mostly for debugging, disables the steal ring */
         bool disableSteal;
+        /** Callback for output tuples, rather than printing them out.  Note that this 
+            function becomes responsible for checkpointing the output work! */
+        std::function<void (std::unique_ptr<AnyType>)> handleOutputCallback;
         /** The initial input string, if any.  Leave empty for stdin or work
             enqueued via queueInitialWork() */
         std::string inputLine;
