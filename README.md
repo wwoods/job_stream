@@ -796,6 +796,10 @@ early on.  So handleDone() gets called with 20, 62, and finally 188.
 
 ##<a name="recent-changelog"></a>Recent Changelog
 
+* 2014-12-26 - Finished up job_stream.inline, the more intuitive way to 
+  parallelize using job_stream.  Minor bug fixes, working on README.  Need
+  to curate everything and fix the final test_pipes.py test that is failing
+  before redeploying to PyPI
 * 2014-12-23 - Embedded yaml-cpp into job_stream's source to ease compilation.
   Bumped PyPI to 0.1.3.
 * 2014-12-22 - Finished python support (initial version, anyway).  Supports
