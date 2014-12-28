@@ -29,6 +29,7 @@ batch processing across multi-threaded workers.
 
 job_stream is a straightforward and effective way to implement distributed computations.  How straightforward?  Well, if we wanted to find all primes between 0 and 999:
 
+```python
     # Import the main Work object that makes using job_stream dead simple
     from job_stream.inline import Work
     import math
@@ -46,10 +47,12 @@ job_stream is a straightforward and effective way to implement distributed compu
 
     # Run the job stream!
     w.run()
+```
 
 
 Neat, huh?  Or for more of a real-world example, if we wanted line counts for all of the files in a directory:
 
+```python
     # Import the inline library of job_stream (works for 99% of cases and produces code
     # that is easier to follow).  Object is a blank object, and Work is the workhorse of
     # the job_stream.inline library.
@@ -85,6 +88,7 @@ Neat, huh?  Or for more of a real-world example, if we wanted line counts for al
 
     # Execute the job stream
     w.run()
+```
 
 
 Pretty simple, right?  job_stream lets developers write their code in an imperative style, and does all the heavy lifting behind the scenes.  While there are a lot of task processing libraries out there, job_stream bends over backwards to make writing distributed processing tasks easy.  What all is in the box?
