@@ -30,64 +30,64 @@ batch processing across multi-threaded workers.
 job_stream is a straightforward and effective way to implement distributed computations.  How straightforward?  Well, if we wanted to find all primes between 0 and 999:
 
 ```python
-    # Import the main Work object that makes using job_stream dead simple
-    from job_stream.inline import Work
-    import math
+# Import the main Work object that makes using job_stream dead simple
+from job_stream.inline import Work
+import math
 
-    # Start by declaring work based on the list of numbers between 0 and 999
-    w = Work(range(1000))
-    
-    # For each of those numbers, execute this method to see if that number is prime
-    @w.job
-    def isPrime(x):
-        for i in range(2, int(math.sqrt(x)) + 1):
-            if x % i == 0:
-                return
-        print(x)
+# Start by declaring work based on the list of numbers between 0 and 999
+w = Work(range(1000))
 
-    # Run the job stream!
-    w.run()
+# For each of those numbers, execute this method to see if that number is prime
+@w.job
+def isPrime(x):
+    for i in range(2, int(math.sqrt(x)) + 1):
+        if x % i == 0:
+            return
+    print(x)
+
+# Run the job stream!
+w.run()
 ```
 
 
 Neat, huh?  Or for more of a real-world example, if we wanted line counts for all of the files in a directory:
 
 ```python
-    # Import the inline library of job_stream (works for 99% of cases and produces code
-    # that is easier to follow).  Object is a blank object, and Work is the workhorse of
-    # the job_stream.inline library.
-    from job_stream.inline import Object, Work
-    import os
-    import sys
-    path = sys.argv[1] if len(sys.argv) > 1 else '.'
+# Import the inline library of job_stream (works for 99% of cases and produces code
+# that is easier to follow).  Object is a blank object, and Work is the workhorse of
+# the job_stream.inline library.
+from job_stream.inline import Object, Work
+import os
+import sys
+path = sys.argv[1] if len(sys.argv) > 1 else '.'
 
-    # Start by defining our Work as the files in the given directory
-    w = Work([ p for p in os.listdir(path)
-            if os.path.isfile(p) ])
+# Start by defining our Work as the files in the given directory
+w = Work([ p for p in os.listdir(path)
+        if os.path.isfile(p) ])
 
-    # For each file given, count the number of lines in the file and print 
-    @w.job
-    def countLines(filename):
-        count = len(list(open(filename)))
-        print("{}: {} lines".format(filename, count))
-        return count
+# For each file given, count the number of lines in the file and print 
+@w.job
+def countLines(filename):
+    count = len(list(open(filename)))
+    print("{}: {} lines".format(filename, count))
+    return count
 
-    # Join all of the prior line counts by summing them into an object's "total" attribute
-    @w.reduce(store = lambda: Object(total = 0))
-    def sumDirectory(store, inputs, others):
-        for count in inputs:
-            store.total += count
-        for o in others:
-            store.total += o.total
+# Join all of the prior line counts by summing them into an object's "total" attribute
+@w.reduce(store = lambda: Object(total = 0))
+def sumDirectory(store, inputs, others):
+    for count in inputs:
+        store.total += count
+    for o in others:
+        store.total += o.total
 
-    # Now that we have the total, print it
-    @w.job
-    def printTotal(store):
-        print("======")
-        print("Total: {} lines".format(store.total))
+# Now that we have the total, print it
+@w.job
+def printTotal(store):
+    print("======")
+    print("Total: {} lines".format(store.total))
 
-    # Execute the job stream
-    w.run()
+# Execute the job stream
+w.run()
 ```
 
 
@@ -166,128 +166,144 @@ know your platform's mechanisms of amending default build and run paths:
 
 To parallelize this:
 
-    for x in range(10):
-        print x
+```python
+for x in range(10):
+    print x
+```
 
 Do this:
 
-    from job_stream.inline import Work
-    w = Work(range(10))
+```python
+from job_stream.inline import Work
+w = Work(range(10))
 
-    @w.job
-    def printer(x):
-        print x
-        # Any value returned (except for a list type) will be emitted from the job.
-        # A list type will be unwrapped (emit multiple)
-        return x
+@w.job
+def printer(x):
+    print x
+    # Any value returned (except for a list type) will be emitted from the job.
+    # A list type will be unwrapped (emit multiple)
+    return x
 
-    w.run()
+w.run()
+```
 
 
 ###<a name="nested-for-i-in-x"></a>Nested for i in x
 
 To parallelize this:
 
-    for x in range(10):
-        sum = 0
-        for i in range(x):
-            sum += i
-        print("{}: {}".format(x, sum))
+```python
+for x in range(10):
+    sum = 0
+    for i in range(x):
+        sum += i
+    print("{}: {}".format(x, sum))
+```
 
 Write this:
 
-    from job_stream.inline import Work
-    w = Work(range(10))
+```python
+from job_stream.inline import Work
+w = Work(range(10))
 
-    # For each of our initial bits of work, we open a frame to further parallelize within
-    # each bit of work
-    @w.frame
-    def innerFor(store, first):
-        """This function is called whenever everything in the frame is finished.  Usually,
-        that means it is called once when a frame should request more work, and once when
-        all of that work is done.
-        
-        Any work returned by this function will be processed by the jobs within the frame,
-        and finally aggregated into the 'store' variable at the frameEnd function."""
+# For each of our initial bits of work, we open a frame to further parallelize within
+# each bit of work
+@w.frame
+def innerFor(store, first):
+    """This function is called whenever everything in the frame is finished.  Usually,
+    that means it is called once when a frame should request more work, and once when
+    all of that work is done.
+    
+    Any work returned by this function will be processed by the jobs within the frame,
+    and finally aggregated into the 'store' variable at the frameEnd function."""
 
-        if not hasattr(store, 'init'):
-            # First run, uninitialized
-            store.init = True
-            store.value = 0
-            # Anything returned from a frame or frameEnd function will recur to all of the
-            # jobs between the frame and its corresponding frameEnd
-            return list(range(first))
+    if not hasattr(store, 'init'):
+        # First run, uninitialized
+        store.init = True
+        store.value = 0
+        # Anything returned from a frame or frameEnd function will recur to all of the
+        # jobs between the frame and its corresponding frameEnd
+        return list(range(first))
 
-        # If we get here, we've already processed all of our earlier recurs.  To mimic the
-        # nested for loop above, that just means that we need to print our results
-        print("{}: {}".format(first, store.value))
+    # If we get here, we've already processed all of our earlier recurs.  To mimic the
+    # nested for loop above, that just means that we need to print our results
+    print("{}: {}".format(first, store.value))
 
-    @w.frameEnd
-    def innerForEnd(store, next):
-        store.value += next
+@w.frameEnd
+def innerForEnd(store, next):
+    store.value += next
 
-    w.run()
+w.run()
+```
 
 
 ###<a name="aggregating-outside-of-a-for-loop"></a>Aggregating outside of a for loop
 
 To parallelize this:
 
-    results = []
-    for i in range(10):
-        results.append(i * 2)
-    result = sum(results)
+```python
+results = []
+for i in range(10):
+    results.append(i * 2)
+result = sum(results)
+```
 
 Write this:
 
-    from job_stream.inline import Object, Work
-    w = Work(range(10))
+```python
+from job_stream.inline import Object, Work
+w = Work(range(10))
 
-    @w.job
-    def timesTwo(i):
-        return i * 2
+@w.job
+def timesTwo(i):
+    return i * 2
 
-    # reduce is 
-    @w.reduce(store = lambda: Object(value = 0), emit = lambda store: store.value)
-    def gatherResults(store, inputs, others):
-        for i in inputs:
-            store.value += i
-        for o in others:
-            store.value += o.value
+# reduce is 
+@w.reduce(store = lambda: Object(value = 0), emit = lambda store: store.value)
+def gatherResults(store, inputs, others):
+    for i in inputs:
+        store.value += i
+    for o in others:
+        store.value += o.value
 
-    # Run the job stream and collect the first (and only) result into our sum
-    result, = w.run()
+# Run the job stream and collect the first (and only) result into our sum
+result, = w.run()
+```
 
 
 ###<a name="aggregating-multiple-items-outside-of-a-for-loop"></a>Aggregating multiple items outside of a for loop
 
 To parallelize this:
 
-    results = []
-    for i in range(10):
-        results.append(i)
-        results.append(i * 2)
-    result = sum(results)
+```python
+results = []
+for i in range(10):
+    results.append(i)
+    results.append(i * 2)
+result = sum(results)
+```
 
 Write this:
 
-    from job_stream.inline import Multiple, Object, Work
-    w = Work(range(10))
+```python
+from job_stream.inline import Multiple, Object, Work
+w = Work(range(10))
 
-    @w.job
-    def timesTwo(i):
-        return Multiple([ i, i * 2 ])
+@w.job
+def timesTwo(i):
+    return Multiple([ i, i * 2 ])
 
-    # reduce is 
-    @w.reduce(store = lambda: Object(value = 0), emit = lambda store: store.value)
-    def gatherResults(store, inputs, others):
-        for i in inputs:
-            store.value += i
-        for o in others:
-            store.value += o.value
+# reduce is 
+@w.reduce(store = lambda: Object(value = 0), emit = lambda store: store.value)
+def gatherResults(store, inputs, others):
+    for i in inputs:
+        store.value += i
+    for o in others:
+        store.value += o.value
 
-    # Run the job stream and collect the first (and only) result into our sum
-    result, = w.run()
+# Run the job stream and collect the first (and only) result into our sum
+result, = w.run()
+```
 
 
 ##<a name="c-basics"></a>C++ Basics
