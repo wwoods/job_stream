@@ -1,9 +1,6 @@
 Job Stream
 ==========
 
-A tiny C library and python module based on OpenMPI for distributing streamed
-batch processing across multi-threaded workers.
-
 * [Introduction](#introduction)
 * [Requirements](#requirements)
 * [Building job_stream](#building-job_stream)
@@ -65,7 +62,7 @@ path = sys.argv[1] if len(sys.argv) > 1 else '.'
 w = Work([ p for p in os.listdir(path)
         if os.path.isfile(p) ])
 
-# For each file given, count the number of lines in the file and print 
+# For each file given, count the number of lines in the file and print
 @w.job
 def countLines(filename):
     count = len(list(open(filename)))
@@ -213,7 +210,7 @@ def innerFor(store, first):
     """This function is called whenever everything in the frame is finished.  Usually,
     that means it is called once when a frame should request more work, and once when
     all of that work is done.
-    
+
     Any work returned by this function will be processed by the jobs within the frame,
     and finally aggregated into the 'store' variable at the frameEnd function."""
 
@@ -258,7 +255,7 @@ w = Work(range(10))
 def timesTwo(i):
     return i * 2
 
-# reduce is 
+# reduce is
 @w.reduce(store = lambda: Object(value = 0), emit = lambda store: store.value)
 def gatherResults(store, inputs, others):
     for i in inputs:
@@ -293,7 +290,7 @@ w = Work(range(10))
 def timesTwo(i):
     return Multiple([ i, i * 2 ])
 
-# reduce is 
+# reduce is
 @w.reduce(store = lambda: Object(value = 0), emit = lambda store: store.value)
 def gatherResults(store, inputs, others):
     for i in inputs:
@@ -816,7 +813,7 @@ early on.  So handleDone() gets called with 20, 62, and finally 188.
 
 ##<a name="recent-changelog"></a>Recent Changelog
 
-* 2014-12-26 - Finished up job_stream.inline, the more intuitive way to 
+* 2014-12-26 - Finished up job_stream.inline, the more intuitive way to
   parallelize using job_stream.  Minor bug fixes, working on README.  Need
   to curate everything and fix the final test_pipes.py test that is failing
   before redeploying to PyPI
@@ -1000,4 +997,3 @@ Python is much more straightforward:
     # Omit this next line to use stdin for initial work
     >>> job_stream.work = [ 1, 2, 3 ]
     >>> job_stream.run({ 'jobs': [ T ] })
-
