@@ -857,6 +857,25 @@ void PyFrameShell::handleNext(SerializedPython& current,
 /*********************************************************************/
 
 
+bp::tuple invoke(bp::object progAndArgs, bp::list transientErrors,
+        int maxRetries) {
+    std::vector<std::string> cProg, cErrors;
+    for (int i = 0, m = bp::len(progAndArgs); i < m; i++) {
+        cProg.emplace_back(bp::extract<std::string>(progAndArgs[i]));
+    }
+    for (int i = 0, m = bp::len(transientErrors); i < m; i++) {
+        cErrors.emplace_back(bp::extract<std::string>(transientErrors[i]));
+    }
+    std::tuple<std::string, std::string> results;
+    {
+        _PyGilRelease releaseGilForExecution;
+        results = job_stream::invoke::run(cProg, cErrors, maxRetries);
+    }
+
+    return bp::make_tuple(std::get<0>(results), std::get<1>(results));
+}
+
+
 void registerEncoding(bp::object object, bp::object encode, bp::object decode) {
     job_stream::python::object = object;
     job_stream::python::encodeObj = encode;
@@ -992,6 +1011,8 @@ BOOST_PYTHON_MODULE(_job_stream) {
     bp::scope().attr("__doc__") = "C internals for job_stream python library; "
             "see https://github.com/wwoods/job_stream for more info";
 
+    bp::def("invoke", invoke, "Invokes the given application.  See "
+            "job_stream.invoke in the python module for more information.");
     bp::def("registerEncoding", registerEncoding, "Registers the encoding and "
             "decoding functions used by C code.");
     bp::def("registerFrame", registerFrame, "Registers a frame");

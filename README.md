@@ -813,6 +813,8 @@ early on.  So handleDone() gets called with 20, 62, and finally 188.
 
 ##<a name="recent-changelog"></a>Recent Changelog
 
+* 2015-1-7 - Added job_stream.invoke to the python module.  Useful for launching
+  an external process, e.g. Xyce.
 * 2014-12-26 - Finished up job_stream.inline, the more intuitive way to
   parallelize using job_stream.  Minor bug fixes, working on README.  Need
   to curate everything and fix the final test_pipes.py test that is failing

@@ -27,7 +27,7 @@ import traceback
 _classesToPatch = []
 _pool = [ None ]
 def _initMultiprocessingPool():
-    """The multiprocessing pool is initialized lazily by default, to avoid 
+    """The multiprocessing pool is initialized lazily by default, to avoid
     overhead if no jobs are using multiprocessing"""
     if _pool[0] is None:
         class NoDoubleInit(object):
@@ -488,6 +488,30 @@ def _convertDictToYaml(c):
     return result
 
 
+def invoke(progAndArgs, transientErrors = [], maxRetries = 20):
+    """Since it can be difficult to launch some programs from an MPI distributed
+    application, job_stream provides invoke functionality to safely launch an
+    external program (launching an application such as Xyce, for instance, can
+    cause problems if the environment variables are not doctored appropriately).
+
+    progAndArgs: list, [ 'path/to/file', *args ]
+
+    transientErrors: list of strings, if any of these strings are found in the
+            stderr of the program, then any non-zero return code is considered
+            a transient error and the application will be re-launched up to
+            maxRetries times.
+
+            Note that "No child processes" is automatically handled as
+            transient.
+
+    maxRetries: The maximum number of times to run the application if there are
+            transient errors.  Only the final (successful) results are returned.
+
+    Returns: (contents of stdout, contents of stderr)
+    """
+    return _j.invoke(progAndArgs, transientErrors, maxRetries)
+
+
 def run(configDictOrPath, **kwargs):
     """Runs the given YAML file or config dictionary.
 
@@ -517,7 +541,7 @@ def run(configDictOrPath, **kwargs):
 
     if 'handleResult' not in kwargs:
         def handleResult(r):
-            """Process an output work.  Note that this function is responsible for 
+            """Process an output work.  Note that this function is responsible for
             checkpointing!
             """
             print(repr(r))
@@ -535,4 +559,3 @@ def run(configDictOrPath, **kwargs):
             _pool[0] = None
             p.terminate()
             p.join()
-
