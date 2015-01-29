@@ -61,10 +61,16 @@ class Object(object):
         return ''.join(r)
 
 
+class _StackAlreadyPrintedError(Exception):
+    """An exception to be used if the stack trace has already been printed,
+    and an exception needs to be raised just to communicate to job_stream to
+    abort."""
+
+
 # Initialize the encode and decode values first so that they can be used in
 # debug code (if left uninitialized, any attempt to pickle something from within
 # C++ code will crash with NoneType cannot be called)
-_j.registerEncoding(Object, _encode, _decode)
+_j.registerEncoding(Object, _StackAlreadyPrintedError, _encode, _decode)
 
 
 class _Work(list):
@@ -93,7 +99,7 @@ def _localJobInit(obj):
         obj.mPostSetup()
     except:
         traceback.print_exc()
-        raise Exception("Multiprocessing error raised")
+        raise _StackAlreadyPrintedError()
 def _localCallNoStore(obj, method, *args):
     if obj not in _localJobs:
         return (0, [], [], [])
@@ -103,7 +109,7 @@ def _localCallNoStore(obj, method, *args):
         getattr(o, method)(*args)
     except:
         traceback.print_exc()
-        raise Exception("Multiprocessing error raised")
+        raise _StackAlreadyPrintedError()
     return (1, o.emitters, o.recurs, o.forceCheckpoints)
 def _localCallStoreFirst(obj, method, first, *args):
     if obj not in _localJobs:
@@ -114,7 +120,7 @@ def _localCallStoreFirst(obj, method, first, *args):
         getattr(o, method)(first, *args)
     except:
         traceback.print_exc()
-        raise Exception("Multiprocessing error raised")
+        raise _StackAlreadyPrintedError()
     return (1, first, o.emitters, o.recurs, o.forceCheckpoints)
 
 
@@ -488,6 +494,13 @@ def _convertDictToYaml(c):
     return result
 
 
+def getRank():
+    """Returns the rank (integer index) of this processor.  Typically, this
+    value is checked against 0 for work that should only happen once, e.g.
+    init code."""
+    return _j.getRank()
+
+
 def invoke(progAndArgs, transientErrors = [], maxRetries = 20):
     """Since it can be difficult to launch some programs from an MPI distributed
     application, job_stream provides invoke functionality to safely launch an
@@ -521,11 +534,11 @@ def run(configDictOrPath, **kwargs):
                 checkpoint and the starting of the next, in seconds.
         checkpointSyncInterval - (float) The time between all processors
                 thinking they're ready to checkpoint and the actual checkpoint.
-        handleResult - (callable) The default is to print out repr(result).  If specified,
-                this function will be called instead with the output work as an argument.
-                Note that this goes outside of checkpointing!  If you are saving work into
-                an array, for example, and want to be checkpoint-safe, this method MUST
-                save what it needs to file.
+        handleResult - (callable) The default is to print out repr(result).  If
+                specified, this function will be called instead with the output
+                work as an argument.  Note that this goes outside of checkpointing!
+                If you are saving work into an array, for example, and want to be
+                checkpoint-safe, this method MUST save what it needs to file.
     """
     if isinstance(configDictOrPath, basestring):
         # Path to file

@@ -32,6 +32,7 @@ namespace python {
 
 bp::object encodeObj, decodeStr;
 bp::object object, repr;
+bp::object stackAlreadyPrintedError;
 
 } //python
 } //job_stream
@@ -51,7 +52,7 @@ public:
 
 private:
     void* lib;
-};
+} holdItOpenGlobally("libmpi.so");
 
 
 /** Used to execute python code within job_stream's operations. */
@@ -87,9 +88,11 @@ private:
     raise a C++ exception.  To be used in catch blocks around python code. */
 #define CHECK_PYTHON_ERROR(m) \
     if (PyErr_Occurred()) { \
-        /* Print stack and move error into sys.last_type, sys.last_value, \
-           sys.last_traceback.  Also clears the error. */ \
-        PyErr_Print(); \
+        if (!PyErr_ExceptionMatches(job_stream::python::stackAlreadyPrintedError.ptr())) { \
+            /* Print stack and move error into sys.last_type, sys.last_value, \
+               sys.last_traceback.  Also clears the error. */ \
+            PyErr_Print(); \
+        } \
         ERROR("Python exception caught, stack trace printed: " << m); \
     }
 
@@ -107,10 +110,7 @@ bp::object serializedToPython(const SerializedPython& sp) {
         return job_stream::python::decodeStr(sp.data);
     }
     catch (...) {
-        if (PyErr_Occurred()) {
-            PyErr_Print();
-            throw std::runtime_error("Error deserializing");
-        }
+        CHECK_PYTHON_ERROR("Error deserializing");
         throw;
     }
 }
@@ -856,6 +856,10 @@ void PyFrameShell::handleNext(SerializedPython& current,
 
 /*********************************************************************/
 
+int getRank() {
+    return job_stream::getRank();
+}
+
 
 bp::tuple invoke(bp::object progAndArgs, bp::list transientErrors,
         int maxRetries) {
@@ -876,8 +880,10 @@ bp::tuple invoke(bp::object progAndArgs, bp::list transientErrors,
 }
 
 
-void registerEncoding(bp::object object, bp::object encode, bp::object decode) {
+void registerEncoding(bp::object object, bp::object stackAlreadyPrintedError,
+        bp::object encode, bp::object decode) {
     job_stream::python::object = object;
+    job_stream::python::stackAlreadyPrintedError = stackAlreadyPrintedError;
     job_stream::python::encodeObj = encode;
     job_stream::python::decodeStr = decode;
 
@@ -966,7 +972,13 @@ bp::object runProcessor(bp::tuple args, bp::dict kwargs) {
     };
     sa.handleOutputCallback = [&args](std::unique_ptr<job_stream::AnyType> result) -> void {
         _PyGilAcquire outSaver;
-        args[2](serializedToPython(*result->as<SerializedPython>()));
+        try {
+            args[2](serializedToPython(*result->as<SerializedPython>()));
+        }
+        catch (...) {
+            CHECK_PYTHON_ERROR("handleResult");
+            throw;
+        }
     };
 
     bp::object workList = bp::object(args[1]);
@@ -997,7 +1009,6 @@ bp::object runProcessor(bp::tuple args, bp::dict kwargs) {
     }
 
     PyEval_InitThreads();
-    _DlOpener holdItOpenGlobally("libmpi.so");
     {
         _PyGilRelease releaser;
         job_stream::runProcessor(sa);
@@ -1011,6 +1022,7 @@ BOOST_PYTHON_MODULE(_job_stream) {
     bp::scope().attr("__doc__") = "C internals for job_stream python library; "
             "see https://github.com/wwoods/job_stream for more info";
 
+    bp::def("getRank", getRank, "Returns the mpi rank of this host");
     bp::def("invoke", invoke, "Invokes the given application.  See "
             "job_stream.invoke in the python module for more information.");
     bp::def("registerEncoding", registerEncoding, "Registers the encoding and "

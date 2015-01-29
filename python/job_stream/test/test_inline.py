@@ -45,7 +45,7 @@ work = inline.Work([ 3, 8, 9 ])
 @work.frame(store = lambda: inline.Object(total = 1), emit = lambda store: store.total)
 def nextPowerOfTwo(store, first):
     if store.total < first:
-        return [ store.total ] * store.total
+        return inline.Multiple([ store.total ] * store.total)
 
 @work.job
 def a(w):
@@ -59,6 +59,64 @@ for r in work.run():
     print repr(r)
 """)
         self.assertLinesEqual("4\n8\n16\n", r[0])
+
+
+    def test_init(self):
+        # Ensure that @init works
+        self.safeRemove("blah.chkpt")
+        self.safeRemove("blah")
+        try:
+            cmd = """
+import job_stream.inline as inline
+work = inline.Work([ 3, 8, 9 ])
+
+@work.init
+def setup():
+    with open('blah', 'a') as f:
+        f.write("1")
+
+# Force a checkpoint so that setup() will interpret the application as already
+# started.
+work.job(inline._ForceCheckpointJob)
+
+@work.job
+def failure(w):
+    raise ValueError("HUHM?")
+
+work.run(checkpointFile = "blah.chkpt", checkpointSyncInterval = 0)"""
+
+            with self.assertRaises(ExecuteError):
+                self.executePy(cmd)
+            with self.assertRaises(ExecuteError):
+                self.executePy(cmd)
+            with self.assertRaises(ExecuteError):
+                self.executePy(cmd)
+
+            # Should have been run exactly once
+            self.assertTrue(os.path.lexists("blah.chkpt"))
+            self.assertTrue(os.path.lexists("blah"))
+            self.assertEqual("1", open("blah").read())
+        finally:
+            self.safeRemove("blah.chkpt")
+            self.safeRemove("blah")
+
+
+    def test_initWork(self):
+        # Ensure that work added from @init works
+        r = self.executePy("""
+import job_stream.inline as inline
+w = inline.Work([1])
+@w.init
+def addTwo():
+    return 2
+@w.init
+def addThreeFour():
+    return inline.Multiple([3, 4])
+for r in w.run():
+    print r
+""")
+        self.assertLinesEqual("1\n2\n3\n4\n", r[0])
+
 
     def test_jobAfterReduce(self):
         # Ensure that a global reducer allows a job afterwards for further processing and
@@ -79,7 +137,7 @@ def sum(store, work, others):
 
 @work.job
 def timesThree(work):
-    return [ work ] * 3
+    return inline.Multiple([ work ] * 3)
 
 work.reduce(sum, store = SumStore, emit = lambda store: store.value)
 for r in work.run():
@@ -101,14 +159,14 @@ def lineAvg(fname):
     avg = 0.0
     cnt = 0
     if not os.path.isfile(fname):
-        return []
+        return
     for l in open(fname):
         avg += len(l.rstrip())
         cnt += 1
     return (fname, cnt, avg / cnt)
 
 @work.reduce(store = lambda: inline.Object(gavg = 0.0, gcnt = 0),
-        emit = lambda store: (store.gcnt, store.gavg / store.gcnt))
+        emit = lambda store: (store.gcnt, store.gavg / max(1, store.gcnt)))
 def findGlobalAvg(store, inputs, others):
     for i in inputs:
         store.gcnt += i[1]
@@ -134,7 +192,7 @@ class AvgLines(job_stream.Job):
         for l in open(w):
             avg += len(l.rstrip())
             cnt += 1
-        self.emit(( w, cnt, avg / cnt ))
+        self.emit(( w, cnt, avg / max(1, cnt) ))
 
 
 class FindGlobal(job_stream.Reducer):
@@ -148,7 +206,7 @@ class FindGlobal(job_stream.Reducer):
         store.gavg += other.gavg
         store.gcnt += other.gcnt
     def handleDone(self, store):
-        self.emit(( store.gcnt, store.gavg / store.gcnt ))
+        self.emit(( store.gcnt, store.gavg / max(1, store.gcnt) ))
 
 job_stream.work = os.listdir('.')
 job_stream.run({
@@ -158,3 +216,70 @@ job_stream.run({
 """)
 
         self.assertLinesEqual(r2[0], r[0])
+
+
+    def test_result(self):
+        # Ensure that result works as needed, and fails if it isn't last
+        r = self.executePy("""
+from job_stream.inline import Work
+w = Work([ 1, 2, 3 ])
+@w.result
+def f(w):
+    print("F: {}".format(w))
+w.run()""")
+        self.assertLinesEqual("F: 1\nF: 2\nF: 3\n", r[0])
+
+        # Fail if defined twice
+        with self.assertRaises(ExecuteError):
+            self.executePy("""
+from job_stream.inline import Work
+w = Work()
+@w.result
+def j(w):
+    pass
+@w.result
+def f(w):
+    pass
+""")
+
+        # Fail if job defined after
+        with self.assertRaises(ExecuteError):
+            self.executePy("""
+from job_stream.inline import Work
+w = Work()
+@w.result
+def j(w):
+    pass
+@w.job
+def f(w):
+    pass
+""")
+
+        # Fail if frame defined after
+        with self.assertRaises(ExecuteError):
+            self.executePy("""
+from job_stream.inline import Work
+w = Work()
+@w.result
+def j(w):
+    pass
+@w.frame
+def f(s, w):
+    pass
+@w.frameEnd
+def ff(s, n):
+    pass
+""")
+
+        # Fail if reducer defined after
+        with self.assertRaises(ExecuteError):
+            self.executePy("""
+from job_stream.inline import Work
+w = Work()
+@w.result
+def j(w):
+    pass
+@w.reduce
+def f(s, w, o):
+    pass
+""")

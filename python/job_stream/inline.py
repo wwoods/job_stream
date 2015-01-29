@@ -1,4 +1,4 @@
-"""job_stream.inline provides a more intuitive way of specifying flow that relieves some 
+"""job_stream.inline provides a more intuitive way of specifying flow that relieves some
 of the labor of thinking about data definitions
 
 For example, to count the average word length in a string:
@@ -35,7 +35,7 @@ import inspect
 import os
 
 Object = job_stream.Object
-moduleSelf = globals()
+_moduleSelf = globals()
 
 _typeCount = [ 0 ]
 
@@ -65,20 +65,56 @@ class Multiple(object):
 
 
 class Work(object):
-    def __init__(self, initialWork):
-        self._initialWork = initialWork
+    def __init__(self, initialWork = []):
+        self._initialWork = list(initialWork)
+        self._initialWorkDepth = 0
         # The YAML config that we're building, essentially
         self._config = { 'jobs': [] }
+        # Functions ran on init
+        self._inits = []
+        # Function ran to handle a result.  If set, nothing else may be added
+        # to the pipe!
+        self._resultHandler = None
         # parent node for current scope
         self._stack = [ { 'config': self._config } ]
 
 
+    def init(self, func = None):
+        """Decorates a method that is called only once, including over multiple
+        runs with checkpoints.  Useful for e.g. creating folders, deleting
+        temporary files from previous runs, etc."""
+        if func is None:
+            return lambda func2: self.init(func2)
+
+        self._assertNoResult()
+        self._assertFuncArgs(func, 0)
+
+        self._inits.append(func)
+        return func
+
+
     def frame(self, func = None, **kwargs):
-        """Decorates a frame..."""
+        """Decorates a function that begins a frame.  A frame is started with
+        a single piece of work, and then recurses other pieces of work into
+        itself until some stopping condition.  The decorated function should
+        accept two arguments:
+
+        store - The storage object used to remember results from the frame
+        first - The first work that began this frame.
+
+        Any results returned are recursed into the frame.
+
+        Decorator kwargs:
+        store - The constructor for a storage object.  Defaults to inline.Object
+        emit - A function taking a storage object and returning the work that
+                should be forwarded to the next member of the stream.  Defaults
+                to emitting the store itself."""
         if func is None:
             # Non-decorating form
             return lambda func2: self.frame(func2, **kwargs)
 
+        self._assertNoResult()
+        self._assertFuncArgs(func, 2)
         fargs = Object()
         fargs.store = kwargs.pop('store', Object)
         fargs.emit = kwargs.pop('emit', lambda store: store)
@@ -94,7 +130,13 @@ class Work(object):
 
 
     def frameEnd(self, func = None):
-        """Ends a frame"""
+        """Ends a frame.  The decorated function should accept two arguments:
+
+        store - The storage object used to remember results from the frame (same
+                as in the frame() decorated method).
+        next - The next result object that ran through the frame.
+
+        Any results returned are recursed into the frame."""
         if func is None:
             # Non-decorating
             return lambda func2: self.frameEnd(func2)
@@ -102,6 +144,8 @@ class Work(object):
         if 'frameFunc' not in self._stack[-1]:
             raise Exception("frameEnd call does not match up with frame!")
 
+        self._assertNoResult()
+        self._assertFuncArgs(func, 2)
         fargs = self._stack[-1]['frameArgs']
         funcStart = self._stack[-1]['frameFunc']
         # Note that the inline version skips straight from handleFirst to handleDone, then
@@ -128,20 +172,24 @@ class Work(object):
         assert self._stack
 
         return func
-    
+
 
     def job(self, func = None):
-        """Decorates a job"""
+        """Decorates a job.  The decorated function must take one argument,
+        which is the work coming into the job.  Anything returned is passed
+        along to the next member of the stream."""
         if func is None:
             # Invocation, not decoration
             return lambda func2: self.job(func2)
 
+        self._assertNoResult()
         funcCls = func
         if not inspect.isclass(funcCls):
+            self._assertFuncArgs(func, 1)
             def handle(s, work):
                 results = func(work)
                 self._listCall(s.emit, results)
-                    
+
             funcCls = self._newType(func.__name__, job_stream.Job, handleWork = handle)
         self._stack[-1]['config']['jobs'].append(funcCls)
 
@@ -150,12 +198,31 @@ class Work(object):
 
 
     def reduce(self, func = None, **kwargs):
-        """Decorates a reducer"""
+        """Decorates a reducer.  Reducers are distributed (function does not
+        run on only one machine per reduction).  Typically this is used to
+        gather and aggregate results.  Any set of work coming into a reducer
+        will be emitted as a single piece of work.
+
+        The decorated function should take three arguments:
+        store - The storage object on this machine.
+        works - A list of work coming into the reducer
+        others - A list of storage objects being joined into this reducer from
+                other sources.
+
+        Any return value is recurred as work into the reducer.
+
+        Decorator kwargs:
+        store - Constructor for the storage element.  Defaults to inline.Object
+        emit - Function that takes the store and returns work to be forwarded
+                to the next element in the stream.
+        """
         if func is None:
             # Invocation with kwargs vs paren-less decoration
             return lambda func2: self.reduce(func2, **kwargs)
 
-        storeType = kwargs.pop('store', job_stream.Object)
+        self._assertNoResult()
+        self._assertFuncArgs(func, 3)
+        storeType = kwargs.pop('store', Object)
         emitValue = kwargs.pop('emit', lambda store: store)
         if kwargs:
             raise KeyError("Unknown kwargs: {}".format(kwargs.keys()))
@@ -176,10 +243,10 @@ class Work(object):
         self._stack[-1]['config']['reducer'] = reducer
         self._stack.pop()
         if not self._stack:
-            # We popped off the last.  To allow inline jobs to still be added (post 
+            # We popped off the last.  To allow inline jobs to still be added (post
             # processing), we ensure that we still have a stack
             self._config['jobs'].insert(0, _UnwrapperJob)
-            self._initialWork = [ list(self._initialWork) ]
+            self._initialWorkDepth += 1
             self._config = { 'jobs': [ self._config ] }
             self._stack.append({ 'config': self._config })
 
@@ -187,31 +254,89 @@ class Work(object):
         return func
 
 
+    def result(self, func = None, **kwargs):
+        """Decorates a result handler, which is called only on the primary host
+        exactly once for each piece of work that exits the system.
+
+        If no result handlers are decorated, then inline will use a collector
+        that gathers the results and returns them in a list from the run()
+        method (run() will return None on machines that are not the primary
+        host)."""
+        if func is None:
+            return lambda func2: self.result(func2, **kwargs)
+
+        self._assertNoResult()
+        self._assertFuncArgs(func, 1)
+        if kwargs:
+            raise KeyError("Unknown kwargs: {}".format(kwargs.keys()))
+
+        self._resultHandler = func
+
+        # Return original function so it may be referred to as usual
+        return func
+
+
     def run(self, **kwargs):
-        job_stream.work = self._initialWork
+        """Runs the Work, executing all decorated methods in the order they
+        were specified.
+
+        kwargs: Accepts the same arguments as job_stream.run, except for
+        handleResult.  See Work.result for handleResult's replacement.
+        """
         results = None
         resultsFile = None
-        if 'handleResult' not in kwargs:
-            if 'checkpointFile' in kwargs:
-                resultsFile = kwargs['checkpointFile'] + '.results'
-                resultsFileNew = resultsFile + '.new'
-                if not os.path.lexists(kwargs['checkpointFile']):
-                    # instantiate our results file, no checkpoint
-                    with open(resultsFile, 'w') as f:
-                        f.write(pickle.dumps([]))
+        isFirst = True
 
-                results = pickle.loads(open(resultsFile, 'r').read())
-                def handleResult(result):
-                    results.append(result)
-                    with open(resultsFileNew, 'w') as f:
-                        f.write(pickle.dumps(results))
-                    os.rename(resultsFileNew, resultsFile)
+        # Is this a continuation?
+        if 'checkpointFile' in kwargs:
+            if os.path.lexists(kwargs['checkpointFile']):
+                isFirst = False
+
+        if self._resultHandler is not None:
+            kwargs['handleResult'] = self._resultHandler
+        else:
+            # Default result handling - gather and return array
+            if job_stream.getRank() != 0:
+                # Keep results at None, and leave the primary host as
+                # responsible
+                def raiser(r):
+                    raise NotImplementedError("Should never be called")
+                kwargs['handleResult'] = raiser
             else:
-                results = []
-                def handleResult(result):
-                    results.append(result)
+                if 'checkpointFile' in kwargs:
+                    resultsFile = kwargs['checkpointFile'] + '.results'
+                    resultsFileNew = resultsFile + '.new'
 
-            kwargs['handleResult'] = handleResult
+                    if os.path.lexists(resultsFile):
+                        results = pickle.loads(open(resultsFile, 'r').read())
+                    else:
+                        results = []
+                    def handleResult(result):
+                        results.append(result)
+                        with open(resultsFileNew, 'w') as f:
+                            f.write(pickle.dumps(results))
+                        os.rename(resultsFileNew, resultsFile)
+                else:
+                    results = []
+                    def handleResult(result):
+                        results.append(result)
+
+                kwargs['handleResult'] = handleResult
+
+        # Init?
+        if isFirst and job_stream.getRank() == 0:
+            # Call initial functions
+            def addToInitial(w):
+                self._initialWork.append(w)
+            for init in self._inits:
+                # Remember, anything returned from init() adds to our initial
+                # work.
+                self._listCall(addToInitial, init())
+
+        # Bury our initial work appropriately
+        for i in range(self._initialWorkDepth):
+            self._initialWork = [ self._initialWork ]
+        job_stream.work = self._initialWork
         job_stream.run(self._config, **kwargs)
 
         # OK, delete checkpoints if any
@@ -230,11 +355,28 @@ class Work(object):
         return results
 
 
+    def _assertFuncArgs(self, func, i):
+        """Ensures that the function func takes exactly i args.  Makes error
+        messages more friendly."""
+        numArgs = len(inspect.getargspec(func).args)
+        if numArgs != i:
+            raise ValueError("Function {} must take exactly {} args; takes {}"
+                    .format(func, i, numArgs))
+
+
+    def _assertNoResult(self):
+        """Ensures that @w.result hasn't been used yet, otherwise raises an
+        error."""
+        if self._resultHandler is not None:
+            raise Exception("After Work.result is used, no other elements may "
+                    "be added to the job stream.")
+
+
     def _listCall(self, boundMethod, results):
         """Calls boundMethod (which is something like Job.emit) for each member of results,
         if results is Multiple.
-        
-        Returns True if the boundMethod was called at all (non-None result), False 
+
+        Returns True if the boundMethod was called at all (non-None result), False
         otherwise."""
         called = False
         if isinstance(results, Multiple):
@@ -250,9 +392,8 @@ class Work(object):
 
 
     def _newType(self, nameBase, clsBase, **funcs):
-        tname = "{}{}".format(nameBase, _typeCount[0])
+        tname = "_{}_{}".format(nameBase, _typeCount[0])
         _typeCount[0] += 1
         cls = type(tname, (clsBase,), funcs)
-        moduleSelf[tname] = cls
+        _moduleSelf[tname] = cls
         return cls
-

@@ -25,6 +25,16 @@ namespace job_stream {
     jobs be run in series from an interactive interpreter. */
 std::shared_ptr<mpi::environment> mpiEnvHolder;
 
+
+void _startMpi() {
+    if (!mpiEnvHolder) {
+        //Important that this happen before MPI init!!!
+        job_stream::invoke::_init();
+        mpiEnvHolder.reset(new mpi::environment());
+    }
+}
+
+
 void checkpointInfo(const std::string& path, processor::Processor& p) {
     std::ifstream cf(path);
     if (!cf) {
@@ -98,6 +108,13 @@ void checkpointInfo(const std::string& path, processor::Processor& p) {
 }
 
 
+int getRank() {
+    _startMpi();
+    mpi::communicator world;
+    return world.rank();
+}
+
+
 void help(char** argv) {
     std::ostringstream ss;
     ss << "Usage: " << argv[0]
@@ -122,9 +139,6 @@ Flags:\n\
 void runProcessor(int argc, char** argv) {
     Debug::DeathHandler dh;
     dh.set_color_output(false);
-
-    //Allow spawning (important that this happens before MPI initialization)
-    job_stream::invoke::_init();
 
     if (argc < 2) {
         help(argv);
@@ -200,10 +214,10 @@ void runProcessor(int argc, char** argv) {
     boost::algorithm::trim(inputLine);
 
     //Fire up MPI
-    std::unique_ptr<mpi::environment> env(new mpi::environment(argc, argv));
+    _startMpi();
     mpi::communicator world;
 
-    processor::Processor p(std::move(env), world, config, checkpoint);
+    processor::Processor p(mpiEnvHolder, world, config, checkpoint);
     p.setCheckpointInterval(checkpointMs);
     p.setStealEnabled(!stealOff);
     p.run(inputLine);
@@ -217,9 +231,7 @@ void runProcessor(int argc, char** argv) {
 
 void runProcessor(const SystemArguments& args) {
     //Fire up MPI and launch
-    if (!mpiEnvHolder) {
-        mpiEnvHolder.reset(new mpi::environment());
-    }
+    _startMpi();
     mpi::communicator world;
 
     processor::Processor p(mpiEnvHolder, world, args.config,

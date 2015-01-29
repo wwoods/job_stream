@@ -642,7 +642,7 @@ namespace job_stream {
         int checkpointSyncIntervalMs;
         /** Useful mostly for debugging, disables the steal ring */
         bool disableSteal;
-        /** Callback for output tuples, rather than printing them out.  Note that this 
+        /** Callback for output tuples, rather than printing them out.  Note that this
             function becomes responsible for checkpointing the output work! */
         std::function<void (std::unique_ptr<AnyType>)> handleOutputCallback;
         /** The initial input string, if any.  Leave empty for stdin or work
@@ -652,6 +652,10 @@ namespace job_stream {
         SystemArguments() : checkpointIntervalMs(600 * 1000),
                 checkpointSyncIntervalMs(-1), disableSteal(false) {}
     };
+
+
+    /** Returns this machine's MPI rank. */
+    int getRank();
 
 
     /** Add work to the initialWork queue, which overrides stdin or the
