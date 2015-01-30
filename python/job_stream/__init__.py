@@ -494,6 +494,9 @@ def _convertDictToYaml(c):
     return result
 
 
+checkpointInfo = _j.checkpointInfo
+
+
 def getRank():
     """Returns the rank (integer index) of this processor.  Typically, this
     value is checked against 0 for work that should only happen once, e.g.

@@ -1022,6 +1022,8 @@ BOOST_PYTHON_MODULE(_job_stream) {
     bp::scope().attr("__doc__") = "C internals for job_stream python library; "
             "see https://github.com/wwoods/job_stream for more info";
 
+    bp::def("checkpointInfo", job_stream::checkpointInfo, "Returns a human-readable "
+            "string with details of a checkpoint's state");
     bp::def("getRank", getRank, "Returns the mpi rank of this host");
     bp::def("invoke", invoke, "Invokes the given application.  See "
             "job_stream.invoke in the python module for more information.");

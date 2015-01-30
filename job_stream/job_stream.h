@@ -653,6 +653,10 @@ namespace job_stream {
                 checkpointSyncIntervalMs(-1), disableSteal(false) {}
     };
 
+    /** Returns a human-readable string denoting details about the checkpoint
+        file specified. */
+    std::string checkpointInfo(const std::string& path);
+
 
     /** Returns this machine's MPI rank. */
     int getRank();

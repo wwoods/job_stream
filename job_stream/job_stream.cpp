@@ -35,16 +35,24 @@ void _startMpi() {
 }
 
 
-void checkpointInfo(const std::string& path, processor::Processor& p) {
+std::string checkpointInfo(const std::string& path) {
     std::ifstream cf(path);
     if (!cf) {
         throw std::runtime_error("Could not open specified checkpoint file");
     }
 
+    //Start a processor to decode into
+    _startMpi();
+    mpi::communicator world;
+    processor::Processor p(mpiEnvHolder, world,
+            "__isCheckpointProcessorOnly: true", "");
+
+    std::ostringstream result;
+
     serialization::IArchive ar(cf);
     int wsize;
     serialization::decode(ar, wsize);
-    printf("%i processors\n", wsize);
+    result << wsize << " processors\n";
 
     std::map<int, std::string> procData;
     for (int i = 0; i < wsize; i++) {
@@ -73,38 +81,42 @@ void checkpointInfo(const std::string& path, processor::Processor& p) {
             j = -1;
         }
 
-        printf("== %i ==\n%lu total bytes\n", j, procInfo[j].totalBytes);
-        printf("%lu messages pending\n", procInfo[j].messagesWaiting);
+        result << "== " << j << " ==\n";
+        result << procInfo[j].totalBytes << " total bytes\n";
+        result << procInfo[j].messagesWaiting << " messages pending\n";
         uint64_t messagesTotal = 0;
         for (int k = 0, km = processor::Processor::TAG_COUNT; k < km; k++) {
             messagesTotal += procInfo[j].bytesByTag[k];
         }
-        printf("\n-- Initial breakdown --\nMessages (%lu total bytes):\n",
-                messagesTotal);
+        result << "\n-- Initial breakdown --\nMessages (" << messagesTotal << " total bytes):\n";
         for (int k = 0, km = processor::Processor::TAG_COUNT; k < km; k++) {
-            printf("%i - %lu messages, %lu bytes\n", k,
-                    procInfo[j].countByTag[k], procInfo[j].bytesByTag[k]);
+            result << procInfo[j].countByTag[k] << " - "
+                    << procInfo[j].bytesByTag[k] << " bytes\n";
         }
-        printf("\nJob tree: %lu bytes\nReduce map: %lu bytes\n",
-                procInfo[j].jobTreeSize, procInfo[j].reduceMapSize);
-        printf("\n-- Work Messages --\n");
-        printf("%lu bytes of user data\n", procInfo[j].totalUserBytes);
+        result << "\nJob tree: " << procInfo[j].jobTreeSize << " bytes\n";
+        result << "Reduce map: " << procInfo[j].reduceMapSize << " bytes\n";
+        result << "\n-- Work Messages --\n";
+        result << procInfo[j].totalUserBytes << " bytes of user data\n";
 
-        printf("\n-- Steal ring? --\n");
+        result << "\n-- Steal ring? --\n";
         if (procInfo[j].stealRing) {
-            printf("Capacity, slots, work, load\n");
+            result << "Capacity, slots, work, load\n";
             auto& sr = *procInfo[j].stealRing;
             for (int k = 0; k < wsize; k++) {
-                printf("%8i, %5i, %4i, %4f\n", sr.capacity[k], sr.slots[k],
-                        sr.work[k], sr.load[k]);
+                result << std::setw(8) << sr.capacity[k] << ", "
+                        << std::setw(5) << sr.slots[k] << ", "
+                        << std::setw(4) << sr.work[k] << ", "
+                        << std::setw(4) << sr.load[k] << "\n";
             }
         }
         else {
-            printf("no\n");
+            result << "no\n";
         }
 
-        printf("\n\n");
+        result << "\n\n";
     }
+
+    return result.str();
 }
 
 
@@ -172,12 +184,7 @@ void runProcessor(int argc, char** argv) {
             help(argv);
         }
         else if (strcmp(argv[inputStart], "--checkpoint-info") == 0) {
-            std::unique_ptr<mpi::environment> env(new mpi::environment(argc,
-                    argv));
-            mpi::communicator world;
-            processor::Processor p(std::move(env), world,
-                    "__isCheckpointProcessorOnly: true", "");
-            checkpointInfo(argv[inputStart + 1], p);
+            printf("%s\n", checkpointInfo(argv[inputStart + 1]).c_str());
             exit(0);
         }
         else if (strcmp(argv[inputStart], "--disable-steal") == 0) {

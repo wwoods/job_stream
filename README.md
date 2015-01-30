@@ -19,6 +19,7 @@ Job Stream
             * [inline.Work.run](#inline-work-run)
         * [inline.Object](#inline-object)
         * [inline.Multiple](#inline-multiple)
+    * [Running External Programs (job_stream.invoke)](#python-running-external-programs)
     * [Recipes](#python-recipes)
         * [for x in ...](#for-x-in)
         * [Nested for i in x](#nested-for-i-in-x)
@@ -433,7 +434,7 @@ execute the stream.  If your stream takes a long time to execute, it might
 be worth turning on checkpointing.  `run()` takes the following kwargs:
 
 * **checkpointFile** (string) The file path to save checkpoints at.  If
-  specified, checkpoints are automatically enabled.  By default, a checkpoint
+  specified, checkpoints are enabled.  By default, a checkpoint
   will be taken every 10 minutes (even with 20 machines, checkpoints typically
   take around 10 seconds).
 * **checkpointInterval** (float) The number of seconds between the completion of
@@ -485,6 +486,34 @@ def duplicate(w):
 
 Now, whatever work flows into `duplicate` will flow out of it with an extra
 copy.
+
+
+###<a name="python-running-external-programs"></a>Running External Programs (job_stream.invoke)
+
+It is tricky to launch another binary from an MPI process.
+Use `job_stream.invoke()` instead of e.g. `subprocess.Popen` to work around
+a lot of the issues caused by doing this.  Example usage:
+
+```python
+from job_stream import invoke
+out, err = invoke([ '/bin/echo', 'hi', 'there' ])
+# out == 'hi there\n'
+# err == '' (contents of stderr)
+```
+
+`job_stream.invoke()` will raise a RuntimeError exception for any non-zero
+return value from the launched program.  If some errors are transient, and those
+errors have a unique footprint in stderr, the strings specifying those errors
+may be passed as kwarg `transientErrors`.  Example:
+
+```python
+from job_stream import invoke
+out, err = invoke([ '/bin/mkdir', 'test' ],
+        transientErrors = [ 'Device not ready' ])
+```
+
+mkdir will be run up to kwarg `maxRetries` times (default 20), retrying until
+a non-zero result is given.
 
 
 ###<a name="python-recipes"></a>Recipes
@@ -1143,6 +1172,8 @@ early on.  So handleDone() gets called with 20, 62, and finally 188.
 
 ##<a name="recent-changelog"></a>Recent Changelog
 
+* 2015-1-30 - Updated README to include job_stream.invoke, and exposed
+  checkpointInfo function for debugging.
 * 2015-1-29 - Added inline.result() function, which lets users write code that
   is executed exactly once per result, and always on the main host.
 * 2015-1-28 - Added inline.init() function, which ensures code is only executed
