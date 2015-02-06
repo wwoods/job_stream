@@ -65,9 +65,21 @@ class Multiple(object):
 
 
 class Work(object):
-    def __init__(self, initialWork = []):
+    def __init__(self, initialWork = [], useMultiprocessing = True):
+        """Represents a job_stream pipeline.  May be passed a list or other
+        iterable of initial work, as well as any of the following flags:
+
+        useMultiprocessing [True] - If True, then all job_stream work will be
+            handled in child processes spawned via Python's multiprocessing
+            module.  This is used to get around the limitations of the GIL,
+            but if your application's setup (not the jobs themselves) uses a lot
+            of memory and your computation is handled by either non-GIL
+            protected code or in another process anyway, it is appropriate to
+            turn this off.
+        """
         self._initialWork = list(initialWork)
         self._initialWorkDepth = 0
+        self._useMultiprocessing = useMultiprocessing
         # The YAML config that we're building, essentially
         self._config = { 'jobs': [] }
         # Functions ran on init
@@ -394,6 +406,9 @@ class Work(object):
     def _newType(self, nameBase, clsBase, **funcs):
         tname = "_{}_{}".format(nameBase, _typeCount[0])
         _typeCount[0] += 1
-        cls = type(tname, (clsBase,), funcs)
+        clsAttrs = dict(funcs)
+        if not self._useMultiprocessing:
+            clsAttrs['USE_MULTIPROCESSING'] = False
+        cls = type(tname, (clsBase,), clsAttrs)
         _moduleSelf[tname] = cls
         return cls

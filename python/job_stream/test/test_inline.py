@@ -218,6 +218,47 @@ job_stream.run({
         self.assertLinesEqual(r2[0], r[0])
 
 
+    def test_multiprocessing_default(self):
+        # Ensure that, by default, multiprocessing is enabled
+        r = self.executePy("""
+import os
+from job_stream.inline import Work
+w = Work([ 1 ])
+@w.init
+def printMain():
+    print(os.getpid())
+
+@w.job
+def handle(w):
+    print(os.getpid())
+
+w.run()""")
+        pids = [ int(i.strip()) for i in r[0].strip().split("\n") ]
+        self.assertEqual(2, len(pids))
+        self.assertNotEqual(pids[0], pids[1])
+
+
+    def test_multiprocessing_disable(self):
+        # Ensure that multiprocessing can be disabled via
+        # useMultiprocessing = False
+        r = self.executePy("""
+import os
+from job_stream.inline import Work
+w = Work([ 1 ], useMultiprocessing = False)
+@w.init
+def printMain():
+    print(os.getpid())
+
+@w.job
+def handle(w):
+    print(os.getpid())
+
+w.run()""")
+        pids = [ int(i.strip()) for i in r[0].strip().split("\n") ]
+        self.assertEqual(2, len(pids))
+        self.assertEqual(pids[0], pids[1])
+
+
     def test_result(self):
         # Ensure that result works as needed, and fails if it isn't last
         r = self.executePy("""
