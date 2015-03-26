@@ -65,7 +65,8 @@ class Multiple(object):
 
 
 class Work(object):
-    def __init__(self, initialWork = [], useMultiprocessing = True):
+    def __init__(self, initialWork = [], useMultiprocessing = True,
+            **runKwargs):
         """Represents a job_stream pipeline.  May be passed a list or other
         iterable of initial work, as well as any of the following flags:
 
@@ -76,10 +77,22 @@ class Work(object):
             of memory and your computation is handled by either non-GIL
             protected code or in another process anyway, it is appropriate to
             turn this off.
+
+        checkpointFile [str] - If specified, job_stream will run in checkpoint
+            mode, periodically dumping progress to this file.  If this file
+            exists when run() is called, then simulation will be resumed
+            from the state stored in this file.
+
+        checkpointInterval [float] - Time, in seconds, between the completion
+            of one checkpoint and the beginning of the next.
+
+        checkpointSyncInterval [float] - Debug / test usage only.  Time, in
+            seconds, to wait for sync when taking a checkpoint.
         """
         self._initialWork = list(initialWork)
         self._initialWorkDepth = 0
         self._useMultiprocessing = useMultiprocessing
+        self._runKwargs = dict(runKwargs)
         # The YAML config that we're building, essentially
         self._config = { 'jobs': [] }
         # Functions ran on init
@@ -87,14 +100,28 @@ class Work(object):
         # Function ran to handle a result.  If set, nothing else may be added
         # to the pipe!
         self._resultHandler = None
+        # finish() has been called
+        self._hasFinish = False
         # parent node for current scope
         self._stack = [ { 'config': self._config } ]
 
 
+    def __enter__(self):
+        return self
+
+
+    def __exit__(self, errType, value, tb):
+        if errType is None:
+            self.run()
+
+
     def init(self, func = None):
-        """Decorates a method that is called only once, including over multiple
-        runs with checkpoints.  Useful for e.g. creating folders, deleting
-        temporary files from previous runs, etc."""
+        """Decorates a method that is called only once on the primary host
+        before any jobs run.  The method is never run when continuing from
+        a checkpoint.
+
+        Useful for e.g. creating folders, deleting temporary files from previous
+        runs, etc."""
         if func is None:
             return lambda func2: self.init(func2)
 
@@ -103,6 +130,35 @@ class Work(object):
 
         self._inits.append(func)
         return func
+
+
+    def finish(self, func = None):
+        """Decorates a method that is called only once on the primary host,
+        after all jobs have finished.
+
+        The decorated method takes a single argument, which is a list of all
+        results returned from the jobs within the stream.
+
+        Anything returned within the decorated method will be emitted from the
+        job_stream, meaning it will be returned by run().  User code should not
+        typically rely on this; it is used mainly for e.g. IPython notebooks.
+
+        Cannot be used if Work.result is used.  Work.result is preferred, if
+        your job stream's output can be processed one piece at a time (more
+        efficient in that results can be discarded after they are processed)."""
+        if func is None:
+            return lambda func2: self.finish(func2)
+
+        self._assertNoResult()
+        self._assertFuncArgs(func, 1)
+
+        @self.reduce(store = lambda: [], emit = func)
+        def collectResults(store, works, others):
+            store.extend(works)
+            for o in others:
+                store.extend(o)
+
+        self._hasFinish = True
 
 
     def frame(self, func = None, **kwargs):
@@ -268,7 +324,9 @@ class Work(object):
 
     def result(self, func = None, **kwargs):
         """Decorates a result handler, which is called only on the primary host
-        exactly once for each piece of work that exits the system.
+        exactly once for each piece of work that exits the system.  The handler
+        receives a single argument, which is the piece of work exiting the
+        system.
 
         If no result handlers are decorated, then inline will use a collector
         that gathers the results and returns them in a list from the run()
@@ -288,52 +346,42 @@ class Work(object):
         return func
 
 
-    def run(self, **kwargs):
+    def run(self):
         """Runs the Work, executing all decorated methods in the order they
-        were specified.
-
-        kwargs: Accepts the same arguments as job_stream.run, except for
-        handleResult.  See Work.result for handleResult's replacement.
+        were specified.  A few kwargs passed to Work() will be forwarded to
+        job_stream.run().
         """
-        results = None
-        resultsFile = None
+
+        runKwargs = dict(self._runKwargs)
+
+        # Hack in a finish() that returns the results, if no finish or results
+        # is specified
+        result = [ None ]
+        if not self._hasFinish and self._resultHandler is None:
+            @self.finish
+            def returnResults(results):
+                return results
+
+        if self._hasFinish:
+            if self._resultHandler is not None:
+                raise ValueError("finish() and result()?")
+            def handleSingleResult(onlyResult):
+                if result[0] is not None:
+                    raise ValueError("Got multiple results?")
+                result[0] = onlyResult
+            runKwargs['handleResult'] = handleSingleResult
+        else:
+            if self._resultHandler is None:
+                raise ValueError("No finish() nor result()?")
+            runKwargs['handleResult'] = self._resultHandler
+
+        # Run init functions, if it's the first execution of this stream
         isFirst = True
 
         # Is this a continuation?
-        if 'checkpointFile' in kwargs:
-            if os.path.lexists(kwargs['checkpointFile']):
+        if 'checkpointFile' in runKwargs:
+            if os.path.lexists(runKwargs['checkpointFile']):
                 isFirst = False
-
-        if self._resultHandler is not None:
-            kwargs['handleResult'] = self._resultHandler
-        else:
-            # Default result handling - gather and return array
-            if job_stream.getRank() != 0:
-                # Keep results at None, and leave the primary host as
-                # responsible
-                def raiser(r):
-                    raise NotImplementedError("Should never be called")
-                kwargs['handleResult'] = raiser
-            else:
-                if 'checkpointFile' in kwargs:
-                    resultsFile = kwargs['checkpointFile'] + '.results'
-                    resultsFileNew = resultsFile + '.new'
-
-                    if os.path.lexists(resultsFile):
-                        results = pickle.loads(open(resultsFile, 'r').read())
-                    else:
-                        results = []
-                    def handleResult(result):
-                        results.append(result)
-                        with open(resultsFileNew, 'w') as f:
-                            f.write(pickle.dumps(results))
-                        os.rename(resultsFileNew, resultsFile)
-                else:
-                    results = []
-                    def handleResult(result):
-                        results.append(result)
-
-                kwargs['handleResult'] = handleResult
 
         # Init?
         if isFirst and job_stream.getRank() == 0:
@@ -349,22 +397,8 @@ class Work(object):
         for i in range(self._initialWorkDepth):
             self._initialWork = [ self._initialWork ]
         job_stream.work = self._initialWork
-        job_stream.run(self._config, **kwargs)
-
-        # OK, delete checkpoints if any
-        if resultsFile is not None:
-            try:
-                os.remove(resultsFile)
-            except OSError, e:
-                if e.errno != 2:
-                    raise
-            try:
-                os.remove(resultsFileNew)
-            except OSError, e:
-                if e.errno != 2:
-                    raise
-
-        return results
+        job_stream.run(self._config, **runKwargs)
+        return result[0]
 
 
     def _assertFuncArgs(self, func, i):
@@ -379,6 +413,9 @@ class Work(object):
     def _assertNoResult(self):
         """Ensures that @w.result hasn't been used yet, otherwise raises an
         error."""
+        if self._hasFinish:
+            raise Exception("After Work.finish is used, no other elements may "
+                    "be added to the job stream.")
         if self._resultHandler is not None:
             raise Exception("After Work.result is used, no other elements may "
                     "be added to the job stream.")

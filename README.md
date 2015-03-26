@@ -13,6 +13,7 @@ Job Stream
         * [inline.Work](#inline-work)
             * [inline.Work.init](#inline-work-init)
             * [inline.Work.job](#inline-work-job)
+            * [inline.Work.finish](#inline-work-finish)
             * [inline.Work.frame](#inline-work-frame)
             * [inline.Work.reduce](#inline-work-reduce)
             * [inline.Work.result](#inline-work-result)
@@ -45,19 +46,17 @@ job_stream is a straightforward and effective way to implement distributed compu
 from job_stream.inline import Work
 import math
 
-# Start by declaring work based on the list of numbers between 0 and 999
-w = Work(range(1000))
-
-# For each of those numbers, execute this method to see if that number is prime
-@w.job
-def isPrime(x):
-    for i in range(2, int(math.sqrt(x)) + 1):
-        if x % i == 0:
-            return
-    print(x)
-
-# Run the job stream!
-w.run()
+# Start by declaring work based on the list of numbers between 0 and 999 as a
+# piece of `Work`.  When the w object goes out of context, the job_stream will
+# get exectued
+with Work(range(1000)) as w:
+    # For each of those numbers, execute this method to see if that number is prime
+    @w.job
+    def isPrime(x):
+        for i in range(2, int(math.sqrt(x)) + 1):
+            if x % i == 0:
+                return
+        print(x)
 ```
 
 
@@ -318,6 +317,34 @@ a job.  This is because jobs have no parallelism guards - that is, two jobs
 executing concurrently might open and append to a file at the same time.  On
 some filesystems, this results in e.g. two lines of a csv being combined into
 a single, invalid line.  To work around this, see [`inline.Work.result`](#inline-work-result).
+
+
+#####<a name="inline-work-finish"></a>inline.Work.finish
+
+Decorates a method that only runs on the main host, and only after all work has
+finished.  Since MPI common code (outside of job_stream, that is) runs on all
+machines, it is occasionally useful to run code only once to finish a
+calculation.  For instance, maybe the final results should be pretty-printed
+through `pandas`:
+
+```python
+import pandas
+from job_stream.inline import Work
+w = Work([ 1, 2, 3 ])
+@w.job
+def addOne(w):
+    return w + 1
+
+@w.finish
+def pandasPrintResults(results):
+    print(pandas.DataFrame(results))
+```
+
+Note that this function is similar to [inline.Work.result](#inline-work-result),
+but less efficient as it requires keeping all results leaving the job stream in
+memory.  On the other hand, `finish` has access to all results at once, unlike
+`result`.
+
 
 #####<a name="inline-work-frame"></a>inline.Work.frame
 
@@ -1184,6 +1211,9 @@ early on.  So handleDone() gets called with 20, 62, and finally 188.
 
 ##<a name="recent-changelog"></a>Recent Changelog
 
+* 2015-3-26 - `job_stream.inline.Work` can now be used in `with` blocks and has
+  a `finish()` method.  Args for `Work.run()` were moved to `Work`'s
+  initializer.
 * 2015-2-6 - job_stream.inline python module can disable multiprocessing by
   passing useMultiprocessing = False in the `Work` object's initializer.
 * 2015-1-30 - Updated README to include job_stream.invoke, and exposed
@@ -1274,6 +1304,32 @@ early on.  So handleDone() gets called with 20, 62, and finally 188.
   much RAM is required FOR THE WHOLE DURATION of the job.  E.g., it will double
   count memory.  Eventually, tracking avg time to completion + std dev, can fade
   out memory bias on running jobs.  But initially, naive is OK.
+
+  Also, needs to be nice to other people's experiments.  That is, collaborate
+  across job_stream instances (since I've got most of the lab using job_stream).
+  Goals:
+    - Maximize resources available to all job_streams (use all cores amongst
+      job_streams, and all memory).
+    - Distribute those resources evenly, but also greedily.  That is, not all
+      job_streams will use 100% of what is available.  Ones that need more should
+      expand into the gap.
+
+  So...
+  Distributed arbitration?  Requests and
+      yields?  E.g., each job_stream status file has two fields: allocated
+      cores & ram, and desired.  Allocated is moved towards desired based on
+      capacity (cores, mb) minus sum of allocated.  Allocated is moved down when
+      desired is lower.  Balanced across user, then jobs.
+
+      Traverse parent pid chain to count all memory usage.  Allocated memory should
+      probably be a virtual figure - that is, the allocated memory is IN ADDITION
+      to actual allocations.  Although, that has a 50% error margin.  Other way
+      to do it would be to have allocated memory be a minimum of sorts...
+      memory = max(baseline + allocation, actual)
+
+      We now have hard limits and soft limits.  Make sure we have a concept of
+      running vs desired running, too.
+
 * to: Should be a name or YAML reference, emit() or recur() should accept an
   argument of const YAML::Node& so that we can use e.g. stepTo: *priorRef as
   a normal config.  DO NOT overwrite to!  Allow it to be specified in pipes, e.g.

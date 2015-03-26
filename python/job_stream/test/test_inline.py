@@ -18,12 +18,13 @@ class TestInline(JobStreamTest):
         import tempfile
         chkpt = os.path.join(tempfile.gettempdir(), "test.chkpt")
 
-        w = inline.Work([ 1, 2, 3 ] * 10)
+        w = inline.Work([ 1, 2, 3 ] * 10, checkpointFile = chkpt,
+                checkpointSyncInterval = 0)
         w.job(inline._ForceCheckpointJob)
 
         # w.run() isn't a generator.  It blocks until EVERYTHING is done.  So, this is
         # only executed on success
-        for r in w.run(checkpointFile = chkpt, checkpointSyncInterval = 0):
+        for r in w.run():
             print repr(r)
 """
         # Run it often; each time should output nothing, and final should have all
@@ -34,6 +35,58 @@ class TestInline(JobStreamTest):
             except ExecuteError, e:
                 self.assertEqual("", e.stdout)
         self.assertLinesEqual("1\n2\n3\n" * 10, r[0])
+
+
+    def test_finish(self):
+        # Ensure that finish works
+        r = self.executePy("""
+import job_stream.inline as i
+w = i.Work([1,2,3])
+@w.finish
+def printArray(results):
+    print(results)
+w.run()
+                """)
+        self.assertEqual("[1, 2, 3]\n", r[0])
+
+
+    def test_finish_mustBeLast(self):
+        with self.assertRaises(Exception):
+            self.executePy("""
+import job_stream.inline as i
+work = i.Work()
+@work.finish
+def a(p):
+    return p
+@work.finish
+def a(p):
+    return p
+                    """)
+
+        with self.assertRaises(Exception):
+            self.executePy("""
+import job_stream.inline as i
+w = i.Work()
+@w.finish
+def a(p):
+    return p
+
+@w.job
+def p(q):
+    return q
+                    """)
+
+        with self.assertRaises(Exception):
+            self.executePy("""
+import job_stream.inline as i
+w = i.Work()
+@w.result
+def handle(r):
+    print(r)
+@w.finish
+def a(p):
+    return p
+                    """)
 
 
     def test_frame(self):
@@ -68,7 +121,8 @@ for r in work.run():
         try:
             cmd = """
 import job_stream.inline as inline
-work = inline.Work([ 3, 8, 9 ])
+work = inline.Work([ 3, 8, 9 ], checkpointFile = "blah.chkpt",
+        checkpointSyncInterval = 0)
 
 @work.init
 def setup():
@@ -83,7 +137,7 @@ work.job(inline._ForceCheckpointJob)
 def failure(w):
     raise ValueError("HUHM?")
 
-work.run(checkpointFile = "blah.chkpt", checkpointSyncInterval = 0)"""
+work.run()"""
 
             with self.assertRaises(ExecuteError):
                 self.executePy(cmd)
@@ -324,3 +378,15 @@ def j(w):
 def f(s, w, o):
     pass
 """)
+
+
+    def test_with(self):
+        # Ensure that Work works in a with block
+        r = self.executePy("""
+from job_stream.inline import Work
+with Work([ 1, 2, 3 ]) as w:
+    @w.job
+    def handle(w):
+        print("R{}".format(w))
+                """)
+        self.assertLinesEqual("R1\nR2\nR3\n", r[0])
