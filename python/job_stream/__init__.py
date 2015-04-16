@@ -18,6 +18,7 @@ import _job_stream as _j
 
 import cPickle as pickle
 import multiprocessing
+import sys
 import traceback
 
 # Classes waiting for _patchForMultiprocessing.  We wait until _pool is initiated
@@ -34,7 +35,10 @@ def _initMultiprocessingPool():
             def __getattribute__(self, name):
                 raise ValueError("Cannot use _pool in a worker process")
         _pool[0] = NoDoubleInit()
-        _pool[0] = multiprocessing.Pool()
+        def initProcess():
+            if 'numpy.random' in sys.modules:
+                sys.modules['numpy.random'].seed()
+        _pool[0] = multiprocessing.Pool(initializer = initProcess)
 
 
 def _decode(s):
@@ -128,7 +132,7 @@ def _callNoStore(obj, method, *args):
     while True:
         r = _pool[0].apply(_localCallNoStore, args = (obj.id, method) + args)
         if r[0] == 0:
-            _pool[0].apply(_localJobInit, args = (obj,))
+            _pool[0].map(_localJobInit, [ obj ] * _pool[0]._processes)
         else:
             break
     for eArgs in r[1]:
@@ -144,7 +148,7 @@ def _callStoreFirst(obj, method, first, *args):
         r = _pool[0].apply(_localCallStoreFirst,
                 args = (obj.id, method, first) + args)
         if r[0] == 0:
-            _pool[0].apply(_localJobInit, args = (obj,))
+            _pool[0].map(_localJobInit, [ obj ] * _pool[0]._processes)
         else:
             break
     first.__dict__ = r[1].__dict__
@@ -563,6 +567,9 @@ def run(configDictOrPath, **kwargs):
             print(repr(r))
     else:
         handleResult = kwargs.pop('handleResult')
+
+    if 'checkpointFile' in kwargs and not kwargs['checkpointFile']:
+        kwargs.pop('checkpointFile')
 
     try:
         _j.runProcessor(config, list(work), handleResult, **kwargs)

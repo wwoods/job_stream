@@ -30,7 +30,7 @@ class JobStreamTest(unittest.TestCase):
     def execute(self, args, np = 1):
         if not isinstance(args, list):
             args = [ args ]
-        nargs = [ '/usr/bin/mpirun', '-np', str(np), sys.executable, '-u' ] + args
+        nargs = [ 'mpirun', '-np', str(np), sys.executable, '-u' ] + args
         # Yes, we COULD just use communicate(), but that hides run-forever bugs if we
         # ever need to see them.
         def tee(s, buf):

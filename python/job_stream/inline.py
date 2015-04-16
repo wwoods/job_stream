@@ -379,7 +379,7 @@ class Work(object):
         isFirst = True
 
         # Is this a continuation?
-        if 'checkpointFile' in runKwargs:
+        if runKwargs.get('checkpointFile'):
             if os.path.lexists(runKwargs['checkpointFile']):
                 isFirst = False
 
