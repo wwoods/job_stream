@@ -20,6 +20,12 @@
 #include <string>
 #include <sys/resource.h>
 
+#if defined(__APPLE__)
+    #include <mach/mach_init.h>
+    #include <mach/thread_act.h>
+    #include <mach/mach_port.h>
+#endif
+
 namespace fs = boost::filesystem;
 namespace mpi = boost::mpi;
 
@@ -178,7 +184,7 @@ Processor::Processor(std::shared_ptr<mpi::environment> env,
     this->initialWork = job_stream::processor::initialWork;
     job_stream::processor::initialWork.clear();
 
-    if (world.size() >= (1 << message::WorkRecord::TAG_ADDRESS_BITS)) {
+    if (world.size() >= (1lu << message::WorkRecord::TAG_ADDRESS_BITS)) {
         throw std::runtime_error("MPI world too large.  See TAG_ADDRESS_BITS "
                 "in message.h");
     }
@@ -688,8 +694,8 @@ void Processor::_distributeWork(std::unique_ptr<message::WorkRecord> wr) {
 
 uint64_t Processor::getNextReduceTag() {
     uint64_t result = 0x0;
-    int countBits = (64 - message::WorkRecord::TAG_ADDRESS_BITS);
-    uint64_t countMask = (1 << countBits) - 1;
+    uint64_t countBits = (64 - message::WorkRecord::TAG_ADDRESS_BITS);
+    uint64_t countMask = (1lu << countBits) - 1;
 
     //Even though this changes state that is saved by a checkpoint, it's a
     //volatile value, so we don't take the main processor lock.
@@ -1774,9 +1780,34 @@ void Processor::_startRingTest(uint64_t reduceTag, uint64_t parentTag,
 
 
 uint64_t Processor::_getThreadCpuTimeMs() {
-    rusage clksTime;
-    getrusage(RUSAGE_THREAD, &clksTime);
-    uint64_t val = clksTime.ru_utime.tv_sec * 1000 + clksTime.ru_utime.tv_usec / 1000;
+    uint64_t val = 0;
+    #if defined(__linux__) || defined(unix) || defined(__unix__)
+        rusage clksTime;
+        getrusage(RUSAGE_THREAD, &clksTime);
+        val = (clksTime.ru_utime.tv_sec * 1000
+                + clksTime.ru_utime.tv_usec / 1000
+                + clksTime.ru_stime.tv_sec * 1000
+                + clksTime.ru_stime.tv_usec / 1000);
+    #elif defined(__APPLE__)
+        //mac os x
+        mach_port_t thread;
+        kern_return_t kr;
+        mach_msg_type_number_t count;
+        thread_basic_info_data_t info;
+
+        thread = mach_thread_self();
+        count = THREAD_BASIC_INFO_COUNT;
+        kr = thread_info(thread, THREAD_BASIC_INFO, (thread_info_t)&info,
+                &count);
+        if (kr == KERN_SUCCESS) {
+            val = (info.user_time.seconds * 1000
+                    + info.user_time.microseconds / 1000
+                    + info.system_time.seconds * 1000
+                    + info.system_time.microseconds / 1000);
+        }
+
+        mach_port_deallocate(mach_task_self(), thread);
+    #endif //OS CHECKS
     return val;
 }
 

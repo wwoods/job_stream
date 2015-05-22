@@ -171,7 +171,7 @@ add_custom_command(TARGET test-long
 
 add_custom_target(job_stream_python)
 add_custom_command(TARGET job_stream_python
-        POST_BUILD COMMAND /bin/sh -c 'cd .. && /usr/bin/python setup.py install --user')
+        POST_BUILD COMMAND /bin/sh -c 'cd .. && pip install --user --upgrade . || pip install --upgrade .')
 
 # Test the python module
 add_custom_target(test-python DEPENDS job_stream_python)

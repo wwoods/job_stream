@@ -18,8 +18,8 @@ class JobStreamTest(unittest.TestCase):
     def assertLinesEqual(self, a, b):
         """Asserts that strings a and b contain the same lines, albeit perhaps
         in a different order."""
-        al = a.split("\n")
-        bl = b.split("\n")
+        al = [ p for p in a.split("\n") if p ]
+        bl = [ p for p in b.split("\n") if p ]
 
         al.sort()
         bl.sort()
@@ -45,7 +45,7 @@ class JobStreamTest(unittest.TestCase):
             t.daemon = True
             t.start()
             return t
-        p = subprocess.Popen(nargs, stdout = subprocess.PIPE, 
+        p = subprocess.Popen(nargs, stdout = subprocess.PIPE,
                 stderr = subprocess.PIPE)
         out = []
         err = []

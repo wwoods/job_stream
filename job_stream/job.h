@@ -226,11 +226,16 @@ namespace job {
         /* Used for Frames, allows first work to be distinguished.... */
         bool gotFirstWork;
 
+        /** If set, then when the mutex is next unlocked in purgeCheckpointReset, it
+            will be deleted. */
+        bool shouldBePurged;
+
     private:
         friend class boost::serialization::access;
         template<class Archive>
         void serialize(Archive& ar, const unsigned int version) {
-            ar & this->originalWork & this->accumulator & this->gotFirstWork;
+            ar & this->originalWork & this->accumulator & this->gotFirstWork 
+                    & this->shouldBePurged;
         }
     };
 }

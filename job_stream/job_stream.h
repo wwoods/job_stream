@@ -225,7 +225,9 @@ namespace job_stream {
                 //Takes the non-primary processor lock, so this is OK.
                 tag = this->processor->getNextReduceTag();
                 if (this->reduceMap.count(tag) != 0) {
-                    throw std::runtime_error("Bad tag?  Duplicate");
+                    std::ostringstream ss;
+                    ss << "Bad tag?  Duplicate " << tag;
+                    throw std::runtime_error(ss.str());
                 }
             }
             else {
@@ -248,6 +250,7 @@ namespace job_stream {
                         work.serialized()));
                 record.accumulator.reset(new T_accum());
                 record.gotFirstWork = false;
+                record.shouldBePurged = false;
                 record.mutex.lock();
 
                 { //timer scope
@@ -425,13 +428,17 @@ namespace job_stream {
         void purgeCheckpointReset(uint64_t reduceTag) override {
             Lock lock(this->reduceMapMutex);
             this->reduceMapPatches.erase(reduceTag);
-            this->reduceMap[reduceTag].mutex.unlock();
+            auto& mapTag = this->reduceMap[reduceTag];
+            mapTag.mutex.unlock();
+            if (mapTag.shouldBePurged) {
+              this->reduceMap.erase(reduceTag);
+            }
         }
 
         /** Purges a dead ring from our reduceMap. */
         void purgeDeadRing(uint64_t reduceTag) override {
             Lock lock(this->reduceMapMutex);
-            this->reduceMap.erase(reduceTag);
+            this->reduceMap[reduceTag].shouldBePurged = true;
         }
 
         /** Set currentReduce to point to the right ReduceAccumulator */

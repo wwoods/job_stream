@@ -38,7 +38,13 @@
 #include <assert.h>
 #include <cxxabi.h>
 #include <execinfo.h>
-#include <malloc.h>
+#ifdef __APPLE__
+    #include <malloc/malloc.h>
+    #include <sys/wait.h>
+#else
+    #include <malloc.h>
+    #include <wait.h>
+#endif
 #include <pthread.h>
 #include <signal.h>
 #include <stdio.h>
@@ -46,11 +52,18 @@
 #include <stdint.h>
 #include <string.h>
 #include <unistd.h>
-#include <wait.h>
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
 #include <dlfcn.h>
+
+#ifdef __APPLE__
+namespace Debug {
+DeathHandler::DeathHandler() {}
+DeathHandler::~DeathHandler() {}
+void DeathHandler::set_color_output(bool value) {}
+}
+#else //!defined(__APPLE__)
 
 #pragma GCC poison malloc realloc free backtrace_symbols \
   printf fprintf sprintf snprintf scanf sscanf  // NOLINT(runtime/printf)
@@ -405,6 +418,10 @@ void DeathHandler::SignalHandler(int sig,
   void **trace = reinterpret_cast<void**>(memory);
   memory += (frames_count_ + 2) * sizeof(void*);
   // Workaround malloc() inside backtrace()
+  #ifdef __APPLE__
+    void* (*__malloc_hook)(size_t, const void*);
+    void (*__free_hook)(void*, const void*);
+  #endif
   void* (*oldMallocHook)(size_t, const void*) = __malloc_hook;
   void (*oldFreeHook)(void *, const void *) = __free_hook;
   __malloc_hook = MallocHook;
@@ -417,17 +434,23 @@ void DeathHandler::SignalHandler(int sig,
   }
 
   // Overwrite sigaction with caller's address
-#if defined(__arm__)
+#if defined(__APPLE__)
+  #if __DARWIN_UNIX03
+    trace[1] = reinterpret_cast<void*>(uc->uc_mcontext->__ss.__rip);
+  #else
+    trace[1] = reinterpret_cast<void*>(uc->uc_mcontext->ss.rip);
+  #endif
+#elif defined(__arm__)
   trace[1] = reinterpret_cast<void *>(uc->uc_mcontext.arm_pc);
 #else
-#if !defined(__i386__) && !defined(__x86_64__)
-#error Only ARM, x86 and x86-64 are supported
-#endif
-#if defined(__x86_64__)
-  trace[1] = reinterpret_cast<void *>(uc->uc_mcontext.gregs[REG_RIP]);
-#else
-  trace[1] = reinterpret_cast<void *>(uc->uc_mcontext.gregs[REG_EIP]);
-#endif
+  #if !defined(__i386__) && !defined(__x86_64__)
+    #error Only ARM, x86 and x86-64 are supported
+  #endif
+  #if defined(__x86_64__)
+    trace[1] = reinterpret_cast<void *>(uc->uc_mcontext.gregs[REG_RIP]);
+  #else
+    trace[1] = reinterpret_cast<void *>(uc->uc_mcontext.gregs[REG_EIP]);
+  #endif
 #endif
 
   const int path_max_length = 2048;
@@ -581,3 +604,5 @@ void DeathHandler::SignalHandler(int sig,
 #endif
 
 }  // namespace Debug
+
+#endif

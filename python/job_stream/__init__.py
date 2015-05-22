@@ -48,7 +48,7 @@ def _decode(s):
 
 def _encode(o):
     """Encodes an object with cPickle"""
-    return pickle.dumps(o)
+    return pickle.dumps(o, pickle.HIGHEST_PROTOCOL)
 
 
 class Object(object):

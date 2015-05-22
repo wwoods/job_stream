@@ -36,6 +36,7 @@
 #include <boost/type_traits/remove_pointer.hpp>
 #include <boost/utility/enable_if.hpp>
 #include <exception>
+#include <list>
 #include <map>
 #include <sstream>
 #include <string>
@@ -413,8 +414,8 @@ public:
 };
 
 
-template<class T, class Base1 = void, class Base2 = void, class Base3 = void,
-        class Base4 = void, class Base5 = void, class Base6 = void>
+template<class T, class Base1, class Base2, class Base3, class Base4, class Base5,
+        class Base6>
 void registerType() {
     _RegisterType_impl<T, T>::doRegister();
 #define REGISTER(Base)\
@@ -648,7 +649,7 @@ std::string encodeAsPtr(const T& src) {
 
 
 template<typename T, typename boost::enable_if<boost::mpl::not_<
-        boost::is_pointer<T>>, int>::type = 0>
+        boost::is_pointer<T>>, int>::type>
 void encodeAsPtr(OArchive& a, const T& src) {
     _SerialHelper<T*>::encodeTypeAndObject(a, const_cast<T* const>(&src));
 }
