@@ -186,6 +186,7 @@ class Work(object):
         fargs = Object()
         fargs.store = kwargs.pop('store', Object)
         fargs.emit = kwargs.pop('emit', lambda store: store)
+        fargs.useMulti = kwargs.pop('useMultiprocessing', self._useMultiprocessing)
 
         if kwargs:
             raise KeyError("Unrecognized arguments: {}".format(kwargs.keys()))
@@ -233,7 +234,7 @@ class Work(object):
 
         frame = self._newType(self._stack[-1]['frameFunc'].__name__,
                 job_stream.Frame, handleFirst = handleFirst, handleNext = handleNext,
-                handleDone = handleDone)
+                handleDone = handleDone, useMultiprocessing = fargs.useMulti)
         self._stack[-1]['config']['frame'] = frame
         self._stack.pop()
         # Since we always make a stack entry to start a frame, should never be empty here
@@ -443,8 +444,9 @@ class Work(object):
     def _newType(self, nameBase, clsBase, **funcs):
         tname = "_{}_{}".format(nameBase, _typeCount[0])
         _typeCount[0] += 1
+        useMulti = funcs.pop('useMultiprocessing', self._useMultiprocessing)
         clsAttrs = dict(funcs)
-        if not self._useMultiprocessing:
+        if not useMulti:
             clsAttrs['USE_MULTIPROCESSING'] = False
         cls = type(tname, (clsBase,), clsAttrs)
         _moduleSelf[tname] = cls
