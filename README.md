@@ -957,6 +957,15 @@ for you.  However, do NOT create a shared buffer in which to do your work as
 part of a job class.  If you do, make sure you declare it thread\_local (which
 requires static).
 
+It is wrong to build a Reducer or Frame that simply appends new work into a
+list.  Doing so will cause excessively large objects to be written to checkpoint
+files and cause the backups required to support checkpoints to bloat
+unnecessarily (backups meaning the copy of each store object that represents its
+non-mutated state before the work began.  Without this, checkpointing would have
+to wait for all Work to finish before completing).
+This leads to very long-running de/serialization routines, which can cause very
+poor performance in some situations.
+
 If you use checkpoints and your process crashes, it is possible that any
 activity _outside_ of job_stream will be repeated.  In other words, if one of
 your jobs appends content to a file, then that content might appear in the
@@ -1211,6 +1220,11 @@ early on.  So handleDone() gets called with 20, 62, and finally 188.
 
 ##<a name="recent-changelog"></a>Recent Changelog
 
+* 2015-5-26 - README warning about Frames and Reducers that store a list of
+  objects.  Python inline frames can specify useMultiprocessing=False separate
+  from the work.  Minor efficiency improvement to copy fewer Python object
+  strings.
+* 2015-5-21 - Build on Mac OS X is now fixed.
 * 2015-3-26 - `job_stream.inline.Work` can now be used in `with` blocks and has
   a `finish()` method.  Args for `Work.run()` were moved to `Work`'s
   initializer.

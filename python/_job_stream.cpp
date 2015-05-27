@@ -237,7 +237,7 @@ public:
         //code
         _PyGilAcquire gilLock;
         try {
-            bp::object workObj = job_stream::python::decodeStr(work->data);
+            bp::object workObj = serializedToPython(*work);
             this->pyHandleWork(workObj);
         }
         catch (...) {
@@ -408,8 +408,8 @@ public:
         //code
         _PyGilAcquire gilLock;
         try {
-            bp::object stash = serializedToPython(current.data);
-            bp::object workObj = serializedToPython(work->data);
+            bp::object stash = serializedToPython(current);
+            bp::object workObj = serializedToPython(*work);
             this->pyHandleAdd(stash, workObj);
             current = pythonToSerialized(stash);
         }
@@ -425,7 +425,7 @@ public:
         //code
         _PyGilAcquire gilLock;
         try {
-            bp::object stash = serializedToPython(current.data);
+            bp::object stash = serializedToPython(current);
             this->pyHandleDone(stash);
             current = pythonToSerialized(stash);
         }
@@ -459,8 +459,8 @@ public:
         //code
         _PyGilAcquire gilLock;
         try {
-            bp::object stash = serializedToPython(current.data);
-            bp::object otter = serializedToPython(other->data);
+            bp::object stash = serializedToPython(current);
+            bp::object otter = serializedToPython(*other);
             this->pyHandleJoin(stash, otter);
             current = pythonToSerialized(stash);
         }
@@ -682,7 +682,7 @@ public:
         //code
         _PyGilAcquire gilLock;
         try {
-            bp::object stash = serializedToPython(current.data);
+            bp::object stash = serializedToPython(current);
             this->pyHandleDone(stash);
             current = pythonToSerialized(stash);
         }
@@ -700,7 +700,7 @@ public:
         _PyGilAcquire gilLock;
         try {
             bp::object stash = job_stream::python::object();
-            bp::object workObj = serializedToPython(work->data);
+            bp::object workObj = serializedToPython(*work);
             this->pyHandleFirst(stash, workObj);
             current = pythonToSerialized(stash);
         }
@@ -717,8 +717,8 @@ public:
         //code
         _PyGilAcquire gilLock;
         try {
-            bp::object stash = serializedToPython(current.data);
-            bp::object workObj = serializedToPython(work->data);
+            bp::object stash = serializedToPython(current);
+            bp::object workObj = serializedToPython(*work);
             this->pyHandleNext(stash, workObj);
             current = pythonToSerialized(stash);
         }

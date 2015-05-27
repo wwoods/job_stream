@@ -44,7 +44,7 @@ import job_stream.inline as i
 w = i.Work([1,2,3])
 @w.finish
 def printArray(results):
-    print(results)
+    print(sorted(results))
 w.run()
                 """)
         self.assertEqual("[1, 2, 3]\n", r[0])

@@ -14,7 +14,7 @@ struct SerializedPython {
     std::string data;
 
     SerializedPython() {}
-    SerializedPython(std::string src) : data(std::move(src)) {}
+    explicit SerializedPython(std::string src) : data(std::move(src)) {}
     SerializedPython(SerializedPython&& other) : data(std::move(other.data)) {}
 
     SerializedPython& operator=(const SerializedPython& rhs) {
