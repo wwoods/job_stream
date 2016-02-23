@@ -1,6 +1,8 @@
 Job Stream
 ==========
 
+Contents:
+
 * [Introduction](#introduction)
 * [Requirements](#requirements)
 * [Building job_stream](#building-job_stream)
@@ -1251,155 +1253,155 @@ early on.  So handleDone() gets called with 20, 62, and finally 188.
   (handleWork -> handleNext).  Frames may now be specified as a string for
   type, just like reducers.
 * 2014-12-04 - Checkpoints no longer are allowed for interactive mode.  All
-  input must be spooled into the system before a checkpoint will be allowed.
+    input must be spooled into the system before a checkpoint will be allowed.
 * 2014-11-14 - Fixed job_stream checkpoints to be continuous.  That is, a
-  checkpoint no longer needs current work to finish in order to complete.  This
-  cuts the runtime for checkpoints from several hours in some situations down
-  to a couple of seconds.  Also, added test-long to cmake, so that tests can
-  be run repeatedly for any period of time in order to track down transient
-  failures.
+    checkpoint no longer needs current work to finish in order to complete.  This
+    cuts the runtime for checkpoints from several hours in some situations down
+    to a couple of seconds.  Also, added test-long to cmake, so that tests can
+    be run repeatedly for any period of time in order to track down transient
+    failures.
 
-  Fixed a bug with job_stream::invoke which would lock up if a program wrote
-  too much information to stderr or stdout.
+    Fixed a bug with job_stream::invoke which would lock up if a program wrote
+    too much information to stderr or stdout.
 
-  Re-did steal ring so that it takes available processing power into account.
+    Re-did steal ring so that it takes available processing power into account.
 * 2014-11-06 - Fixed invoke::run up so that it supported retry on user-defined
-  transient errors (For me, Xyce was having issues creating a sub directory
-  and would crash).
+    transient errors (For me, Xyce was having issues creating a sub directory
+    and would crash).
 * 2014-11-03 - Added --checkpoint-info for identifying what makes checkpoint
-  files so large sometimes.  Miscellaneous cleanup to --help functionality.
-  Serialization will refuse to serialize a non-pointer version of a polymorphic
-  class, since it takes a long time to track down what's wrong in that
-  situation.
+    files so large sometimes.  Miscellaneous cleanup to --help functionality.
+    Serialization will refuse to serialize a non-pointer version of a polymorphic
+    class, since it takes a long time to track down what's wrong in that
+    situation.
 * 2014-10-17 - Apparently yaml-cpp is not thread safe.  Wtf.  Anyway, as a
-  "temporary" solution, job_stream now uses some custom globally locked classes
-  as a gateway to yaml-cpp.  All functionality should still work exactly like
-  vanilla yaml-cpp.
+    "temporary" solution, job_stream now uses some custom globally locked classes
+    as a gateway to yaml-cpp.  All functionality should still work exactly like
+    vanilla yaml-cpp.
 
-  Also, no work happens during a checkpoint now.  That was causing corrupted
-  checkpoint files with duplicated ring tests.
+    Also, no work happens during a checkpoint now.  That was causing corrupted
+    checkpoint files with duplicated ring tests.
 * 2014-9-10 - Fixed up duplicated and end-of-job-sequence (output) submodules.
-  Host name is now used in addition to MPI rank when reporting results.
+    Host name is now used in addition to MPI rank when reporting results.
 * 2014-6-13 - Finalized checkpoint code for initial release.  A slew of new
-  tests.  
+    tests.
 * 2014-4-24 - Fixed up shared_ptr serialization.  Fixed synchronization issue
-  in reduction rings.
+    in reduction rings.
 * 2014-2-19 - Added Frame specialization of Reducer.  Expects a different
-  first work than subsequent.  Usage pattern is to do some initialization work
-  and then recur() additional work as needed.
+    first work than subsequent.  Usage pattern is to do some initialization work
+    and then recur() additional work as needed.
 * 2014-2-12 - Serialization is now via pointer, and supports polymorphic classes
-  completely unambiguously via dynamic_cast and
-  job_stream::serialization::registerType.  User cpu % updated to be in terms of
-  user time (quality measure) for each processor, and cumulative CPUs for
-  cumulative time.  
+    completely unambiguously via dynamic_cast and
+    job_stream::serialization::registerType.  User cpu % updated to be in terms of
+    user time (quality measure) for each processor, and cumulative CPUs for
+    cumulative time.
 * 2014-2-5 - In terms of user ticks / wall clock ms, less_serialization is on
-  par with master (3416 vs 3393 ticks / ms, 5% error), in addition
-  to all of the other fixes that branch has.  Merged in.
+    par with master (3416 vs 3393 ticks / ms, 5% error), in addition
+    to all of the other fixes that branch has.  Merged in.
 * 2014-2-4 - Got rid of needed istream specialization; use an if and a
-  runtime\_exception.
+    runtime\_exception.
 * 2014-2-4 - handleWork, handleAdd, and handleJoin all changed to take a
-  unique\_ptr rather than references.  This allows preventing more memory
-  allocations and copies.  Default implementation with += removed.
+    unique\_ptr rather than references.  This allows preventing more memory
+    allocations and copies.  Default implementation with += removed.
 
 
 ##<a name="roadmap"></a>Roadmap
 
 * Memory management helper - psutil.get_memory_info().rss,
-  psutil.phymem_usage().available, inline multiprocessing disable, etc.  Use
-  statistical probabilities to determine the memory consumption per job,
-  INCLUDING job_stream.invoke memory.  Assume one (or two) std deviations (or
-  high watermark) of memory are required above average for job allocation.  
-  How to do this?
-  Low watermark before jobs are handled.  Periodically sample memory usage,
-  and ...?  Assume used memory is evenly distributed amongst jobs?  Python
-  does multiprocessing... this affects these stats.  Hmm..
+    psutil.phymem_usage().available, inline multiprocessing disable, etc.  Use
+    statistical probabilities to determine the memory consumption per job,
+    INCLUDING job_stream.invoke memory.  Assume one (or two) std deviations (or
+    high watermark) of memory are required above average for job allocation.
+    How to do this?
+    Low watermark before jobs are handled.  Periodically sample memory usage,
+    and ...?  Assume used memory is evenly distributed amongst jobs?  Python
+    does multiprocessing... this affects these stats.  Hmm..
 
-  Maybe what would be best is add a "memoryRequired" to SharedBase override.  This
-  much RAM is required FOR THE WHOLE DURATION of the job.  E.g., it will double
-  count memory.  Eventually, tracking avg time to completion + std dev, can fade
-  out memory bias on running jobs.  But initially, naive is OK.
+    Maybe what would be best is add a "memoryRequired" to SharedBase override.  This
+    much RAM is required FOR THE WHOLE DURATION of the job.  E.g., it will double
+    count memory.  Eventually, tracking avg time to completion + std dev, can fade
+    out memory bias on running jobs.  But initially, naive is OK.
 
-  Also, needs to be nice to other people's experiments.  That is, collaborate
-  across job_stream instances (since I've got most of the lab using job_stream).
-  Goals:
+    Also, needs to be nice to other people's experiments.  That is, collaborate
+    across job_stream instances (since I've got most of the lab using job_stream).
+    Goals:
     - Maximize resources available to all job_streams (use all cores amongst
-      job_streams, and all memory).
+        job_streams, and all memory).
     - Distribute those resources evenly, but also greedily.  That is, not all
-      job_streams will use 100% of what is available.  Ones that need more should
-      expand into the gap.
+        job_streams will use 100% of what is available.  Ones that need more should
+        expand into the gap.
 
-  So...
-  Distributed arbitration?  Requests and
-      yields?  E.g., each job_stream status file has two fields: allocated
-      cores & ram, and desired.  Allocated is moved towards desired based on
-      capacity (cores, mb) minus sum of allocated.  Allocated is moved down when
-      desired is lower.  Balanced across user, then jobs.
+    So...
+    Distributed arbitration?  Requests and
+    yields?  E.g., each job_stream status file has two fields: allocated
+    cores & ram, and desired.  Allocated is moved towards desired based on
+    capacity (cores, mb) minus sum of allocated.  Allocated is moved down when
+    desired is lower.  Balanced across user, then jobs.
 
-      Traverse parent pid chain to count all memory usage.  Allocated memory should
-      probably be a virtual figure - that is, the allocated memory is IN ADDITION
-      to actual allocations.  Although, that has a 50% error margin.  Other way
-      to do it would be to have allocated memory be a minimum of sorts...
-      memory = max(baseline + allocation, actual)
+    Traverse parent pid chain to count all memory usage.  Allocated memory should
+    probably be a virtual figure - that is, the allocated memory is IN ADDITION
+    to actual allocations.  Although, that has a 50% error margin.  Other way
+    to do it would be to have allocated memory be a minimum of sorts...
+    memory = max(baseline + allocation, actual)
 
-      We now have hard limits and soft limits.  Make sure we have a concept of
-      running vs desired running, too.
+    We now have hard limits and soft limits.  Make sure we have a concept of
+    running vs desired running, too.
 
 * to: Should be a name or YAML reference, emit() or recur() should accept an
-  argument of const YAML::Node& so that we can use e.g. stepTo: *priorRef as
-  a normal config.  DO NOT overwrite to!  Allow it to be specified in pipes, e.g.
+    argument of const YAML::Node& so that we can use e.g. stepTo: *priorRef as
+    a normal config.  DO NOT overwrite to!  Allow it to be specified in pipes, e.g.
 
-    - to: *other
-      needsMoreTo: *next
-    - &next
-      type: ...
-      to: output
-    - &other
-      type: ...
+        - to: *other
+          needsMoreTo: *next
+        - &next
+          type: ...
+          to: output
+        - &other
+          type: ...
 
-  In general, allow standard YAML rather than a specially split "to" member.
+    In general, allow standard YAML rather than a specially split "to" member.
 * Smarter serialization....... maybe hash serialized entities, and store a dict
-  of hashes, so as to only write the same data once even if it is NOT a
-  duplicated pointer.
+    of hashes, so as to only write the same data once even if it is NOT a
+    duplicated pointer.
 * depth-first iteration as flag
 * Ability to let job_stream optimize work size.  That is, your program says
-  something like this->getChunk(__FILE__, __LINE__, 500) and then job_stream
-  tracks time spent on communicating vs processing and optimizes the size of
-  the work a bit...
+    something like this->getChunk(__FILE__, __LINE__, 500) and then job_stream
+    tracks time spent on communicating vs processing and optimizes the size of
+    the work a bit...
 * Fix timing statistics in continue'd runs from checkpoints
 * Errors during a task should push the work back on the stack and trigger a
-  checkpoint before exiting.  That would be awesome.  Should probably be an
-  option though, since it would require "checkpointing" reduce accumulations
-  and holding onto emitted data throughout each work's processing
+    checkpoint before exiting.  That would be awesome.  Should probably be an
+    option though, since it would require "checkpointing" reduce accumulations
+    and holding onto emitted data throughout each work's processing
 * Prevent running code on very slow systems... maybe make a CPU / RAM sat
-  metric by running a 1-2 second test and see how many cycles of computation
-  we get, then compare across systems.  If we also share how many contexts each
-  machine has, then stealing code can balance such that machines 1/2 as capable
-  only keep half their cores busy maximum according to stealing.
+    metric by running a 1-2 second test and see how many cycles of computation
+    we get, then compare across systems.  If we also share how many contexts each
+    machine has, then stealing code can balance such that machines 1/2 as capable
+    only keep half their cores busy maximum according to stealing.
 * Progress indicator, if possible...
 * Merge job\_stream\_inherit into job\_stream\_example (and test it)
 * TIME\_COMM should not include initial isend request, since we're not using
-  primitive objects and that groups in the serialization time
+    primitive objects and that groups in the serialization time
 * Frame probably shouldn't need handleJoin (behavior would be wrong, since
-  the first tuple would be different in each incarnation)
+    the first tuple would be different in each incarnation)
 * Replace to: output with to: parent; input: output to input: reducer
 * Consider replacing "reducer" keyword with "frame" to automatically rewrite
-  recurTo as input and input as reducer
+    recurTo as input and input as reducer
 * Consider attachToNext() paired w/ emit and recur; attachments have their own
-  getAttached<type>("label") retriever that returns a modifiable version of the
-  attachment.  removeAttached("label").  Anyway, attachments go to all child
-  reducers but are not transmitted via emitted() work from reducers.  Would
-  greatly simplify trainer / maximize code... though, if something is required,
-  passing it in a struct is probably a better idea as it's a compile-time error.
-  Then again, it wouldn't work for return values, but it would work for
-  attaching return values to a recur'd tuple and waiting for it to come back
-  around.
+    getAttached<type>("label") retriever that returns a modifiable version of the
+    attachment.  removeAttached("label").  Anyway, attachments go to all child
+    reducers but are not transmitted via emitted() work from reducers.  Would
+    greatly simplify trainer / maximize code... though, if something is required,
+    passing it in a struct is probably a better idea as it's a compile-time error.
+    Then again, it wouldn't work for return values, but it would work for
+    attaching return values to a recur'd tuple and waiting for it to come back
+    around.
 * Update README with serialization changes, clean up code.  Note that unique\_ptr
-  serialize() is specified in serialization.h.  Also Frame needs doc.
+    serialize() is specified in serialization.h.  Also Frame needs doc.
 * Idle time tracking - show how much time is spent e.g. waiting on a reducer
 * Solve config problem - if e.g. all jobs need to fill in some globally shared
-  information (tests to run, something not in YAML)
+    information (tests to run, something not in YAML)
 * Python embedded bindings / application
-* Reductions should always happen locally; a dead ring should merge them.  
+* Reductions should always happen locally; a dead ring should merge them.
     * Issue - would need a merge() function on the templated reducer base class.  Also, recurrence would have to re-initialize those rings.  Might be better to hold off on this one until it's a proven performance issue.
     * Unless, of course, T_accum == T_input always and I remove the second param.  Downsides include awkwardness if you want other components to feed into the reducer in a non-reduced format... but, you'd have to write a converter anyway (current handleMore).  So...
     * Though, if T_accum == T_input, it's much more awkward to make generic, modular components.  For instance, suppose you have a vector calculation.  Sometimes you just want to print the vectors, or route them to a splicer or whatever.  If you have to form them as reductions, that's pretty forced...
