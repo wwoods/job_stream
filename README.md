@@ -23,6 +23,7 @@ Contents:
         * [inline.Object](#inline-object)
         * [inline.Multiple](#inline-multiple)
     * [Running External Programs (job_stream.invoke)](#python-running-external-programs)
+    * [Executing Code on the main host only (job_stream.getRank)](#python-get-rank)
     * [Recipes](#python-recipes)
         * [for x in ...](#for-x-in)
         * [Nested for i in x](#nested-for-i-in-x)
@@ -556,6 +557,23 @@ out, err = invoke([ '/bin/mkdir', 'test' ],
 mkdir will be run up to kwarg `maxRetries` times (default 20), retrying until
 a non-zero result is given.
 
+###<a name="python-get-rank"></a>Executing Code on the main host only (job_stream.getRank)
+
+When running `job_stream` code in a multi-machine environment, code will normally get executed multiple times.  For instance, running the following script via `mpirun -host a,b,c script.py`:
+
+```python
+print("Hello, world!")
+```
+
+will print "Hello, world!" three different times, one on each host.  In part of a workflow, this may be circumvented via `inline.Work.init`.  However, this only properly handles initialization code.  If manual control over the execution of code across multiple machines is desired, `job_stream.getRank()` should be used as follows:
+
+```python
+import job_stream
+if job_stream.getRank() == 0:
+    print("Hello, world!")
+```
+
+This configuration will only result in "Hello, world!" begin printed a single time.
 
 ###<a name="python-recipes"></a>Recipes
 
