@@ -63,7 +63,7 @@ with Work(range(1000)) as w:
 ```
 
 
-Neat, huh?  Or for more of a real-world example, if we wanted line counts for all of the files in a directory:
+Or for more of a real-world example, if we wanted line counts for all of the files in a directory:
 
 ```python
 # Import the inline library of job_stream (works for 99% of cases and produces code
