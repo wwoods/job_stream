@@ -25,6 +25,7 @@ Contents:
     * [Running External Programs (job_stream.invoke)](#python-running-external-programs)
     * [Executing Code on the main host only (job_stream.getRank)](#python-get-rank)
     * [Recipes](#python-recipes)
+        * [map](#python-map)
         * [for x in ...](#for-x-in)
         * [Nested for i in x](#nested-for-i-in-x)
         * [Aggregating outside of a for loop](#aggregating-outside-of-a-for-loop)
@@ -576,6 +577,19 @@ if job_stream.getRank() == 0:
 This configuration will only result in "Hello, world!" begin printed a single time.
 
 ###<a name="python-recipes"></a>Recipes
+
+####<a name="python-map"></a>map
+
+If you want to replace a python `map(func, sequence[, sequence, ...])` with
+a parallelized version, `job_stream` provides `job_stream.map()` which has
+the same syntax:
+
+```python
+from job_stream import map
+addOne = lambda w: w+1
+print(map(addOne, [ 1, 2, 3 ]))
+# prints [2, 3, 4]
+```
 
 ####<a name="for-x-in"></a>for x in ...
 
@@ -1240,6 +1254,8 @@ early on.  So handleDone() gets called with 20, 62, and finally 188.
 
 ##<a name="recent-changelog"></a>Recent Changelog
 
+* 2016-4-14 - Added a `map()` function that is compatible with the builtin
+  `map()` function.
 * 2015-5-26 - README warning about Frames and Reducers that store a list of
   objects.  Python inline frames can specify useMultiprocessing=False separate
   from the work.  Minor efficiency improvement to copy fewer Python object

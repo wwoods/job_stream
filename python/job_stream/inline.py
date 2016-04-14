@@ -34,7 +34,10 @@ import cPickle as pickle
 import inspect
 import os
 
+# Imports from job_stream
 Object = job_stream.Object
+
+# Used to register new classes so they can be pickle'd appropriately
 _moduleSelf = globals()
 
 _typeCount = [ 0 ]
@@ -451,3 +454,27 @@ class Work(object):
         cls = type(tname, (clsBase,), clsAttrs)
         _moduleSelf[tname] = cls
         return cls
+
+
+def map(func, *sequence, **kwargs):
+    """Returns [ func(*a) for a in sequence ] in a parallel manner.  Identical
+    to the builtin map(), except parallelized.
+
+    kwargs - Passed to job_stream.inline.Work().
+
+    This implementation differs from job_stream.map() so that it can
+    demonstrate the functionality of the inline module.  The behavior is
+    identical."""
+    arr = list(enumerate(zip(*sequence)))
+    result = [ None for _ in range(len(arr)) ]
+    with Work(arr, **kwargs) as w:
+        @w.job
+        def mapWork(w):
+            i, arg = w
+            return (i, func(*arg))
+
+        @w.result
+        def storeResult(w):
+            result[w[0]] = w[1]
+    return result
+
