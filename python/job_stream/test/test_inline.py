@@ -9,7 +9,7 @@ class TestInline(JobStreamTest):
         chkpt = os.path.join(tempfile.gettempdir(), "test.chkpt")
         try:
             os.remove(chkpt)
-        except OSError, e:
+        except OSError as e:
             if e.errno != 2:
                 raise
         src = """
@@ -25,14 +25,14 @@ class TestInline(JobStreamTest):
         # w.run() isn't a generator.  It blocks until EVERYTHING is done.  So, this is
         # only executed on success
         for r in w.run():
-            print repr(r)
+            print(repr(r))
 """
         # Run it often; each time should output nothing, and final should have all
         for _ in range(30):
             try:
                 r = self.executePy(src)
                 break
-            except ExecuteError, e:
+            except ExecuteError as e:
                 self.assertEqual("", e.stdout)
         self.assertLinesEqual("1\n2\n3\n" * 10, r[0])
 
@@ -109,7 +109,7 @@ def nextPowerOfTwo(store, next):
     store.total += next
 
 for r in work.run():
-    print repr(r)
+    print(repr(r))
 """)
         self.assertLinesEqual("4\n8\n16\n", r[0])
 
@@ -167,7 +167,7 @@ def addTwo():
 def addThreeFour():
     return inline.Multiple([3, 4])
 for r in w.run():
-    print r
+    print(r)
 """)
         self.assertLinesEqual("1\n2\n3\n4\n", r[0])
 
@@ -195,7 +195,7 @@ def timesThree(work):
 
 work.reduce(sum, store = SumStore, emit = lambda store: store.value)
 for r in work.run():
-    print r
+    print(r)
 """)
         self.assertEqual("18\n", r[0])
 
@@ -230,7 +230,7 @@ def findGlobalAvg(store, inputs, others):
         store.gavg += o.gavg
 
 for r in work.run():
-    print repr(r)
+    print(repr(r))
 """)
 
         r2 = self.executePy("""

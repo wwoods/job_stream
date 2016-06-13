@@ -99,15 +99,25 @@ private:
 
 /** Must be called with GIL locked */
 SerializedPython pythonToSerialized(const bp::object& o) {
-    return SerializedPython(bp::extract<std::string>(
-            job_stream::python::encodeObj(o)));
+    bp::object encoded(job_stream::python::encodeObj(o));
+    ASSERT(PyBytes_Check(encoded.ptr()), "Not a bytes object");
+    std::string bytesData(PyBytes_AsString(encoded.ptr()),
+            PyBytes_Size(encoded.ptr()));
+    return SerializedPython(std::move(bytesData));
 }
 
 
 /** Must be called with GIL locked */
 bp::object serializedToPython(const SerializedPython& sp) {
     try {
+#if PYTHON_MAJOR <= 2
         return job_stream::python::decodeStr(sp.data);
+#else
+        bp::object buffer(bp::handle<>(PyMemoryView_FromMemory(
+                    const_cast<char*>(sp.data.c_str()), sp.data.size(),
+                    PyBUF_READ)));
+        return job_stream::python::decodeStr(buffer);
+#endif //PYTHON_MAJOR <= 2
     }
     catch (...) {
         CHECK_PYTHON_ERROR("Error deserializing");
@@ -157,11 +167,7 @@ namespace python {
 std::istream& operator>>(std::istream& is,
         SerializedPython& sp) {
     //Happens outside the GIL!
-    std::string s;
-    is >> s;
-    _PyGilAcquire gilLock;
-    sp.data = bp::extract<std::string>(
-            job_stream::python::encodeObj(s));
+    ERROR("Cannot do this");
     return is;
 }
 
@@ -169,7 +175,7 @@ std::ostream& operator<<(std::ostream& os,
         const SerializedPython& sp) {
     //Happens outside the GIL!
     _PyGilAcquire gilLock;
-    bp::object o = job_stream::python::decodeStr(sp.data);
+    bp::object o = serializedToPython(sp);
     std::string s = bp::extract<std::string>(job_stream::python::repr(o));
     return os << s;
 }
@@ -983,8 +989,8 @@ bp::object runProcessor(bp::tuple args, bp::dict kwargs) {
 
     bp::object workList = bp::object(args[1]);
     for (int i = 0, m = bp::len(workList); i < m; i++) {
-        job_stream::queueInitialWork(SerializedPython(bp::extract<std::string>(
-                job_stream::python::encodeObj(bp::object(workList[i])))));
+        job_stream::queueInitialWork(pythonToSerialized(
+                    bp::object(workList[i])));
     }
 
     //Enumerate kwargs

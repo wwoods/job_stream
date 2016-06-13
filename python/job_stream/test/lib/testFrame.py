@@ -34,7 +34,7 @@ class runExperiments(job_stream.Frame):
 
 
     def handleDone(self, store):
-        self.emit(sum(store.values) / len(store.values))
+        self.emit(sum(store.values) // len(store.values))
 
 
 if __name__ == '__main__':

@@ -72,7 +72,8 @@ SET(REQ_LIB
         boost_system
         boost_thread
         boost_serialization
-        boost_mpi)
+        boost_mpi
+        dl)
 
 add_library(job_stream
         job_stream/invoke.cpp

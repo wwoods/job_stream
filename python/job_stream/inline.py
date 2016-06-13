@@ -3,34 +3,39 @@ of the labor of thinking about data definitions
 
 For example, to count the average word length in a string:
 
-from job_stream import inline
+.. code-block:: python
 
-w = inline.Work("Hello there world, how are you?".split())
+    from job_stream import inline
 
-@w.job
-def getLen(w):
-    return len(w)
+    w = inline.Work("Hello there world, how are you?".split())
 
-@w.reduce(emit = lambda store: store.len / store.count)
-def findAverage(store, inputs, others):
-    if not hasattr(store, 'init'):
-        store.init = True
-        store.count = 0
-        store.len = 0.0
+    @w.job
+    def getLen(w):
+        return len(w)
 
-    for i in inputs:
-        store.len += i
-        store.count += 1
-    for o in others:
-        store.len += o.len
-        store.count += o.count
+    @w.reduce(emit = lambda store: store.len / store.count)
+    def findAverage(store, inputs, others):
+        if not hasattr(store, 'init'):
+            store.init = True
+            store.count = 0
+            store.len = 0.0
 
-result, = w.run()
+        for i in inputs:
+            store.len += i
+            store.count += 1
+        for o in others:
+            store.len += o.len
+            store.count += o.count
+
+    result, = w.run()
+
+Members
+=======
 
 """
 
 import job_stream
-import cPickle as pickle
+import pickle
 import inspect
 import os
 
@@ -43,9 +48,17 @@ _moduleSelf = globals()
 _typeCount = [ 0 ]
 
 class _ForceCheckpointJob(job_stream.Job):
-    """Used for tests"""
+    """Used for tests; raises exception after checkpoint."""
     def handleWork(self, work):
         self._forceCheckpoint(True)
+        self.emit(work)
+
+
+
+class _ForceCheckpointAndGoJob(job_stream.Job):
+    """Used for tests; execution continues after checkpoint."""
+    def handleWork(self, work):
+        self._forceCheckpoint(False)
         self.emit(work)
 
 

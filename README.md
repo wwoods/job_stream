@@ -1254,6 +1254,7 @@ early on.  So handleDone() gets called with 20, 62, and finally 188.
 
 ##<a name="recent-changelog"></a>Recent Changelog
 
+* FUTURE - Python 3 support.
 * 2016-4-14 - Added a `map()` function that is compatible with the builtin
   `map()` function.
 * 2015-5-26 - README warning about Frames and Reducers that store a list of

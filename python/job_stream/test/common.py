@@ -1,11 +1,17 @@
 
 import os
+import six
 import subprocess
 import sys
 import tempfile
 import textwrap
 import threading
 import unittest
+
+_stdout_encoding = "utf-8"
+if getattr(sys.stdout, "encoding", ""):
+    _stdout_encoding = sys.stdout.encoding
+
 
 class ExecuteError(Exception):
     def __init__(self, cmd, returnCode, stdout, stderr):
@@ -30,17 +36,21 @@ class JobStreamTest(unittest.TestCase):
     def execute(self, args, np = 1):
         if not isinstance(args, list):
             args = [ args ]
-        nargs = [ 'mpirun', '-np', str(np), sys.executable, '-u' ] + args
+        nargs = [ 'mpirun', '-q', '-np', str(np), sys.executable, '-u' ] + args
         # Yes, we COULD just use communicate(), but that hides run-forever bugs if we
         # ever need to see them.
         def tee(s, buf):
             def doTee():
                 while True:
                     line = s.readline()
-                    if not line:
+                    try:
+                        dline = line.decode(_stdout_encoding)
+                    except UnicodeDecodeError as e:
+                        six.raise_from(Exception("For '{}'".format(line)), e)
+                    if not dline:
                         break
-                    print line[:-1]
-                    buf.append(line)
+                    print(dline[:-1])
+                    buf.append(dline)
             t = threading.Thread(target = doTee)
             t.daemon = True
             t.start()
@@ -52,6 +62,15 @@ class JobStreamTest(unittest.TestCase):
         tees = [ tee(p.stdout, out), tee(p.stderr, err) ]
         r = p.wait()
         [ t.join() for t in tees ]
+
+        # Filter out error output in stdout
+        for i in range(len(out) - 4, -1, -1):
+            if (out[i].startswith(u"--------")
+                    and out[i+1].startswith(u"Primary job")
+                    and out[i+2].startswith(u"a non-zero exit code")
+                    and out[i+3].startswith(u"--------")):
+                out = out[:i] + out[i+4:]
+
         out = ''.join(out)
         err = ''.join(err)
         if r != 0:
@@ -61,16 +80,16 @@ class JobStreamTest(unittest.TestCase):
 
     def executePy(self, pySrc, np = 1):
         with tempfile.NamedTemporaryFile() as f:
-            f.write(textwrap.dedent(pySrc))
+            f.write(textwrap.dedent(pySrc).encode("utf-8"))
             f.flush()
 
-            return self.execute(f.name, np = np)
+            return self.execute(f.name, np=np)
 
 
     def safeRemove(self, path):
         try:
             os.remove(path)
-        except OSError, e:
+        except OSError as e:
             # Doesn't exit
             if e.errno != 2:
                 raise

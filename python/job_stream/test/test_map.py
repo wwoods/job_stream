@@ -12,14 +12,14 @@ class TestMap(JobStreamTest):
     def test_map(self):
         r, _ = self.executePy(self._addMap("""
                 r = map(lambda w: w+1, [8, 9])
-                print(r)"""))
+                print(list(r))"""))
         self.assertLinesEqual("[9, 10]", r)
 
 
     def test_map_big(self):
         r, _ = self.executePy(self._addMap("""
                 r = map(lambda w:w**2, range(100))
-                print(r)"""))
+                print(list(r))"""))
         exp = "[" + ", ".join([ str(i**2) for i in range(100) ]) + "]"
         self.assertLinesEqual(exp, r)
 
@@ -27,7 +27,7 @@ class TestMap(JobStreamTest):
     def test_map_multiple(self):
         r, _ = self.executePy(self._addMap("""
                 r = map(lambda a, b: a*b, range(5), range(3, 8))
-                print(r)"""))
+                print(list(r))"""))
         exp = "[" + ", ".join([ str(i*(i+3)) for i in range(5) ]) + "]"
         self.assertLinesEqual(exp, r)
 

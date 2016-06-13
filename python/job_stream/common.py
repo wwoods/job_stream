@@ -24,8 +24,9 @@ Or:
 
 import _job_stream as _j
 
-import cPickle as pickle
+import pickle
 import multiprocessing
+import six
 import sys
 import traceback
 
@@ -72,7 +73,7 @@ class Object(object):
 
     def __repr__(self):
         r = [ 'job_stream.Object(' ]
-        for k, v in self.__dict__.iteritems():
+        for k, v in self.__dict__.items():
             r.append('{}={}, '.format(k, repr(v)))
         r.append(')')
         return ''.join(r)
@@ -182,7 +183,23 @@ def _hierarchicalName(cls, name = None):
     return fullname
 
 
-class Job(_j.Job):
+class _Job__metaclass__(type(_j.Job)):
+    def __init__(cls, name, bases, attrs):
+        type(_j.Job).__init__(cls, name, bases, attrs)
+
+        # Derived hierarchical name, use that in config
+        fullname = _hierarchicalName(cls, name)
+
+        # Metaclasses are called for their first rendition as well, so...
+        if fullname == 'job_stream.Job':
+            return
+
+        _classesToPatch.append(cls)
+        _j.registerJob(fullname, cls)
+
+
+
+class Job(six.with_metaclass(_Job__metaclass__, _j.Job)):
     """Base class for a standard job (starts with some work, and emits zero or
     more times).  Handles registration of job class with the job_stream
     system.
@@ -197,20 +214,6 @@ class Job(_j.Job):
     # This will print 9, 10, and 11.0
     job_stream.run({ 'jobs': [ MyJob ] })
     """
-    class __metaclass__(type(_j.Job)):
-        def __init__(cls, name, bases, attrs):
-            type(_j.Job).__init__(cls, name, bases, attrs)
-
-            # Derived hierarchical name, use that in config
-            fullname = _hierarchicalName(cls, name)
-
-            # Metaclasses are called for their first rendition as well, so...
-            if fullname == 'job_stream.Job':
-                return
-
-            _classesToPatch.append(cls)
-            _j.registerJob(fullname, cls)
-
 
     USE_MULTIPROCESSING = True
     USE_MULTIPROCESSING_doc = """If True [default {}], job_stream automatically handles
@@ -257,7 +260,22 @@ class Job(_j.Job):
 
 
 
-class Reducer(_j.Reducer):
+class _Reducer__metaclass__(type(_j.Reducer)):
+    def __init__(cls, name, bases, attrs):
+        type(_j.Reducer).__init__(cls, name, bases, attrs)
+
+        # Derived hierarchical name, use that in config
+        fullname = _hierarchicalName(cls, name)
+
+        # Metaclasses are called for their first rendition as well, so...
+        if fullname == 'job_stream.Reducer':
+            return
+
+        _j.registerReducer(fullname, cls)
+
+
+
+class Reducer(six.with_metaclass(_Reducer__metaclass__, _j.Reducer)):
     """Base class for a Reducer.  A Reducer combines work emitted from the last
     stage of a reduction, eventually emitting its own result to the next link
     in the processing chain.  A reduction starts when a piece of work enters
@@ -299,19 +317,6 @@ class Reducer(_j.Reducer):
             ]
     })
     """
-    class __metaclass__(type(_j.Reducer)):
-        def __init__(cls, name, bases, attrs):
-            type(_j.Reducer).__init__(cls, name, bases, attrs)
-
-            # Derived hierarchical name, use that in config
-            fullname = _hierarchicalName(cls, name)
-
-            # Metaclasses are called for their first rendition as well, so...
-            if fullname == 'job_stream.Reducer':
-                return
-
-            _j.registerReducer(fullname, cls)
-
 
     USE_MULTIPROCESSING = Job.USE_MULTIPROCESSING
     USE_MULTIPROCESSING_doc = Job.USE_MULTIPROCESSING_doc
@@ -372,7 +377,21 @@ class Reducer(_j.Reducer):
 
 
 
-class Frame(_j.Frame):
+class _Frame__metaclass__(type(_j.Frame)):
+    def __init__(cls, name, bases, attrs):
+        # Derived hierarchical name, use that in config
+        fullname = _hierarchicalName(cls, name)
+
+        # Metaclasses are called for their first rendition as well, so...
+        if fullname == 'job_stream.Frame':
+            return
+
+        _classesToPatch.append(cls)
+        _j.registerFrame(fullname, cls)
+
+
+
+class Frame(six.with_metaclass(_Frame__metaclass__, _j.Frame)):
     """Base class for a Frame.  A Frame is a special type of reducer that
     performs some special behavior based on the work that begins the reduction.
     Typically this is used for checking termination conditions in a recurring
@@ -403,18 +422,6 @@ class Frame(_j.Frame):
             } ]
     })
     """
-    class __metaclass__(type(_j.Frame)):
-        def __init__(cls, name, bases, attrs):
-            # Derived hierarchical name, use that in config
-            fullname = _hierarchicalName(cls, name)
-
-            # Metaclasses are called for their first rendition as well, so...
-            if fullname == 'job_stream.Frame':
-                return
-
-            _classesToPatch.append(cls)
-            _j.registerFrame(fullname, cls)
-
 
     USE_MULTIPROCESSING = Job.USE_MULTIPROCESSING
     USE_MULTIPROCESSING_doc = Job.USE_MULTIPROCESSING_doc
@@ -470,13 +477,13 @@ class Frame(_j.Frame):
 
 
 def _convertDictToYaml(c):
-    levels = [ { 'type': dict, 'vals': c.iteritems() } ]
+    levels = [ { 'type': dict, 'vals': iter(c.items()) } ]
     result = []
     def cueLine():
         result.append("  " * (len(levels) - 1))
     while levels:
         try:
-            val = levels[-1]['vals'].next()
+            val = next(levels[-1]['vals'])
         except StopIteration:
             levels.pop()
             continue
@@ -492,13 +499,13 @@ def _convertDictToYaml(c):
 
         # Now, the value part
         if isinstance(val, dict):
-            levels.append({ 'type': dict, 'vals': val.iteritems() })
+            levels.append({ 'type': dict, 'vals': iter(val.items()) })
         elif isinstance(val, list):
             if len(val) == 0:
                 result.append("[]")
             else:
                 levels.append({ 'type': list, 'vals': iter(val) })
-        elif isinstance(val, (int, float, basestring)):
+        elif isinstance(val, (int, float, str)):
             result.append(str(val))
         elif isinstance(val, type) and issubclass(val, (Frame, Job, Reducer)):
             result.append(_hierarchicalName(val))
@@ -585,7 +592,7 @@ def run(configDictOrPath, **kwargs):
                 If you are saving work into an array, for example, and want to be
                 checkpoint-safe, this method MUST save what it needs to file.
     """
-    if isinstance(configDictOrPath, basestring):
+    if isinstance(configDictOrPath, str):
         # Path to file
         config = open(configDictOrPath).read()
     elif isinstance(configDictOrPath, dict):

@@ -6,6 +6,7 @@ from distutils.core import setup, Extension
 import os
 import re
 import subprocess
+import sys
 
 # Copy documentation into restructured text (pypi's choice)
 try:
@@ -21,6 +22,7 @@ except:
 incdirs = [ '.', 'job_stream/boost_process', 'yaml-cpp-0.5.1/include' ]
 libdirs = []
 libraries = []
+linkerExtras = []
 if 'LD_LIBRARY_PATH' in os.environ:
     libdirs.extend(os.environ['LD_LIBRARY_PATH'].split(':'))
 
@@ -32,7 +34,7 @@ def checkedRun(args):
     try:
         p = subprocess.Popen(args, stdout = subprocess.PIPE,
                 stderr = subprocess.PIPE)
-    except OSError, e:
+    except OSError as e:
         if e.errno != 2:
             raise
         raise Exception("Error executing program: {}".format(args))
@@ -40,7 +42,7 @@ def checkedRun(args):
     r = p.wait()
     if r != 0:
         raise Exception("Program failed with {}: {}".format(r, args))
-    return stdout.strip()
+    return stdout.decode(sys.stdout.encoding or 'utf-8').strip()
 mpiFlagsCompile = checkedRun([ mpiCompiler, "--showme:compile" ])
 mpiFlagsLink = checkedRun([ mpiCompiler, "--showme:link" ])
 
@@ -50,13 +52,15 @@ for r in re.finditer(r'-L([^\s]+)', mpiFlagsLink):
     libdirs.append(r.group(1))
 for r in re.finditer(r'-l([^\s]+)', mpiFlagsLink):
     libraries.append(r.group(1))
+for r in re.finditer(r'-Wl([^\s]+)', mpiFlagsLink):
+    linkerExtras.append(r.group(0))
 
 job_stream = Extension('_job_stream',
-        define_macros = [ ('MAJOR_VERSION', '0'),
-            ('MINOR_VERSION', '1') ],
+        define_macros = [ ('PYTHON_MAJOR', sys.version_info.major) ],
         include_dirs = incdirs + [ '/usr/local/include' ],
         libraries = libraries + [ 'boost_filesystem', 'boost_python',
-            'boost_system', 'boost_thread', 'boost_serialization', 'boost_mpi'
+            'boost_system', 'boost_thread', 'boost_serialization', 'boost_mpi',
+            'dl'
         ],
         library_dirs = libdirs,
         sources = [
@@ -104,10 +108,11 @@ job_stream = Extension('_job_stream',
             'yaml-cpp-0.5.1/src/contrib/graphbuilderadapter.cpp',
         ],
         extra_compile_args = [ '-std=c++0x' ],
-        extra_link_args = [])
+        extra_link_args = linkerExtras)
 
 setup(name = 'job_stream',
-        version = '0.1.7',
+        version = '0.1.8',
+        install_requires = [ 'six' ],
         description = 'job_stream: easy and sophisticated parallelization',
         long_description = long_desc,
         author = 'Walt Woods',
