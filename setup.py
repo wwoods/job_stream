@@ -55,10 +55,11 @@ for r in re.finditer(r'-l([^\s]+)', mpiFlagsLink):
 for r in re.finditer(r'-Wl([^\s]+)', mpiFlagsLink):
     linkerExtras.append(r.group(0))
 
+boostPy = "boost_python{}".format("" if sys.version_info.major <= 2 else "3")
 job_stream = Extension('_job_stream',
         define_macros = [ ('PYTHON_MAJOR', sys.version_info.major) ],
         include_dirs = incdirs + [ '/usr/local/include' ],
-        libraries = libraries + [ 'boost_filesystem', 'boost_python',
+        libraries = libraries + [ 'boost_filesystem', boostPy,
             'boost_system', 'boost_thread', 'boost_serialization', 'boost_mpi',
             'dl'
         ],

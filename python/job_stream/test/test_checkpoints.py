@@ -17,7 +17,7 @@ class TestCheckpoints(JobStreamTest):
                 allOut.append(out)
                 allErr.append(err)
                 break
-            except ExecuteError, e:
+            except ExecuteError as e:
                 allOut.append(e.stdout)
                 allErr.append(e.stderr)
                 if (t == maxTries - 1

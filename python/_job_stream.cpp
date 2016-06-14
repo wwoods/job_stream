@@ -162,6 +162,18 @@ bp::object configToPython(const YAML::LockedNode& n) {
 }
 
 
+/** Must be called with GIL locked
+ * */
+std::string getStrFromPy(bp::object o) {
+    if (PyBytes_Check(o.ptr())) {
+        return std::string(PyBytes_AsString(o.ptr()));
+    }
+
+    bp::object bytes = o.attr("encode")("utf-8");
+    return std::string(PyBytes_AsString(bytes.ptr()));
+}
+
+
 namespace job_stream {
 namespace python {
 std::istream& operator>>(std::istream& is,
@@ -176,7 +188,7 @@ std::ostream& operator<<(std::ostream& os,
     //Happens outside the GIL!
     _PyGilAcquire gilLock;
     bp::object o = serializedToPython(sp);
-    std::string s = bp::extract<std::string>(job_stream::python::repr(o));
+    std::string s = getStrFromPy(job_stream::python::repr(o));
     return os << s;
 }
 
@@ -871,10 +883,10 @@ bp::tuple invoke(bp::object progAndArgs, bp::list transientErrors,
         int maxRetries) {
     std::vector<std::string> cProg, cErrors;
     for (int i = 0, m = bp::len(progAndArgs); i < m; i++) {
-        cProg.emplace_back(bp::extract<std::string>(progAndArgs[i]));
+        cProg.emplace_back(getStrFromPy(progAndArgs[i]));
     }
     for (int i = 0, m = bp::len(transientErrors); i < m; i++) {
-        cErrors.emplace_back(bp::extract<std::string>(transientErrors[i]));
+        cErrors.emplace_back(getStrFromPy(transientErrors[i]));
     }
     std::tuple<std::string, std::string> results;
     {
@@ -899,9 +911,10 @@ void registerEncoding(bp::object object, bp::object stackAlreadyPrintedError,
 }
 
 
-void registerFrame(std::string name, bp::object cls) {
-    job_stream::job::addReducer(name,
-            [cls, name]() -> PyFrameShell* {
+void registerFrame(bp::object name, bp::object cls) {
+    std::string cname = getStrFromPy(name);
+    job_stream::job::addReducer(cname,
+            [cls, cname]() -> PyFrameShell* {
                 _PyGilAcquire allocateInPython;
                 try {
                     bp::object holder = cls();
@@ -913,16 +926,17 @@ void registerFrame(std::string name, bp::object cls) {
                     return p;
                 }
                 catch (...) {
-                    CHECK_PYTHON_ERROR("Frame allocation: " << name);
+                    CHECK_PYTHON_ERROR("Frame allocation: " << cname);
                     throw;
                 }
             });
 }
 
 
-void registerJob(std::string name, bp::object cls) {
-    job_stream::job::addJob(name,
-            [cls, name]() -> PyJobShell* {
+void registerJob(bp::object name, bp::object cls) {
+    std::string cname = getStrFromPy(name);
+    job_stream::job::addJob(cname,
+            [cls, cname]() -> PyJobShell* {
                 _PyGilAcquire allocateInPython;
                 try {
                     bp::object holder = cls();
@@ -934,16 +948,17 @@ void registerJob(std::string name, bp::object cls) {
                     return p;
                 }
                 catch (...) {
-                    CHECK_PYTHON_ERROR("Job allocation: " << name);
+                    CHECK_PYTHON_ERROR("Job allocation: " << cname);
                     throw;
                 }
             });
 }
 
 
-void registerReducer(std::string name, bp::object cls) {
-    job_stream::job::addReducer(name,
-            [cls, name]() -> PyReducerShell* {
+void registerReducer(bp::object name, bp::object cls) {
+    std::string cname = getStrFromPy(name);
+    job_stream::job::addReducer(cname,
+            [cls, cname]() -> PyReducerShell* {
                 _PyGilAcquire allocateInPython;
                 try {
                     bp::object holder = cls();
@@ -955,7 +970,7 @@ void registerReducer(std::string name, bp::object cls) {
                     return p;
                 }
                 catch (...) {
-                    CHECK_PYTHON_ERROR("Reducer allocation: " << name);
+                    CHECK_PYTHON_ERROR("Reducer allocation: " << cname);
                     throw;
                 }
             });
@@ -967,7 +982,7 @@ bp::object runProcessor(bp::tuple args, bp::dict kwargs) {
             "arguments: config, workList, handleResult");
 
     job_stream::SystemArguments sa;
-    sa.config = bp::extract<std::string>(args[0]);
+    sa.config = getStrFromPy(args[0]);
 
     sa.checkExternalSignals = []() -> bool {
         _PyGilAcquire errCheck;
@@ -996,11 +1011,11 @@ bp::object runProcessor(bp::tuple args, bp::dict kwargs) {
     //Enumerate kwargs
     bp::list keys = kwargs.keys();
     for (int i = 0, m = bp::len(keys); i < m; i++) {
-        std::string key = bp::extract<std::string>(keys[i]);
+        std::string key = getStrFromPy(keys[i]);
         bp::object val = kwargs[key];
 
         if (key == "checkpointFile") {
-            sa.checkpointFile = bp::extract<std::string>(val);
+            sa.checkpointFile = getStrFromPy(val);
         }
         else if (key == "checkpointInterval") {
             sa.checkpointIntervalMs = (int)(bp::extract<double>(val) * 1000);

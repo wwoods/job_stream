@@ -561,15 +561,16 @@ def map(func, *sequence, **kwargs):
     job_stream.work = _Work()
     job_stream.work.extend([ (i, a) for i, a in enumerate(zip(*sequence)) ])
     result = [ None for _ in range(len(job_stream.work)) ]
-    class _MapJob(Job):
-        def handleWork(self, w):
-            self.emit((w[0], func(*w[1])))
-    moduleSelf['_MapJob'] = _MapJob
+
+    def handleWork(s, work):
+        s.emit((work[0], func(*work[1])))
+    mapCls = type("_map__MapJob__", (Job,), dict(handleWork=handleWork))
+    moduleSelf[mapCls.__name__] = mapCls
     def _mapResult(w):
         result[w[0]] = w[1]
     run(
             { 'jobs': [
-                { 'type': _MapJob }
+                { 'type': mapCls }
             ]},
             handleResult = _mapResult,
             **kwargs
