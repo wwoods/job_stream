@@ -1265,7 +1265,7 @@ early on.  So handleDone() gets called with 20, 62, and finally 188.
   both Python 2 and 3.  System boost libraries should still work as before
   (although job_stream might use an outdated version of boost-mpi).
 
-  Version bump to 0.1.8 and 0.1.9 (build fix).
+  Version bump to 0.1.8, 0.1.9 and 0.1.10 (build fix).
 * 2016-4-14 - Added a `map()` function that is compatible with the builtin
   `map()` function.
 * 2015-5-26 - README warning about Frames and Reducers that store a list of

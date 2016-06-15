@@ -2,4 +2,6 @@
 include README.md
 graft job_stream
 graft yaml-cpp-0.5.1
+graft boost-mpi-1.61
+graft boost-serialization-1.61
 

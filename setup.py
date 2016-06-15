@@ -176,7 +176,7 @@ job_stream = Extension('_job_stream',
         extra_link_args = linkerExtras)
 
 setup(name = 'job_stream',
-        version = '0.1.9',
+        version = '0.1.10',
         install_requires = [ 'six' ],
         description = 'job_stream: easy and sophisticated parallelization',
         long_description = long_desc,
