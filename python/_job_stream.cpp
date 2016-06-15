@@ -97,20 +97,33 @@ private:
     }
 
 
+/** Must be called with GIL locked
+ * */
+std::string getStrFromPy(bp::object o) {
+    PyObject* ptr = o.ptr();
+    if (PyBytes_Check(ptr)) {
+        return std::string(PyBytes_AsString(ptr),
+                PyBytes_Size(ptr));
+    }
+
+    bp::object bytes = o.attr("encode")("utf-8");
+    ptr = bytes.ptr();
+    return std::string(PyBytes_AsString(ptr),
+            PyBytes_Size(ptr));
+}
+
+
 /** Must be called with GIL locked */
 SerializedPython pythonToSerialized(const bp::object& o) {
     bp::object encoded(job_stream::python::encodeObj(o));
-    ASSERT(PyBytes_Check(encoded.ptr()), "Not a bytes object");
-    std::string bytesData(PyBytes_AsString(encoded.ptr()),
-            PyBytes_Size(encoded.ptr()));
-    return SerializedPython(std::move(bytesData));
+    return SerializedPython(getStrFromPy(encoded));
 }
 
 
 /** Must be called with GIL locked */
 bp::object serializedToPython(const SerializedPython& sp) {
     try {
-#if PYTHON_MAJOR <= 2
+#if PYTHON_MAJOR < 3
         return job_stream::python::decodeStr(sp.data);
 #else
         bp::object buffer(bp::handle<>(PyMemoryView_FromMemory(
@@ -159,18 +172,6 @@ bp::object configToPython(const YAML::LockedNode& n) {
     else {
         ERROR("Unknown node type: " << n.Type());
     }
-}
-
-
-/** Must be called with GIL locked
- * */
-std::string getStrFromPy(bp::object o) {
-    if (PyBytes_Check(o.ptr())) {
-        return std::string(PyBytes_AsString(o.ptr()));
-    }
-
-    bp::object bytes = o.attr("encode")("utf-8");
-    return std::string(PyBytes_AsString(bytes.ptr()));
 }
 
 
@@ -905,7 +906,7 @@ void registerEncoding(bp::object object, bp::object stackAlreadyPrintedError,
     job_stream::python::encodeObj = encode;
     job_stream::python::decodeStr = decode;
 
-    bp::handle<> builtinH(PyEval_GetBuiltins());
+    bp::handle<> builtinH(bp::borrowed(PyEval_GetBuiltins()));
     bp::object builtins(builtinH);
     job_stream::python::repr = builtins["repr"];
 }

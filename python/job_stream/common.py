@@ -88,7 +88,9 @@ class _StackAlreadyPrintedError(Exception):
 # Initialize the encode and decode values first so that they can be used in
 # debug code (if left uninitialized, any attempt to pickle something from within
 # C++ code will crash with NoneType cannot be called)
-_j.registerEncoding(Object, _StackAlreadyPrintedError, _encode, _decode)
+# NOTE: With Python3, leaving these handles alive causes a SIGSEGV.  Therefore,
+# this happens in run().
+# _j.registerEncoding(Object, _StackAlreadyPrintedError, _encode, _decode)
 
 
 class _Work(list):
@@ -499,7 +501,9 @@ def _convertDictToYaml(c):
 
         # Now, the value part
         if isinstance(val, dict):
-            levels.append({ 'type': dict, 'vals': iter(val.items()) })
+            # MUST be sorted, otherwise checkpoint files can break since the
+            # config files will not match.
+            levels.append({ 'type': dict, 'vals': iter(sorted(val.items())) })
         elif isinstance(val, list):
             if len(val) == 0:
                 result.append("[]")
@@ -618,8 +622,11 @@ def run(configDictOrPath, **kwargs):
         kwargs.pop('checkpointFile')
 
     try:
+        _j.registerEncoding(Object, _StackAlreadyPrintedError, _encode,
+                _decode)
         _j.runProcessor(config, list(job_stream.work), handleResult, **kwargs)
     finally:
+        _j.registerEncoding(None, None, None, None)
         # Close our multiprocessing pool; especially in the interpreter, the
         # pool must be launched AFTER all classes are defined.  So if we define
         # a class in between invocations of run(), we still want them to work

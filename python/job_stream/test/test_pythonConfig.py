@@ -23,7 +23,7 @@ class TestPythonConfig(JobStreamTest):
                         raise Exception("valI not int?")
                     if type(self.config['valF']) != float:
                         raise Exception("valF not float?")
-                    if not isinstance(self.config['valS'], basestring):
+                    if not isinstance(self.config['valS'], str):
                         raise Exception("valS not string?")
                     self.emit(w + self.config['valI'])
                     self.emit(w + self.config['valF'])

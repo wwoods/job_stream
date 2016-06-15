@@ -136,7 +136,12 @@ or locally:
 
     python setup.py install
 
-*Note: You may need to specify custom include or library paths:*
+If using [Conda](https://www.continuum.io/downloads), then install boost first:
+
+    conda install boost
+    pip install job_stream
+
+*Note: If not using `conda`, you may need to specify custom include or library paths:*
 
     CPLUS_INCLUDE_PATH=~/my/path/to/boost/ \
         LD_LIBRARY_PATH=~/my/path/to/boost/stage/lib/ \
@@ -1254,7 +1259,13 @@ early on.  So handleDone() gets called with 20, 62, and finally 188.
 
 ##<a name="recent-changelog"></a>Recent Changelog
 
-* FUTURE - Python 3 support.
+* 2016-6-14 - Python 3 support and embedded two of the boost libraries that
+  are not typically associated with boost-python.  In other words, a
+  `conda install boost` preceding a `pip install job_stream` now works with
+  both Python 2 and 3.  System boost libraries should still work as before
+  (although job_stream might use an outdated version of boost-mpi).
+
+  Version bump to 0.1.8.
 * 2016-4-14 - Added a `map()` function that is compatible with the builtin
   `map()` function.
 * 2015-5-26 - README warning about Frames and Reducers that store a list of

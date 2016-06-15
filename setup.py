@@ -19,7 +19,8 @@ except:
     long_desc = open('README.md').read()
 
 # Extra directories coming from non-system paths.
-incdirs = [ '.', 'job_stream/boost_process', 'yaml-cpp-0.5.1/include' ]
+incdirs = [ '.', 'job_stream/boost_process', 'yaml-cpp-0.5.1/include',
+        'boost-mpi-1.61/include', 'boost-serialization-1.61/include' ]
 libdirs = []
 libraries = []
 linkerExtras = []
@@ -55,13 +56,20 @@ for r in re.finditer(r'-l([^\s]+)', mpiFlagsLink):
 for r in re.finditer(r'-Wl([^\s]+)', mpiFlagsLink):
     linkerExtras.append(r.group(0))
 
+# Note that for e.g. conda, where boost has been installed local to the python
+# interpreter, we also want the include directory related to our python
+# executable.
+exeIncludes = os.path.abspath(os.path.join(
+        os.path.dirname(sys.executable), "../include"))
+if os.path.lexists(exeIncludes):
+    incdirs.append(exeIncludes)
+
 boostPy = "boost_python{}".format("" if sys.version_info.major <= 2 else "3")
 job_stream = Extension('_job_stream',
         define_macros = [ ('PYTHON_MAJOR', sys.version_info.major) ],
         include_dirs = incdirs + [ '/usr/local/include' ],
         libraries = libraries + [ 'boost_filesystem', boostPy,
-            'boost_system', 'boost_thread', 'boost_serialization', 'boost_mpi',
-            'dl'
+            'boost_system', 'boost_thread', 'boost_serialization', 'dl'
         ],
         library_dirs = libdirs,
         sources = [
@@ -76,6 +84,61 @@ job_stream = Extension('_job_stream',
             'job_stream/types.cpp',
             'job_stream/workerThread.cpp',
             'job_stream/death_handler/death_handler.cc',
+
+            # boost.mpi 1.61, embedded into job_stream for compilation ease
+            # especially with anaconda (conda install boost works with
+            # job_stream once mpi is taken care of)
+            'boost-mpi-1.61/src/broadcast.cpp',
+            'boost-mpi-1.61/src/communicator.cpp',
+            'boost-mpi-1.61/src/computation_tree.cpp',
+            'boost-mpi-1.61/src/content_oarchive.cpp',
+            'boost-mpi-1.61/src/environment.cpp',
+            'boost-mpi-1.61/src/exception.cpp',
+            'boost-mpi-1.61/src/graph_communicator.cpp',
+            'boost-mpi-1.61/src/group.cpp',
+            'boost-mpi-1.61/src/intercommunicator.cpp',
+            'boost-mpi-1.61/src/mpi_datatype_cache.cpp',
+            'boost-mpi-1.61/src/mpi_datatype_oarchive.cpp',
+            'boost-mpi-1.61/src/packed_iarchive.cpp',
+            'boost-mpi-1.61/src/packed_oarchive.cpp',
+            'boost-mpi-1.61/src/packed_skeleton_iarchive.cpp',
+            'boost-mpi-1.61/src/packed_skeleton_oarchive.cpp',
+            'boost-mpi-1.61/src/point_to_point.cpp',
+            'boost-mpi-1.61/src/request.cpp',
+            'boost-mpi-1.61/src/text_skeleton_oarchive.cpp',
+            'boost-mpi-1.61/src/timer.cpp',
+
+            # boost.serialization 1.61, again embedded for compilation ease
+            'boost-serialization-1.61/src/basic_archive.cpp',
+            'boost-serialization-1.61/src/basic_iarchive.cpp',
+            'boost-serialization-1.61/src/basic_iserializer.cpp',
+            'boost-serialization-1.61/src/basic_oarchive.cpp',
+            'boost-serialization-1.61/src/basic_oserializer.cpp',
+            'boost-serialization-1.61/src/basic_pointer_iserializer.cpp',
+            'boost-serialization-1.61/src/basic_pointer_oserializer.cpp',
+            'boost-serialization-1.61/src/basic_serializer_map.cpp',
+            'boost-serialization-1.61/src/basic_text_iprimitive.cpp',
+            'boost-serialization-1.61/src/basic_text_oprimitive.cpp',
+            'boost-serialization-1.61/src/basic_xml_archive.cpp',
+            'boost-serialization-1.61/src/binary_iarchive.cpp',
+            'boost-serialization-1.61/src/binary_oarchive.cpp',
+            'boost-serialization-1.61/src/extended_type_info.cpp',
+            'boost-serialization-1.61/src/extended_type_info_typeid.cpp',
+            'boost-serialization-1.61/src/extended_type_info_no_rtti.cpp',
+            'boost-serialization-1.61/src/polymorphic_iarchive.cpp',
+            'boost-serialization-1.61/src/polymorphic_oarchive.cpp',
+            'boost-serialization-1.61/src/stl_port.cpp',
+            'boost-serialization-1.61/src/text_iarchive.cpp',
+            'boost-serialization-1.61/src/text_oarchive.cpp',
+            'boost-serialization-1.61/src/void_cast.cpp',
+            'boost-serialization-1.61/src/archive_exception.cpp',
+            'boost-serialization-1.61/src/xml_grammar.cpp',
+            'boost-serialization-1.61/src/xml_iarchive.cpp',
+            'boost-serialization-1.61/src/xml_oarchive.cpp',
+            'boost-serialization-1.61/src/xml_archive_exception.cpp',
+            'boost-serialization-1.61/src/codecvt_null.cpp',
+            'boost-serialization-1.61/src/utf8_codecvt_facet.cpp',
+            'boost-serialization-1.61/src/singleton.cpp',
 
             # yaml-cpp 0.5.1, embedded into job_stream for compilation ease
             'yaml-cpp-0.5.1/src/binary.cpp',

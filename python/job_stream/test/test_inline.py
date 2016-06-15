@@ -214,7 +214,7 @@ def lineAvg(fname):
     cnt = 0
     if not os.path.isfile(fname):
         return
-    for l in open(fname):
+    for l in open(fname, "rb"):
         avg += len(l.rstrip())
         cnt += 1
     return (fname, cnt, avg / cnt)
@@ -243,7 +243,7 @@ class AvgLines(job_stream.Job):
         cnt = 0
         if not os.path.isfile(w):
             return
-        for l in open(w):
+        for l in open(w, "rb"):
             avg += len(l.rstrip())
             cnt += 1
         self.emit(( w, cnt, avg / max(1, cnt) ))
