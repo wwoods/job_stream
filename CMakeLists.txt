@@ -26,7 +26,8 @@ SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x -ftemplate-backtrace-limit=0"
 #SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -pg")
 
 include_directories(job_stream/boost_process/ yaml-cpp-0.5.1/include/
-        boost-mpi-1.61/include/ boost-serialization-1.61/include/)
+        boost-mpi-1.61/include/ boost-serialization-1.61/include/
+        boost-serialization-1.61/src/)
 find_library(BOOST_FILESYSTEM_LIBRARY
         NAMES boost_filesystem
         HINTS ENV LD_LIBRARY_PATH ENV LIBRARY_PATH)

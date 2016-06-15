@@ -20,7 +20,8 @@ except:
 
 # Extra directories coming from non-system paths.
 incdirs = [ '.', 'job_stream/boost_process', 'yaml-cpp-0.5.1/include',
-        'boost-mpi-1.61/include', 'boost-serialization-1.61/include' ]
+        'boost-mpi-1.61/include', 'boost-serialization-1.61/include',
+        'boost-serialization-1.61/src' ]
 libdirs = []
 libraries = []
 linkerExtras = []
@@ -175,7 +176,7 @@ job_stream = Extension('_job_stream',
         extra_link_args = linkerExtras)
 
 setup(name = 'job_stream',
-        version = '0.1.8',
+        version = '0.1.9',
         install_requires = [ 'six' ],
         description = 'job_stream: easy and sophisticated parallelization',
         long_description = long_desc,
