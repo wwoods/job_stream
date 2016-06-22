@@ -447,6 +447,8 @@ class Work(object):
         called = False
         if isinstance(results, Multiple):
             for r in results.workList:
+                if r is None:
+                    continue
                 boundMethod(r)
                 called = True
         elif results is None:

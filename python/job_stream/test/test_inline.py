@@ -272,6 +272,37 @@ job_stream.run({
         self.assertLinesEqual(r2[0], r[0])
 
 
+    def test_multiple(self):
+        # Ensure that Multiple object works alright
+        r = self.executePy("""
+                import os
+                from job_stream.inline import Multiple, Work
+
+                with Work([]) as w:
+                    @w.init
+                    def addMultipleList():
+                        return Multiple([1,2,3])
+                    @w.init
+                    def addMultipleTuple():
+                        return Multiple((1,2,3))
+                    @w.init
+                    def addMultipleGen():
+                        def gen():
+                            yield 1
+                            yield 2
+                            yield 3
+                        return Multiple(gen())
+                    @w.init
+                    def addMultipleGaps():
+                        return Multiple([None, 2, 3])
+
+                    @w.result
+                    def printResult(w):
+                        print(w)
+                """)[0]
+        self.assertLinesEqual("1\n1\n1\n2\n2\n2\n2\n3\n3\n3\n3\n", r)
+
+
     def test_multiprocessing_default(self):
         # Ensure that, by default, multiprocessing is enabled
         r = self.executePy("""

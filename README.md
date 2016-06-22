@@ -1259,6 +1259,8 @@ early on.  So handleDone() gets called with 20, 62, and finally 188.
 
 ##<a name="recent-changelog"></a>Recent Changelog
 
+* 2016-6-22 - inline.Multiple() in Python now ignores None results.
+  Version 0.1.11.
 * 2016-6-14 - Python 3 support and embedded two of the boost libraries that
   are not typically associated with boost-python.  In other words, a
   `conda install boost` preceding a `pip install job_stream` now works with
