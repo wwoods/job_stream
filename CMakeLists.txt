@@ -37,9 +37,6 @@ find_library(BOOST_SYSTEM_LIBRARY
 find_library(BOOST_THREAD_LIBRARY
         NAMES libboost_thread.so
         HINTS ENV LD_LIBRARY_PATH ENV LIBRARY_PATH)
-find_library(BOOST_REGEX_LIBRARY
-        NAMES boost_regex
-        HINTS ENV LD_LIBRARY_PATH ENV LIBRARY_PATH)
 
 # CMake bug?  If we reference libraries in target_link_libraries as in their
 # resolved variable form above (${BOOST_MPI_LIBRARY}), then this doesn't
@@ -53,9 +50,6 @@ set_property(TARGET boost_system PROPERTY IMPORTED_LOCATION
 add_library(boost_thread UNKNOWN IMPORTED)
 set_property(TARGET boost_thread PROPERTY IMPORTED_LOCATION 
         "${BOOST_THREAD_LIBRARY}")
-add_library(boost_regex UNKNOWN IMPORTED)
-set_property(TARGET boost_regex PROPERTY IMPORTED_LOCATION 
-        "${BOOST_REGEX_LIBRARY}")
 
 SET(REQ_LIB
         boost_filesystem
@@ -195,9 +189,7 @@ add_executable(test_job_stream
         ${TEST_SOURCES})
 target_link_libraries(test_job_stream
         job_stream
-        ${REQ_LIB}
-        # std::regex is horribly, horribly broken in gcc 4.8.  @&#^%&
-        boost_regex)
+        ${REQ_LIB})
 target_include_directories(test_job_stream PUBLIC
         "./"
         "test/libexecstream/")

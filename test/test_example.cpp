@@ -5,13 +5,41 @@
 #include "common.h"
 
 #include <job_stream/job_stream.h>
-#include <boost/regex.hpp>
+#include <regex>
 #include <string>
 #include <tuple>
 
 using string = std::string;
 
 #define CHECKPOINT_TRIALS 1
+
+/** Since some MPI versions have non-blank stdout when a process returns
+    non-zero error, the tests must be a bit more sophisticated.
+    */
+string processStdoutMpiNonzero(string output) {
+    string exp(output);
+    string rep("");
+
+    const string mpiMatches[] = {
+            "-+\nPrimary job.*normally.*\na non-zero exit code.*\n-+\n",
+            "-+\nmpirun detected that one or more.*non-zero status.*\n(.*\n)+?----+\n"
+    };
+
+    for (auto& mRegex : mpiMatches) {
+        std::regex mpi(mRegex);
+        string expCopy(exp);
+        std::sregex_iterator end, cur(expCopy.begin(), expCopy.end(), mpi);
+        int offset = 0;
+        for (; cur != end; cur++) {
+            const auto& m = *cur;
+            exp = exp.replace(m.position() + offset, m[0].second - m[0].first,
+                    rep);
+            offset += rep.size() - (m[0].second - m[0].first);
+        }
+    }
+    return exp;
+}
+
 
 void testExample(string pipe, string input, string output,
         bool lastOnly = false, bool ordered = true) {
@@ -75,13 +103,13 @@ TEST_CASE("example/job_stream_exmaple/exampleHierarchy.yaml", "[hierarchy]") {
     pending messages loaded for each and replace it with an X.  Return the sum.
     */
 int _countAndFixPending(std::string& stderr) {
-    boost::regex pending("resumed from checkpoint \\(([0-9]+) pending");
+    std::regex pending("resumed from checkpoint \\(([0-9]+) pending");
     std::string dup = stderr;
     std::string fixed("resumed from checkpoint (X pending");
-    boost::sregex_iterator end, cur(dup.begin(), dup.end(), pending);
+    std::sregex_iterator end, cur(dup.begin(), dup.end(), pending);
     int r = 0, offset = 0;
     for (; cur != end; cur++) {
-        const boost::smatch& m = *cur;
+        const std::smatch& m = *cur;
         r += std::atoi(string(m[1].first, m[1].second).c_str());
         stderr = stderr.replace(m.position() + offset, m[0].second - m[0].first,
                 fixed);
@@ -101,12 +129,12 @@ TEST_CASE("example/job_stream_example/checkpoint.yaml", "[checkpoint]") {
         secName << "With " << np << " processes, trial " << trial;
         SECTION(secName.str()) {
             uint64_t tStart = job_stream::message::Location::getCurrentTimeMs();
-            boost::regex ms("(took|synced after) [0-9]+ms");
-            boost::regex jobLogHeader("^(\\d+):[^:]+:[0-9]+:[0-9]+");
-            boost::regex mpiFooter("--------------------------------------------------------------------------\nmpirun has exited.*"
+            std::regex ms("(took|synced after) [0-9]+ms");
+            std::regex jobLogHeader("((^|\n)\\d+):[^:]+:[0-9]+:[0-9]+");
+            std::regex mpiFooter("--------------------------------------------------------------------------\nmpirun has exited.*"
                     "|0_[a-zA-Z0-9_]+ [0-9]+% user time[ ,].*");
-            boost::regex end("(messages\\))(.*)");
-            boost::regex pending("\\(([0-9]+) pending messages");
+            std::regex end("(messages\\))(.*)");
+            std::regex pending("\\(([0-9]+) pending messages");
             std::ostringstream args;
             args << "-np " << np << " example/job_stream_example "
                     "-c test.chkpt --check-sync 10 ../example/checkpoint.yaml 10";
@@ -121,15 +149,15 @@ TEST_CASE("example/job_stream_example/checkpoint.yaml", "[checkpoint]") {
                 INFO("stderr1: " << std::get<2>(r));
 
                 REQUIRE(job_stream::RETVAL_CHECKPOINT_FORCED == std::get<0>(r));
-                REQUIRE("" == std::get<1>(r));
-                string stderr = boost::regex_replace(std::get<2>(r), ms,
+                REQUIRE("" == processStdoutMpiNonzero(std::get<1>(r)));
+                string stderr = std::regex_replace(std::get<2>(r), ms,
                         string("$1 Xms"));
-                stderr = boost::regex_replace(stderr, mpiFooter, "--mpi--");
-                stderr = boost::regex_replace(stderr, jobLogHeader, "$1");
+                stderr = std::regex_replace(stderr, mpiFooter, "");
+                stderr = std::regex_replace(stderr, jobLogHeader, "$1");
                 REQUIRE_CONTAINS_LINES("0 Using test.chkpt as checkpoint file\n\
 0 Checkpoint starting\n\
 0 Checkpoint activity synced after Xms, including mandatory 10ms quiet period\n\
-0 Checkpoint took Xms, resuming computation\n--mpi--", stderr);
+0 Checkpoint took Xms, resuming computation", stderr);
                 stderrOld = stderr;
             }
 
@@ -149,10 +177,10 @@ TEST_CASE("example/job_stream_example/checkpoint.yaml", "[checkpoint]") {
                         || std::get<0>(r) == job_stream::RETVAL_CHECKPOINT_FORCED);
                 REQUIRE(exitOk);
 
-                string stderr = boost::regex_replace(std::get<2>(r), ms,
+                string stderr = std::regex_replace(std::get<2>(r), ms,
                         string("$1 Xms"));
-                stderr = boost::regex_replace(stderr, mpiFooter, "--mpi--");
-                stderr = boost::regex_replace(stderr, jobLogHeader, "$1");
+                stderr = std::regex_replace(stderr, mpiFooter, "");
+                stderr = std::regex_replace(stderr, jobLogHeader, "$1");
                 int p = _countAndFixPending(stderr);
                 if (!sawResult) {
                     //Our action, and ring 0
@@ -164,7 +192,7 @@ TEST_CASE("example/job_stream_example/checkpoint.yaml", "[checkpoint]") {
                 }
                 std::ostringstream expected;
                 expected << "0 Using test.chkpt as checkpoint file\n\
-0 resumed from checkpoint (X pending messages)\n--mpi--";
+0 resumed from checkpoint (X pending messages)";
                 if (std::get<0>(r) != 0) {
                     expected << "\n0 Checkpoint starting\n\
 0 Checkpoint activity synced after Xms, including mandatory 10ms quiet period\n\
@@ -176,13 +204,14 @@ TEST_CASE("example/job_stream_example/checkpoint.yaml", "[checkpoint]") {
                 }
                 REQUIRE_CONTAINS_LINES(expected.str(), stderr);
 
-                if (!sawResult && std::get<1>(r).size() > 0) {
-                    REQUIRE("15\n" == std::get<1>(r));
+                string stdoutWoMpi = processStdoutMpiNonzero(std::get<1>(r));
+                if (!sawResult && stdoutWoMpi.size() > 0) {
+                    REQUIRE("15\n" == stdoutWoMpi);
                     sawResult = true;
                 }
                 else {
                     //Shouldn't see any more output if we've seen it once.
-                    REQUIRE("" == std::get<1>(r));
+                    REQUIRE("" == stdoutWoMpi);
                 }
 
                 if (std::get<0>(r) == job_stream::RETVAL_OK) {
@@ -223,13 +252,13 @@ TEST_CASE("example/job_stream_example/exampleRecurBug.yaml", "[checkpoint]") {
         std::ostringstream secName;
         secName << "With " << np << " processes, trial " << trial;
         SECTION(secName.str()) {
-            boost::regex resultHarvester("^-?\\d+$");
-            boost::regex ms("(took|synced after) [0-9]+ms");
-            boost::regex jobLogHeader("^(\\d+):[^:]+:[0-9]+:[0-9]+");
-            boost::regex mpiFooter("--------------------------------------------------------------------------\nmpirun has exited.*"
+            std::regex resultHarvester("(^|\n)(-?\\d+)($|\n)");
+            std::regex ms("(took|synced after) [0-9]+ms");
+            std::regex jobLogHeader("((^|\n)\\d+):[^:]+:[0-9]+:[0-9]+");
+            std::regex mpiFooter("--------------------------------------------------------------------------\nmpirun has exited.*"
                     "|0_[a-zA-Z0-9_]+ [0-9]+% user time[ ,].*");
-            boost::regex end("(messages\\))(.*)");
-            boost::regex pending("\\(([0-9]+) pending messages");
+            std::regex end("(messages\\))(.*)");
+            std::regex pending("\\(([0-9]+) pending messages");
             std::ostringstream args;
             args << "-np " << np << " example/job_stream_example "
                     "-c test.chkpt --check-sync 100 ../example/exampleRecurBug.yaml";
@@ -251,15 +280,16 @@ TEST_CASE("example/job_stream_example/exampleRecurBug.yaml", "[checkpoint]") {
                 allErr << "Trial 1\n=====\n" << std::get<2>(r);
 
                 REQUIRE(job_stream::RETVAL_CHECKPOINT_FORCED == std::get<0>(r));
-                REQUIRE("" == std::get<1>(r));
-                string sstderr = boost::regex_replace(std::get<2>(r), ms,
+                REQUIRE("" == processStdoutMpiNonzero(std::get<1>(r)));
+                string sstderr = std::regex_replace(std::get<2>(r), ms,
                         string("$1 Xms"));
-                sstderr = boost::regex_replace(sstderr, jobLogHeader, "$1");
-                sstderr = boost::regex_replace(sstderr, mpiFooter, "--mpi--");
+                sstderr = std::regex_replace(sstderr, jobLogHeader, "$1");
+                INFO("PROCESSED TO:\n" << sstderr);
+                sstderr = std::regex_replace(sstderr, mpiFooter, "");
                 REQUIRE_CONTAINS_LINES("0 Using test.chkpt as checkpoint file\n\
 0 Checkpoint starting\n\
 0 Checkpoint activity synced after Xms, including mandatory 100ms quiet period\n\
-0 Checkpoint took Xms, resuming computation\n--mpi--", sstderr);
+0 Checkpoint took Xms, resuming computation", sstderr);
             }
 
             int run = 1;
@@ -278,15 +308,15 @@ TEST_CASE("example/job_stream_example/exampleRecurBug.yaml", "[checkpoint]") {
                         || std::get<0>(r) == job_stream::RETVAL_CHECKPOINT_FORCED);
                 REQUIRE(exitOk);
 
-                string sstderr = boost::regex_replace(std::get<2>(r), ms,
+                string sstderr = std::regex_replace(std::get<2>(r), ms,
                         string("$1 Xms"));
-                sstderr = boost::regex_replace(sstderr, jobLogHeader, "$1");
-                sstderr = boost::regex_replace(sstderr, mpiFooter, "--mpi--");
+                sstderr = std::regex_replace(sstderr, jobLogHeader, "$1");
+                sstderr = std::regex_replace(sstderr, mpiFooter, "");
                 int p = _countAndFixPending(sstderr);
                 REQUIRE(0 != p);
                 std::ostringstream expected;
                 expected << "0 Using test.chkpt as checkpoint file\n\
-0 resumed from checkpoint (X pending messages)\n--mpi--";
+0 resumed from checkpoint (X pending messages)";
                 if (std::get<0>(r) != 0) {
                     expected << "\n0 Checkpoint starting\n\
 0 Checkpoint activity synced after Xms, including mandatory 100ms quiet period\n\
@@ -298,19 +328,20 @@ TEST_CASE("example/job_stream_example/exampleRecurBug.yaml", "[checkpoint]") {
                 }
                 REQUIRE_CONTAINS_LINES(expected.str(), sstderr);
 
-                boost::smatch match;
+                std::smatch match;
                 std::string rout = std::get<1>(r);
                 std::string::const_iterator start = rout.begin(),
                         end = rout.end();
-                while (boost::regex_search(start, end, match,
+                while (std::regex_search(start, end, match,
                         resultHarvester)) {
                     REQUIRE(resultsSeen < numEmit);
                     resultsSeen++;
-                    REQUIRE(match.str() == "3");
+                    REQUIRE(match[2].str() == "3");
                     start = match[0].second;
                 }
 
                 if (std::get<0>(r) == job_stream::RETVAL_OK) {
+                    REQUIRE(resultsSeen != 0);
                     break;
                 }
 
@@ -350,13 +381,13 @@ TEST_CASE("example/job_stream_example/exampleRecurCheckpoint.yaml", "[checkpoint
         std::ostringstream secName;
         secName << "With " << np << " processes, trial " << trial;
         SECTION(secName.str()) {
-            boost::regex resultHarvester("^-?\\d+$");
-            boost::regex ms("(took|synced after) [0-9]+ms");
-            boost::regex jobLogHeader("^(\\d+):[^:]+:[0-9]+:[0-9]+");
-            boost::regex mpiFooter("--------------------------------------------------------------------------\nmpirun has exited.*"
+            std::regex resultHarvester("(^|\n)(-?\\d+)($|\n)");
+            std::regex ms("(took|synced after) [0-9]+ms");
+            std::regex jobLogHeader("((^|\n)\\d+):[^:]+:[0-9]+:[0-9]+");
+            std::regex mpiFooter("--------------------------------------------------------------------------\nmpirun has exited.*"
                     "|0_[a-zA-Z0-9_]+ [0-9]+% user time[ ,].*");
-            boost::regex end("(messages\\))(.*)");
-            boost::regex pending("\\(([0-9]+) pending messages");
+            std::regex end("(messages\\))(.*)");
+            std::regex pending("\\(([0-9]+) pending messages");
             std::ostringstream args;
             //Note that stealing is disabled for this test since such rapid
             //checkpointing makes the work go really, really slow if you only
@@ -380,15 +411,15 @@ TEST_CASE("example/job_stream_example/exampleRecurCheckpoint.yaml", "[checkpoint
                 INFO("stderr1: " << allErr.str());
 
                 REQUIRE(job_stream::RETVAL_CHECKPOINT_FORCED == std::get<0>(r));
-                REQUIRE("" == std::get<1>(r));
-                string sstderr = boost::regex_replace(std::get<2>(r), ms,
+                REQUIRE("" == processStdoutMpiNonzero(std::get<1>(r)));
+                string sstderr = std::regex_replace(std::get<2>(r), ms,
                         string("$1 Xms"));
-                sstderr = boost::regex_replace(sstderr, jobLogHeader, "$1");
-                sstderr = boost::regex_replace(sstderr, mpiFooter, "--mpi--");
+                sstderr = std::regex_replace(sstderr, jobLogHeader, "$1");
+                sstderr = std::regex_replace(sstderr, mpiFooter, "");
                 REQUIRE_CONTAINS_LINES("0 Using test.chkpt as checkpoint file\n\
 0 Checkpoint starting\n\
 0 Checkpoint activity synced after Xms, including mandatory 100ms quiet period\n\
-0 Checkpoint took Xms, resuming computation\n--mpi--", sstderr);
+0 Checkpoint took Xms, resuming computation", sstderr);
             }
 
             int run = 1;
@@ -406,15 +437,15 @@ TEST_CASE("example/job_stream_example/exampleRecurCheckpoint.yaml", "[checkpoint
                         || std::get<0>(r) == job_stream::RETVAL_CHECKPOINT_FORCED);
                 REQUIRE(exitOk);
 
-                string sstderr = boost::regex_replace(std::get<2>(r), ms,
+                string sstderr = std::regex_replace(std::get<2>(r), ms,
                         string("$1 Xms"));
-                sstderr = boost::regex_replace(sstderr, jobLogHeader, "$1");
-                sstderr = boost::regex_replace(sstderr, mpiFooter, "--mpi--");
+                sstderr = std::regex_replace(sstderr, jobLogHeader, "$1");
+                sstderr = std::regex_replace(sstderr, mpiFooter, "");
                 int p = _countAndFixPending(sstderr);
                 REQUIRE(0 != p);
                 std::ostringstream expected;
                 expected << "0 Using test.chkpt as checkpoint file\n\
-0 resumed from checkpoint (X pending messages)\n--mpi--";
+0 resumed from checkpoint (X pending messages)";
                 if (std::get<0>(r) != 0) {
                     expected << "\n0 Checkpoint starting\n\
 0 Checkpoint activity synced after Xms, including mandatory 100ms quiet period\n\
@@ -426,15 +457,15 @@ TEST_CASE("example/job_stream_example/exampleRecurCheckpoint.yaml", "[checkpoint
                 }
                 REQUIRE_CONTAINS_LINES(expected.str(), sstderr);
 
-                boost::smatch match;
+                std::smatch match;
                 std::string rout = std::get<1>(r);
                 std::string::const_iterator start = rout.begin(),
                         end = rout.end();
-                while (boost::regex_search(start, end, match,
+                while (std::regex_search(start, end, match,
                         resultHarvester)) {
                     REQUIRE(resultsSeen < numEmit);
                     resultsSeen++;
-                    REQUIRE(match.str() == "1442058676");
+                    REQUIRE(match[2].str() == "1442058676");
                     start = match[0].second;
                 }
 
