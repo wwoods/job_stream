@@ -306,36 +306,39 @@ class Work(object):
             return lambda func2: self.reduce(func2, **kwargs)
 
         self._assertNoResult()
-        self._assertFuncArgs(func, 3)
-        storeType = kwargs.pop('store', Object)
-        emitValue = kwargs.pop('emit', lambda store: store)
-        if kwargs:
-            raise KeyError("Unknown kwargs: {}".format(kwargs.keys()))
+        reducerCls = func
+        if not inspect.isclass(reducerCls):
+            self._assertFuncArgs(func, 3)
+            storeType = kwargs.pop('store', Object)
+            emitValue = kwargs.pop('emit', lambda store: store)
+            if kwargs:
+                raise KeyError("Unknown kwargs: {}".format(kwargs.keys()))
 
-        def init(s, store):
-            store.obj = storeType()
-        def add(s, store, w):
-            results = func(store.obj, [ w ], [])
-            self._listCall(s.recur, results)
-        def join(s, store, other):
-            results = func(store.obj, [], [ other ])
-            self._listCall(s.recur, results)
-        def done(s, store):
-            self._listCall(s.emit, emitValue(store.obj))
-        reducer = self._newType(func.__name__,
-                job_stream.Reducer, handleInit = init, handleAdd = add,
-                handleJoin = join, handleDone = done)
-        self._stack[-1]['config']['reducer'] = reducer
+            def init(s, store):
+                store.obj = storeType()
+            def add(s, store, w):
+                results = func(store.obj, [ w ], [])
+                self._listCall(s.recur, results)
+            def join(s, store, other):
+                results = func(store.obj, [], [ other ])
+                self._listCall(s.recur, results)
+            def done(s, store):
+                self._listCall(s.emit, emitValue(store.obj))
+            reducerCls = self._newType(func.__name__,
+                    job_stream.Reducer, handleInit = init, handleAdd = add,
+                    handleJoin = join, handleDone = done)
+        self._stack[-1]['config']['reducer'] = reducerCls
         self._stack.pop()
         if not self._stack:
-            # We popped off the last.  To allow inline jobs to still be added (post
-            # processing), we ensure that we still have a stack
+            # We popped off the last.  To allow inline jobs to still be added
+            # (post processing), we ensure that we still have a stack
             self._config['jobs'].insert(0, _UnwrapperJob)
             self._initialWorkDepth += 1
             self._config = { 'jobs': [ self._config ] }
             self._stack.append({ 'config': self._config })
 
-        # Return the original function so that the user may call it, if desired
+        # Return the original function so that the user may call it, if
+        # desired
         return func
 
 

@@ -303,6 +303,56 @@ job_stream.run({
         self.assertLinesEqual("1\n1\n1\n2\n2\n2\n2\n3\n3\n3\n3\n", r)
 
 
+    def test_multiprocessing_classes(self):
+        # Ensure that multiprocessing classes don't get the
+        # _MULTIPROCESSING_PATCHED class, while derivatives do
+        r = self.executePy("""
+                from job_stream import Job, Frame, Reducer
+                from job_stream.inline import Work
+
+                with Work([1]) as w:
+                    @w.frame
+                    def start(store, w):
+                        if not hasattr(store, 'init'):
+                            store.init = True
+                            return w
+
+                    @w.job
+                    class JobTest(Job):
+                        def handleWork(self, w):
+                            self.emit(w)
+
+                    @w.frameEnd
+                    def end(store, w):
+                        return
+
+                    @w.reduce
+                    class ReducerTest(Reducer):
+                        def handleAdd(self, store, w):
+                            pass
+
+                        def handleDone(self, store):
+                            pass
+
+                    print("Before: {}, {}".format(
+                            hasattr(JobTest, '_MULTIPROCESSING_PATCHED'),
+                            hasattr(ReducerTest, '_MULTIPROCESSING_PATCHED')))
+                print("After: {}, {}".format(
+                        hasattr(JobTest, '_MULTIPROCESSING_PATCHED'),
+                        hasattr(ReducerTest, '_MULTIPROCESSING_PATCHED')))
+
+                print("Bases after: {}, {}, {}".format(
+                        hasattr(Job, '_MULTIPROCESSING_PATCHED'),
+                        hasattr(Frame, '_MULTIPROCESSING_PATCHED'),
+                        hasattr(Reducer, '_MULTIPROCESSING_PATCHED')))
+                """)
+        self.assertLinesEqual(
+                "Before: False, False\n"
+                "After: True, True\n"
+                "Bases after: False, False, False\n",
+                r[0])
+
+
     def test_multiprocessing_default(self):
         # Ensure that, by default, multiprocessing is enabled
         r = self.executePy("""

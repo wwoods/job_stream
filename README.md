@@ -1262,6 +1262,10 @@ early on.  So handleDone() gets called with 20, 62, and finally 188.
 * 2016-6-23 - job_stream now processes work in a depth-first fashion rather
   than breadth-first.  The utility of this change is for progress bars; no
   functionality should be altered as an effect of this change.
+
+  Updated multiprocessing in Python driver to work with new code organization,
+  multiprocessing was not effective before.  Stats still need to be fixed there.
+  Version bump to 0.1.12.
 * 2016-6-22 - inline.Multiple() in Python now ignores None results.
   Version 0.1.11.
 * 2016-6-14 - Python 3 support and embedded two of the boost libraries that

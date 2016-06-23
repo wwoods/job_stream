@@ -24,8 +24,8 @@ Or:
 
 import _job_stream as _j
 
-import pickle
 import multiprocessing
+import pickle
 import six
 import sys
 import traceback
@@ -193,7 +193,7 @@ class _Job__metaclass__(type(_j.Job)):
         fullname = _hierarchicalName(cls, name)
 
         # Metaclasses are called for their first rendition as well, so...
-        if fullname == 'job_stream.Job':
+        if fullname == 'job_stream.common.Job':
             return
 
         _classesToPatch.append(cls)
@@ -270,9 +270,10 @@ class _Reducer__metaclass__(type(_j.Reducer)):
         fullname = _hierarchicalName(cls, name)
 
         # Metaclasses are called for their first rendition as well, so...
-        if fullname == 'job_stream.Reducer':
+        if fullname == 'job_stream.common.Reducer':
             return
 
+        _classesToPatch.append(cls)
         _j.registerReducer(fullname, cls)
 
 
@@ -385,7 +386,7 @@ class _Frame__metaclass__(type(_j.Frame)):
         fullname = _hierarchicalName(cls, name)
 
         # Metaclasses are called for their first rendition as well, so...
-        if fullname == 'job_stream.Frame':
+        if fullname == 'job_stream.common.Frame':
             return
 
         _classesToPatch.append(cls)
