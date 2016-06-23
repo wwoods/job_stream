@@ -14,6 +14,16 @@ public:
 } addOneJob;
 
 
+class PrintThenAddOne : public job_stream::Job<PrintThenAddOne, int> {
+public:
+    static const char* NAME() { return "printThenAddOne"; }
+    void handleWork(unique_ptr<int> work) {
+        printf("%i\n", *work);
+        this->emit(*work + 1);
+    }
+} printThenAddOneJob;
+
+
 
 struct PiCalculatorState {
     float precision;
@@ -209,6 +219,27 @@ public:
         this->emit(sum / current.size());
     }
 } runExperimentsInst;
+
+
+/** Example for depth-first demonstration */
+class DepthFirstFrame : public job_stream::Frame<DepthFirstFrame,
+        int, int, int> {
+public:
+    static const char* NAME() { return "depthFirstFrame"; }
+
+    void handleFirst(int& current, unique_ptr<int> work) {
+        for (int i = 0; i < *work; i++) {
+            this->recur(1);
+        }
+    }
+
+    void handleNext(int& current, unique_ptr<int> work) {
+        printf("Frame %i\n", *work);
+    }
+
+    void handleDone(int& current) {
+    }
+} depthFirstFrameInst;
 
 
 /** Example for testing / demonstrating checkpoints. */

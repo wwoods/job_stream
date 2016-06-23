@@ -1,0 +1,7 @@
+# depthFirst.yaml
+jobs:
+    - frame:
+          type: depthFirstFrame
+      jobs:
+        - type: printThenAddOne
+

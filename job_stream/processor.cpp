@@ -177,8 +177,9 @@ Processor::Processor(std::shared_ptr<mpi::environment> env,
         mpi::communicator world,
         const std::string& configStr, const std::string& checkpointFile)
             : checkpointFileName(checkpointFile), checkpointQuit(false),
-                reduceTagCount(0), env(env), sentEndRing0(false),
-                wasRestored(0), world(world), _configStr(configStr) {
+              depthFirst(true), reduceTagCount(0), env(env),
+              sentEndRing0(false), wasRestored(0), world(world),
+              _configStr(configStr) {
     //Step 1 - steal queued initialWork, so that if we throw an error, it
     //does not get repeated without being requeued.
     this->initialWork = job_stream::processor::initialWork;
@@ -680,14 +681,13 @@ void Processor::_distributeWork(std::unique_ptr<message::WorkRecord> wr) {
         }
     }
 
-    uint64_t reduceTagToFree = wr->getReduceTag();
     if (dest != rank) {
         this->_nonBlockingSend(
                 message::Header(tag, dest), wr->serialized());
     }
     else {
-        Lock lock(this->_mutex);
-        this->workInQueue.emplace_back(new MpiMessage(tag, std::move(wr)));
+        this->_lockAndAddWork(MpiMessagePtr(new MpiMessage(tag,
+                std::move(wr))));
     }
 }
 
@@ -1566,9 +1566,8 @@ bool Processor::tryReceive() {
 
         }
         else {
-            Lock lock(this->_mutex);
-            this->workInQueue.emplace_back(new MpiMessage(tag,
-                    std::move(msg.buffer)));
+            this->_lockAndAddWork(MpiMessagePtr(new MpiMessage(tag,
+                    std::move(msg.buffer))));
         }
     }
 
@@ -1693,6 +1692,17 @@ MpiMessagePtr Processor::_getWork(int workerId) {
     }
 
     return ptr;
+}
+
+
+void Processor::_lockAndAddWork(MpiMessagePtr msg) {
+    Lock lock(this->_mutex);
+    if (this->depthFirst) {
+        this->workInQueue.emplace_front(std::move(msg));
+    }
+    else {
+        this->workInQueue.emplace_back(std::move(msg));
+    }
 }
 
 

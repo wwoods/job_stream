@@ -376,10 +376,10 @@ public:
     /** Return this Processor's rank */
     int getRank() const { return this->world.rank(); }
     /** If set, called instead of printing any output work.  Note that when this is called,
-        the work is NO LONGER UNDER CHECKPOINT!  That is, if the work needs to be 
+        the work is NO LONGER UNDER CHECKPOINT!  That is, if the work needs to be
         checkpoint-safe, then the application defining this callback must write it to disk
         or make it safe in its own way. */
-    std::function<void (std::unique_ptr<serialization::AnyType> output)> 
+    std::function<void (std::unique_ptr<serialization::AnyType> output)>
             handleOutputCallback;
     /** Returns statistics about some processor from a serialized checkpoint
         buffer. */
@@ -540,6 +540,19 @@ private:
     /** Our config as a string.  Used for checkpointing to ensure that an
         existing checkpoint file matches what the user wanted. */
     std::string _configStr;
+    /** If true (default), then work is processed depth-first rather than
+        breadth-first.  This has the benefit of e.g. allowing progress meters
+        on frame close to be more accurate.  Additionally, if a bug occurs
+        later in the pipeline, it will be discovered sooner with a depth-first
+        approach.
+
+        Note that if one stage of the pipeline depends on a prior stage
+        (conversed over database records, for instance), the different stages
+        may still be separated by using Frames (one Frame for stage 1, and
+        a second Frame for stage 2).  The input to this system would then be
+        garbage, and the first Frame would need to initialize the input.
+        */
+    bool depthFirst;
     /** Our environment */
     std::shared_ptr<boost::mpi::environment> env;
     /** Global array; see localClksByType */
@@ -648,6 +661,9 @@ private:
         workerId - the ID of the worker thread asking for work.  Used to
                 constrain standard work based on workersActive. */
     MpiMessagePtr _getWork(int workerId);
+    /** Locks this Processor's mutex and adds work to workInQueue.
+        */
+    void _lockAndAddWork(MpiMessagePtr msg);
     /** Send in a non-blocking manner (asynchronously, receiving all the while).
         reduceTags are any tags that should be kept alive by the fact that this
         is in the process of being sent.

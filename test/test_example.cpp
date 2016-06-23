@@ -4,6 +4,7 @@
 #include "catch.hpp"
 #include "common.h"
 
+#include <boost/lexical_cast.hpp>
 #include <job_stream/job_stream.h>
 #include <regex>
 #include <string>
@@ -65,6 +66,60 @@ TEST_CASE("should not have ERROR or ASSERT defined") {
     #ifdef ASSERT
     FAIL("job_stream/debug_internals.h erroneously included");
     #endif
+}
+
+
+TEST_CASE("example/job_stream_example/depthFirst.yaml") {
+    string prog("/usr/bin/mpirun");
+    string args("-np 1 example/job_stream_example ../example/depthFirst.yaml");
+    string out, err;
+    int nIn = 100;
+
+    double pos1Avg = 0., pos2Avg = 0.;
+    int trial = 0;
+    for (; trial < 10; trial++) {
+        std::tie(out, err) = run(prog, args,
+                boost::lexical_cast<string>(nIn) + "\n");
+
+        INFO("Full stderr: \n" << err);
+        INFO("Full stdout: \n" << out);
+
+        double pos1 = 0., pos2 = 0.;
+        int seen1 = 0, seen2 = 0, lineno = 0;
+        std::regex outLine("(^|\n)([^\n]+)(?=$|\n)");
+        std::sregex_iterator end, cur(out.begin(), out.end(), outLine);
+        for (; cur != end; cur++) {
+            const std::smatch& m = *cur;
+            if (m[2].str() == "1") {
+                seen1++;
+                pos1 += lineno;
+            }
+            else if (m[2].str() == "Frame 2") {
+                seen2++;
+                pos2 += lineno;
+            }
+            else {
+                FAIL(m[2].str());
+            }
+            lineno++;
+        }
+
+        pos1 /= seen1 * (2 * nIn);
+        pos2 /= seen2 * (2 * nIn);
+        INFO(
+                "'1' Results: " << seen1 << " at " << pos1 << "\n"
+                << "'Frame 2' Results: " << seen2 << " at " << pos2 << "\n"
+        );
+        REQUIRE(nIn == seen1);
+        REQUIRE(nIn == seen2);
+        pos1Avg += pos1;
+        pos2Avg += pos2;
+    }
+    pos1Avg /= trial;
+    pos2Avg /= trial;
+    INFO("Avg finish of '1': " << pos1Avg << ", 'Frame 2': " << pos2Avg);
+    REQUIRE(pos1Avg >= 0.3);
+    REQUIRE(pos2Avg <= 0.7);
 }
 
 
