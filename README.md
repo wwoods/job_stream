@@ -1259,6 +1259,8 @@ early on.  So handleDone() gets called with 20, 62, and finally 188.
 
 ##<a name="recent-changelog"></a>Recent Changelog
 
+* 2016-6-24 - Fixed python timing code for multiprocessing.  Reported CPU
+  efficiencies are now valid for python code.  Version bump to 0.1.13.
 * 2016-6-23 - job_stream now processes work in a depth-first fashion rather
   than breadth-first.  The utility of this change is for progress bars; no
   functionality should be altered as an effect of this change.

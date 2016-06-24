@@ -24,6 +24,11 @@ LD_LIBRARY_PATH=/u/wwoods/dev/boost_1_55_0/stage/lib/:~/dev/yaml-cpp-0.5.1/build
 #include <boost/python/raw_function.hpp>
 #include <dlfcn.h>
 
+//Macro to help with timing
+#define COMBINE1(X, Y) X##Y
+#define COMBINE(X, Y) COMBINE1(X, Y)
+#define TIMER(typ) job_stream::processor::Processor::WorkTimer COMBINE(workTimer, __LINE__)(this->_shell->processor, job_stream::processor::Processor::typ)
+
 namespace bp = boost::python;
 using job_stream::python::SerializedPython;
 
@@ -199,6 +204,7 @@ std::ostream& operator<<(std::ostream& os,
 class PyFrame;
 class PyJob;
 class PyReducer;
+void _timerHandleResult(job_stream::processor::Processor* p, bp::object res);
 
 /*********************************************************************/
 //Job
@@ -222,6 +228,8 @@ public:
     void handleWork(std::unique_ptr<SerializedPython> work) override;
 
 private:
+    friend class PyJob;
+
     PyJob* _job;
 };
 
@@ -254,10 +262,14 @@ public:
     void handleWork(std::unique_ptr<SerializedPython> work) {
         //Entry point to python!  Reacquire the GIL to deserialize and run our
         //code
+        TIMER(TIME_IDLE); //out of gil
         _PyGilAcquire gilLock;
         try {
+            TIMER(TIME_SYSTEM); //For serializing
             bp::object workObj = serializedToPython(*work);
-            this->pyHandleWork(workObj);
+            TIMER(TIME_USER); //For user code
+            bp::object res = this->pyHandleWork(workObj);
+            _timerHandleResult(this->_shell->processor, res);
         }
         catch (...) {
             CHECK_PYTHON_ERROR("PyJob::handleWork()");
@@ -280,7 +292,7 @@ public:
     }
 
 
-    virtual void pyHandleWork(bp::object work) {
+    virtual bp::object pyHandleWork(bp::object work) {
         throw std::runtime_error("Python handleWork() not implemented");
     }
 
@@ -320,12 +332,12 @@ public:
     PyJobExt(PyObject* p, const PyJob& j) : PyJob(j), self(p) {}
     virtual ~PyJobExt() {}
 
-    void pyHandleWork(bp::object work) override {
-        bp::call_method<void>(this->self, "handleWork", work);
+    bp::object pyHandleWork(bp::object work) override {
+        return bp::call_method<bp::object>(this->self, "handleWork", work);
     }
 
-    static void default_pyHandleWork(PyJob& self_, bp::object work) {
-        self_.PyJob::pyHandleWork(work);
+    static bp::object default_pyHandleWork(PyJob& self_, bp::object work) {
+        return self_.PyJob::pyHandleWork(work);
     }
 
     void pyPostSetup() override {
@@ -383,6 +395,8 @@ public:
     void handleDone(SerializedPython& current) override;
 
 private:
+    friend class PyReducer;
+
     PyReducer* _reducer;
 };
 
@@ -425,11 +439,17 @@ public:
             std::unique_ptr<SerializedPython> work) {
         //Entry point to python!  Reacquire the GIL to deserialize and run our
         //code
+        TIMER(TIME_IDLE); //out of gil
         _PyGilAcquire gilLock;
         try {
+            TIMER(TIME_SYSTEM); //Serializing
             bp::object stash = serializedToPython(current);
             bp::object workObj = serializedToPython(*work);
-            this->pyHandleAdd(stash, workObj);
+            {
+                TIMER(TIME_USER); //User code
+                bp::object res = this->pyHandleAdd(stash, workObj);
+                _timerHandleResult(this->_shell->processor, res);
+            }
             current = pythonToSerialized(stash);
         }
         catch (...) {
@@ -442,10 +462,16 @@ public:
     void handleDone(SerializedPython& current) {
         //Entry point to python!  Reacquire the GIL to deserialize and run our
         //code
+        TIMER(TIME_IDLE);
         _PyGilAcquire gilLock;
         try {
+            TIMER(TIME_SYSTEM);
             bp::object stash = serializedToPython(current);
-            this->pyHandleDone(stash);
+            {
+                TIMER(TIME_USER);
+                bp::object res = this->pyHandleDone(stash);
+                _timerHandleResult(this->_shell->processor, res);
+            }
             current = pythonToSerialized(stash);
         }
         catch (...) {
@@ -458,11 +484,17 @@ public:
     void handleInit(SerializedPython& current) {
         //Entry point to python!  Reacquire the GIL to deserialize and run our
         //code
+        TIMER(TIME_IDLE);
         _PyGilAcquire gilLock;
         try {
+            TIMER(TIME_SYSTEM);
             //Current is uninitialized; make it a python object()
             bp::object stash = job_stream::python::object();
-            this->pyHandleInit(stash);
+            {
+                TIMER(TIME_USER);
+                bp::object res = this->pyHandleInit(stash);
+                _timerHandleResult(this->_shell->processor, res);
+            }
             current = pythonToSerialized(stash);
         }
         catch (...) {
@@ -476,11 +508,17 @@ public:
             std::unique_ptr<SerializedPython> other) {
         //Entry point to python!  Reacquire the GIL to deserialize and run our
         //code
+        TIMER(TIME_IDLE);
         _PyGilAcquire gilLock;
         try {
+            TIMER(TIME_SYSTEM);
             bp::object stash = serializedToPython(current);
             bp::object otter = serializedToPython(*other);
-            this->pyHandleJoin(stash, otter);
+            {
+                TIMER(TIME_USER);
+                bp::object res = this->pyHandleJoin(stash, otter);
+                _timerHandleResult(this->_shell->processor, res);
+            }
             current = pythonToSerialized(stash);
         }
         catch (...) {
@@ -504,22 +542,22 @@ public:
     }
 
 
-    virtual void pyHandleAdd(bp::object stash, bp::object work) {
+    virtual bp::object pyHandleAdd(bp::object stash, bp::object work) {
         throw std::runtime_error("Python handleAdd() not implemented");
     }
 
 
-    virtual void pyHandleDone(bp::object stash) {
+    virtual bp::object pyHandleDone(bp::object stash) {
         throw std::runtime_error("Python handleDone() not implemented");
     }
 
 
-    virtual void pyHandleInit(bp::object stash) {
+    virtual bp::object pyHandleInit(bp::object stash) {
         throw std::runtime_error("Python handleInit() not implemented");
     }
 
 
-    virtual void pyHandleJoin(bp::object stash, bp::object other) {
+    virtual bp::object pyHandleJoin(bp::object stash, bp::object other) {
         throw std::runtime_error("Python handleJoin() not implemented");
     }
 
@@ -559,38 +597,38 @@ public:
     PyReducerExt(PyObject* p, const PyReducer& j) : PyReducer(j), self(p) {}
     virtual ~PyReducerExt() {}
 
-    void pyHandleAdd(bp::object stash, bp::object work) override {
-        bp::call_method<void>(this->self, "handleAdd", stash, work);
+    bp::object  pyHandleAdd(bp::object stash, bp::object work) override {
+        return bp::call_method<bp::object>(this->self, "handleAdd", stash, work);
     }
 
-    static void default_pyHandleAdd(PyReducer& self_, bp::object stash,
+    static bp::object default_pyHandleAdd(PyReducer& self_, bp::object stash,
             bp::object work) {
-        self_.PyReducer::pyHandleAdd(stash, work);
+        return self_.PyReducer::pyHandleAdd(stash, work);
     }
 
-    void pyHandleDone(bp::object stash) override {
-        bp::call_method<void>(this->self, "handleDone", stash);
+    bp::object pyHandleDone(bp::object stash) override {
+        return bp::call_method<bp::object>(this->self, "handleDone", stash);
     }
 
-    static void default_pyHandleDone(PyReducer& self_, bp::object stash) {
-        self_.PyReducer::pyHandleDone(stash);
+    static bp::object default_pyHandleDone(PyReducer& self_, bp::object stash) {
+        return self_.PyReducer::pyHandleDone(stash);
     }
 
-    void pyHandleInit(bp::object stash) override {
-        bp::call_method<void>(this->self, "handleInit", stash);
+    bp::object pyHandleInit(bp::object stash) override {
+        return bp::call_method<bp::object>(this->self, "handleInit", stash);
     }
 
-    static void default_pyHandleInit(PyReducer& self_, bp::object stash) {
-        self_.PyReducer::pyHandleInit(stash);
+    static bp::object default_pyHandleInit(PyReducer& self_, bp::object stash) {
+        return self_.PyReducer::pyHandleInit(stash);
     }
 
-    void pyHandleJoin(bp::object stash, bp::object other) override {
-        bp::call_method<void>(this->self, "handleJoin", stash, other);
+    bp::object pyHandleJoin(bp::object stash, bp::object other) override {
+        return bp::call_method<bp::object>(this->self, "handleJoin", stash, other);
     }
 
-    static void default_pyHandleJoin(PyReducer& self_, bp::object stash,
+    static bp::object default_pyHandleJoin(PyReducer& self_, bp::object stash,
             bp::object other) {
-        self_.PyReducer::pyHandleJoin(stash, other);
+        return self_.PyReducer::pyHandleJoin(stash, other);
     }
 
     void pyPostSetup() override {
@@ -658,6 +696,8 @@ public:
             std::unique_ptr<SerializedPython> work) override;
 
 private:
+    friend class PyFrame;
+
     PyFrame* _frame;
 };
 
@@ -699,10 +739,16 @@ public:
     void handleDone(SerializedPython& current) {
         //Entry point to python!  Reacquire the GIL to deserialize and run our
         //code
+        TIMER(TIME_IDLE);
         _PyGilAcquire gilLock;
         try {
+            TIMER(TIME_SYSTEM);
             bp::object stash = serializedToPython(current);
-            this->pyHandleDone(stash);
+            {
+                TIMER(TIME_USER);
+                bp::object res = this->pyHandleDone(stash);
+                _timerHandleResult(this->_shell->processor, res);
+            }
             current = pythonToSerialized(stash);
         }
         catch (...) {
@@ -716,11 +762,17 @@ public:
             std::unique_ptr<SerializedPython> work) {
         //Entry point to python!  Reacquire the GIL to deserialize and run our
         //code
+        TIMER(TIME_IDLE);
         _PyGilAcquire gilLock;
         try {
+            TIMER(TIME_SYSTEM);
             bp::object stash = job_stream::python::object();
             bp::object workObj = serializedToPython(*work);
-            this->pyHandleFirst(stash, workObj);
+            {
+                TIMER(TIME_USER);
+                bp::object res = this->pyHandleFirst(stash, workObj);
+                _timerHandleResult(this->_shell->processor, res);
+            }
             current = pythonToSerialized(stash);
         }
         catch (...) {
@@ -734,11 +786,17 @@ public:
             std::unique_ptr<SerializedPython> work) {
         //Entry point to python!  Reacquire the GIL to deserialize and run our
         //code
+        TIMER(TIME_IDLE);
         _PyGilAcquire gilLock;
         try {
+            TIMER(TIME_SYSTEM);
             bp::object stash = serializedToPython(current);
             bp::object workObj = serializedToPython(*work);
-            this->pyHandleNext(stash, workObj);
+            {
+                TIMER(TIME_USER);
+                bp::object res = this->pyHandleNext(stash, workObj);
+                _timerHandleResult(this->_shell->processor, res);
+            }
             current = pythonToSerialized(stash);
         }
         catch (...) {
@@ -762,17 +820,17 @@ public:
     }
 
 
-    virtual void pyHandleDone(bp::object stash) {
+    virtual bp::object pyHandleDone(bp::object stash) {
         throw std::runtime_error("Python handleDone() not implemented");
     }
 
 
-    virtual void pyHandleFirst(bp::object stash, bp::object work) {
+    virtual bp::object pyHandleFirst(bp::object stash, bp::object work) {
         throw std::runtime_error("Python handleFirst() not implemented");
     }
 
 
-    virtual void pyHandleNext(bp::object stash, bp::object work) {
+    virtual bp::object pyHandleNext(bp::object stash, bp::object work) {
         throw std::runtime_error("Python handleNext() not implemented");
     }
 
@@ -812,30 +870,30 @@ public:
     PyFrameExt(PyObject* p, const PyFrame& j) : PyFrame(j), self(p) {}
     virtual ~PyFrameExt() {}
 
-    void pyHandleDone(bp::object stash) override {
-        bp::call_method<void>(this->self, "handleDone", stash);
+    bp::object pyHandleDone(bp::object stash) override {
+        return bp::call_method<bp::object>(this->self, "handleDone", stash);
     }
 
-    static void default_pyHandleDone(PyFrame& self_, bp::object stash) {
-        self_.PyFrame::pyHandleDone(stash);
+    static bp::object default_pyHandleDone(PyFrame& self_, bp::object stash) {
+        return self_.PyFrame::pyHandleDone(stash);
     }
 
-    void pyHandleFirst(bp::object stash, bp::object work) override {
-        bp::call_method<void>(this->self, "handleFirst", stash, work);
+    bp::object pyHandleFirst(bp::object stash, bp::object work) override {
+        return bp::call_method<bp::object>(this->self, "handleFirst", stash, work);
     }
 
-    static void default_pyHandleFirst(PyFrame& self_, bp::object stash,
+    static bp::object default_pyHandleFirst(PyFrame& self_, bp::object stash,
             bp::object work) {
-        self_.PyFrame::pyHandleFirst(stash, work);
+        return self_.PyFrame::pyHandleFirst(stash, work);
     }
 
-    void pyHandleNext(bp::object stash, bp::object work) override {
-        bp::call_method<void>(this->self, "handleNext", stash, work);
+    bp::object pyHandleNext(bp::object stash, bp::object work) override {
+        return bp::call_method<bp::object>(this->self, "handleNext", stash, work);
     }
 
-    static void default_pyHandleNext(PyFrame& self_, bp::object stash,
+    static bp::object default_pyHandleNext(PyFrame& self_, bp::object stash,
             bp::object work) {
-        self_.PyFrame::pyHandleNext(stash, work);
+        return self_.PyFrame::pyHandleNext(stash, work);
     }
 
     void pyPostSetup() override {
@@ -874,6 +932,67 @@ void PyFrameShell::handleNext(SerializedPython& current,
 
 
 /*********************************************************************/
+uint64_t _cpuThreadTimeMs() {
+    return job_stream::processor::Processor::_getThreadCpuTimeMs();
+}
+
+
+/** Starts clock- and cpu- timers */
+//Why is this a dangling pointer rather than just a thread_local std::vector?
+//Because gcc has a bug that prevents it from being a non-primitive type.  So,
+//a pointer is used as a workaround.
+typedef std::tuple<uint64_t, uint64_t> PyTimeInfo;
+thread_local std::vector<PyTimeInfo>* _pyTimers = 0;
+
+void _timerStart() {
+    if (_pyTimers == 0) {
+        _pyTimers = new std::vector<PyTimeInfo>();
+    }
+    _pyTimers->emplace_back(
+                job_stream::message::Location::getCurrentTimeMs(),
+                _cpuThreadTimeMs());
+}
+
+
+/** Returns the value since the latest clock- and cpu- timers */
+bp::tuple _timerPop() {
+    uint64_t wt = job_stream::message::Location::getCurrentTimeMs();
+    uint64_t ct = _cpuThreadTimeMs();
+    auto& tup = _pyTimers->back();
+    auto res = bp::make_tuple(wt - std::get<0>(tup),
+            ct - std::get<1>(tup));
+    _pyTimers->pop_back();
+    return res;
+}
+
+
+PyTimeInfo _timeInfoFromBp(bp::object o) {
+    if (bp::len(o) != 2) {
+        throw std::runtime_error("Not a tuple of size 2");
+    }
+    return std::make_tuple((uint64_t)bp::extract<uint32_t>(o[0]),
+            (uint64_t)bp::extract<uint32_t>(o[1]));
+}
+
+
+/** Handles integration of timing information from a python method. */
+void _timerHandleResult(job_stream::processor::Processor* p,
+        bp::object res) {
+    if (!res.is_none()) {
+        if (bp::len(res) != 2) {
+            throw std::runtime_error("Python returned tuple not len 2");
+        }
+
+        //Timing information from an internal library
+        PyTimeInfo sysT = _timeInfoFromBp(res[0]);
+        PyTimeInfo userT = _timeInfoFromBp(res[1]);
+        p->_modifyWorkTimer(job_stream::processor::Processor::TIME_SYSTEM,
+                std::get<0>(sysT), std::get<1>(sysT));
+        p->_modifyWorkTimer(job_stream::processor::Processor::TIME_USER,
+                std::get<0>(userT), std::get<1>(userT));
+    }
+}
+
 
 int getRank() {
     return job_stream::getRank();
@@ -1044,6 +1163,11 @@ BOOST_PYTHON_MODULE(_job_stream) {
     bp::scope().attr("__doc__") = "C internals for job_stream python library; "
             "see https://github.com/wwoods/job_stream for more info";
 
+    bp::def("_cpuThreadTimeMs", _cpuThreadTimeMs, "Returns a uint64_t of the "
+            "current thread's CPU time, in milliseconds.");
+    bp::def("_timerStart", _timerStart, "Starts a new clock- and cpu- timer");
+    bp::def("_timerPop", _timerPop, "Pops a previously started timer, "
+            "returning (clock-time, cpu-time) in MS");
     bp::def("checkpointInfo", job_stream::checkpointInfo, "Returns a human-readable "
             "string with details of a checkpoint's state");
     bp::def("getRank", getRank, "Returns the mpi rank of this host");

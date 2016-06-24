@@ -1754,6 +1754,28 @@ void Processor::_popWorkTimer() {
 }
 
 
+void Processor::_modifyWorkTimer(ProcessorTimeType timeType,
+        uint64_t wallTimeMs, uint64_t cpuTimeMs) {
+    //Want:
+    // * Parent timers to ignore the provided times
+    // * the immediate parent to skip over provided time
+    uint64_t wallNow = message::Location::getCurrentTimeMs();
+    uint64_t cpuNow = this->_getThreadCpuTimeMs();
+    Processor::_WorkTimerRecord& record = this->workTimers.back();
+
+    //Adjust clksChild and timeChild to max of current minus
+    uint64_t timeEnd;
+    timeEnd = record.tsStart + record.timeChild;
+    record.timeChild += std::min(wallNow, timeEnd + wallTimeMs) - timeEnd;
+    timeEnd = record.clkStart + record.clksChild;
+    record.clksChild += std::min(cpuNow, timeEnd + cpuTimeMs) - timeEnd;
+
+    //Integrate time
+    this->localClksByType[timeType] += cpuTimeMs;
+    this->localTimesByType[timeType] += wallTimeMs;
+}
+
+
 void Processor::_startRingTest(uint64_t reduceTag, uint64_t parentTag,
         job::ReducerBase* reducer) {
     Lock lock(this->_mutex);

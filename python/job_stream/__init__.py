@@ -37,7 +37,7 @@ Members
 """
 
 from .common import (Frame, Job, Object, Reducer, checkpointInfo,
-        getRank, invoke, map, run)
+        getRank, invoke, map, run, _cpuThreadTime)
 
 # This module's work global is assigned in common.py, as:
 # job_stream.work = _Work()

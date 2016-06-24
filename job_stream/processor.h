@@ -508,7 +508,6 @@ private:
 
         void lockForWork();
 
-    private:
         friend class boost::serialization::access;
         template<class Archive>
         void serialize(Archive& ar, const unsigned int version) {
@@ -649,8 +648,10 @@ private:
     void _distributeWork(std::unique_ptr<message::WorkRecord> wr);
     /** Enqueue a line of input (stdin or argv) to system */
     void _enqueueInputWork(const std::string& line);
+public:
     /** Return cpu time for this thread in ms */
     static uint64_t _getThreadCpuTimeMs();
+private:
     /** Return rank + 1, modulo world size */
     int _getNextRank();
     /** Increment and wrap workTarget, return new value */
@@ -674,6 +675,13 @@ private:
     void _pushWorkTimer(ProcessorTimeType userWork);
     /** Pop the last timer section */
     void _popWorkTimer();
+public:
+    /** Modify the current work timer, allotting the given measurements to the
+     * given category rather than the current timer.
+     * */
+    void _modifyWorkTimer(ProcessorTimeType timeType, uint64_t wallTimeMs,
+            uint64_t cpuTimeMs);
+private:
     /** Start a dead ring test for the given reduceTag IMMEDIATELY.  Shouldn't
         be used during work, or it would break checkpoints. */
     void _startRingTest(uint64_t reduceTag, uint64_t parentTag,

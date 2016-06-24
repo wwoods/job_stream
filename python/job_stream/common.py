@@ -123,58 +123,83 @@ def _localJobInit(obj):
         raise _StackAlreadyPrintedError()
 def _localCallNoStore(obj, method, *args):
     if obj not in _localJobs:
-        return (0, [], [], [])
+        return (0,)
     o = _localJobs[obj]
     o._resetLocalJob()
     try:
+        _j._timerStart()
         getattr(o, method)(*args)
     except:
         traceback.print_exc()
         raise _StackAlreadyPrintedError()
-    return (1, o.emitters, o.recurs, o.forceCheckpoints)
+    finally:
+        times = _j._timerPop()
+    return (1, o.emitters, o.recurs, o.forceCheckpoints, times)
 def _localCallStoreFirst(obj, method, first, *args):
     if obj not in _localJobs:
-        return (0, None, [], [], [])
+        return (0,)
     o = _localJobs[obj]
     o._resetLocalJob()
     try:
+        _j._timerStart()
         getattr(o, method)(first, *args)
     except:
         traceback.print_exc()
         raise _StackAlreadyPrintedError()
-    return (1, first, o.emitters, o.recurs, o.forceCheckpoints)
+    finally:
+        times = _j._timerPop()
+    return (1, first, o.emitters, o.recurs, o.forceCheckpoints, times)
 
 
 def _callNoStore(obj, method, *args):
-    while True:
-        r = _pool[0].apply(_localCallNoStore, args = (obj.id, method) + args)
-        if r[0] == 0:
-            _pool[0].map(_localJobInit, [ obj ] * _pool[0]._processes)
-        else:
-            break
-    for eArgs in r[1]:
-        obj.emit(*eArgs)
-    for rArgs in r[2]:
-        obj.recur(*rArgs)
-    for fArgs in r[3]:
-        obj._forceCheckpoint(*fArgs)
+    _j._timerStart()
+    try:
+        while True:
+            r = _pool[0].apply(_localCallNoStore, args = (obj.id, method) + args)
+            if r[0] == 0:
+                _pool[0].map(_localJobInit, [ obj ] * _pool[0]._processes)
+            else:
+                break
+        for eArgs in r[1]:
+            obj.emit(*eArgs)
+        for rArgs in r[2]:
+            obj.recur(*rArgs)
+        for fArgs in r[3]:
+            obj._forceCheckpoint(*fArgs)
+    finally:
+        sysTimes = _j._timerPop()
+
+    # Subtract the user time from the system time.  Note that this applies only
+    # to wall-clock time, as CPU cycles would not be picked up.
+    usrTimes = r[4]
+    return ((sysTimes[0] - usrTimes[0], sysTimes[1]), usrTimes)
 
 
 def _callStoreFirst(obj, method, first, *args):
-    while True:
-        r = _pool[0].apply(_localCallStoreFirst,
-                args = (obj.id, method, first) + args)
-        if r[0] == 0:
-            _pool[0].map(_localJobInit, [ obj ] * _pool[0]._processes)
-        else:
-            break
-    first.__dict__ = r[1].__dict__
-    for eArgs in r[2]:
-        obj.emit(*eArgs)
-    for rArgs in r[3]:
-        obj.recur(*rArgs)
-    for fArgs in r[4]:
-        obj._forceCheckpoint(*fArgs)
+    _j._timerStart()
+    try:
+        while True:
+            r = _pool[0].apply(_localCallStoreFirst,
+                    args = (obj.id, method, first) + args)
+            if r[0] == 0:
+                _pool[0].map(_localJobInit, [ obj ] * _pool[0]._processes)
+            else:
+                break
+        first.__dict__ = r[1].__dict__
+        for eArgs in r[2]:
+            obj.emit(*eArgs)
+        for rArgs in r[3]:
+            obj.recur(*rArgs)
+        for fArgs in r[4]:
+            obj._forceCheckpoint(*fArgs)
+    finally:
+        sysTimes = _j._timerPop()
+
+    # Subtract the user time from the system time
+    usrTimes = r[5]
+    return ((sysTimes[0] - usrTimes[0], sysTimes[1] - usrTimes[1]), usrTimes)
+
+
 def _hierarchicalName(cls, name = None):
     fullname = cls.__module__
     n = name or cls.__name__
@@ -525,6 +550,13 @@ def _convertDictToYaml(c):
 
 
 checkpointInfo = _j.checkpointInfo
+
+
+def _cpuThreadTime():
+    """Returns the current thread's CPU time in seconds.  Used for tests of
+    profiling, mostly.
+    """
+    return _j._cpuThreadTimeMs() * 0.001
 
 
 def getRank():
