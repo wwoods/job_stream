@@ -128,12 +128,13 @@ def _localCallNoStore(obj, method, *args):
     o._resetLocalJob()
     try:
         _j._timerStart()
-        getattr(o, method)(*args)
+        try:
+            getattr(o, method)(*args)
+        finally:
+            times = _j._timerPop()
     except:
         traceback.print_exc()
         raise _StackAlreadyPrintedError()
-    finally:
-        times = _j._timerPop()
     return (1, o.emitters, o.recurs, o.forceCheckpoints, times)
 def _localCallStoreFirst(obj, method, first, *args):
     if obj not in _localJobs:
@@ -142,62 +143,52 @@ def _localCallStoreFirst(obj, method, first, *args):
     o._resetLocalJob()
     try:
         _j._timerStart()
-        getattr(o, method)(first, *args)
+        try:
+            getattr(o, method)(first, *args)
+        finally:
+            times = _j._timerPop()
     except:
         traceback.print_exc()
         raise _StackAlreadyPrintedError()
-    finally:
-        times = _j._timerPop()
     return (1, first, o.emitters, o.recurs, o.forceCheckpoints, times)
 
 
 def _callNoStore(obj, method, *args):
-    _j._timerStart()
-    try:
-        while True:
-            r = _pool[0].apply(_localCallNoStore, args = (obj.id, method) + args)
-            if r[0] == 0:
-                _pool[0].map(_localJobInit, [ obj ] * _pool[0]._processes)
-            else:
-                break
-        for eArgs in r[1]:
-            obj.emit(*eArgs)
-        for rArgs in r[2]:
-            obj.recur(*rArgs)
-        for fArgs in r[3]:
-            obj._forceCheckpoint(*fArgs)
-    finally:
-        sysTimes = _j._timerPop()
+    while True:
+        r = _pool[0].apply(_localCallNoStore, args = (obj.id, method) + args)
+        if r[0] == 0:
+            _pool[0].map(_localJobInit, [ obj ] * _pool[0]._processes)
+        else:
+            break
+    for eArgs in r[1]:
+        obj.emit(*eArgs)
+    for rArgs in r[2]:
+        obj.recur(*rArgs)
+    for fArgs in r[3]:
+        obj._forceCheckpoint(*fArgs)
 
-    # Subtract the user time from the system time.  Note that this applies only
-    # to wall-clock time, as CPU cycles would not be picked up.
-    usrTimes = r[4]
-    return ((sysTimes[0] - usrTimes[0], sysTimes[1]), usrTimes)
+    # Result is the user (wallTime, cpuTime)
+    return r[4]
 
 
 def _callStoreFirst(obj, method, first, *args):
-    _j._timerStart()
-    try:
-        while True:
-            r = _pool[0].apply(_localCallStoreFirst,
-                    args = (obj.id, method, first) + args)
-            if r[0] == 0:
-                _pool[0].map(_localJobInit, [ obj ] * _pool[0]._processes)
-            else:
-                break
-        first.__dict__ = r[1].__dict__
-        for eArgs in r[2]:
-            obj.emit(*eArgs)
-        for rArgs in r[3]:
-            obj.recur(*rArgs)
-        for fArgs in r[4]:
-            obj._forceCheckpoint(*fArgs)
-    finally:
-        sysTimes = _j._timerPop()
+    while True:
+        r = _pool[0].apply(_localCallStoreFirst,
+                args = (obj.id, method, first) + args)
+        if r[0] == 0:
+            _pool[0].map(_localJobInit, [ obj ] * _pool[0]._processes)
+        else:
+            break
+    first.__dict__ = r[1].__dict__
+    for eArgs in r[2]:
+        obj.emit(*eArgs)
+    for rArgs in r[3]:
+        obj.recur(*rArgs)
+    for fArgs in r[4]:
+        obj._forceCheckpoint(*fArgs)
 
-    # Subtract the user time from the system time
-    usrTimes = r[5]
-    return ((sysTimes[0] - usrTimes[0], sysTimes[1] - usrTimes[1]), usrTimes)
+    # Result is the user (wallTime, cpuTime)
+    return r[5]
 
 
 def _hierarchicalName(cls, name = None):

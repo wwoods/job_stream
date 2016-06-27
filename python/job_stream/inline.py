@@ -64,6 +64,10 @@ class _ForceCheckpointAndGoJob(job_stream.Job):
 
 
 class _UnwrapperJob(job_stream.Job):
+    """Job to make processing after a reducer possible and sensical for inline.
+    """
+    USE_MULTIPROCESSING = False
+
     def handleWork(self, work):
         for w in work:
             self.emit(w)

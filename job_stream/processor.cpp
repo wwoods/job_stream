@@ -1729,8 +1729,9 @@ void Processor::_nonBlockingSend(message::_Message&& msg){
 
 
 void Processor::_pushWorkTimer(ProcessorTimeType timeType) {
-    this->workTimers.emplace_back(message::Location::getCurrentTimeMs(),
-            this->_getThreadCpuTimeMs(), timeType);
+    uint64_t wt = message::Location::getCurrentTimeMs();
+    uint64_t ct = this->_getThreadCpuTimeMs();
+    this->workTimers.emplace_back(wt, ct, timeType);
 }
 
 
@@ -1740,6 +1741,10 @@ void Processor::_popWorkTimer() {
     Processor::_WorkTimerRecord& record = this->workTimers.back();
     clksSpent -= record.clkStart;
     timeSpent -= record.tsStart;
+
+    //_getThreadCpuTimeMs() more accurate that getCurrentTimeMs, use that when
+    //needed.
+    timeSpent = std::max(timeSpent, clksSpent);
 
     this->localClksByType[record.timeType] += clksSpent - record.clksChild;
     this->localTimesByType[record.timeType] += timeSpent - record.timeChild;
@@ -1759,16 +1764,27 @@ void Processor::_modifyWorkTimer(ProcessorTimeType timeType,
     //Want:
     // * Parent timers to ignore the provided times
     // * the immediate parent to skip over provided time
+    ASSERT(wallTimeMs >= cpuTimeMs, "Input was not normalized to account "
+            "for resolution differences? "
+            << wallTimeMs << " < " << cpuTimeMs);
+
     uint64_t wallNow = message::Location::getCurrentTimeMs();
     uint64_t cpuNow = this->_getThreadCpuTimeMs();
     Processor::_WorkTimerRecord& record = this->workTimers.back();
 
+    //Change record to be of type TIME_SYSTEM; essentially, this function is
+    //only used to splice in the actual user time from another thread.
+    ASSERT(record.timeType == Processor::TIME_USER,
+            "Was not a USER timer that is being modified? "
+            << record.timeType);
+    record.timeType = Processor::TIME_SYSTEM;
+
     //Adjust clksChild and timeChild to max of current minus
-    uint64_t timeEnd;
-    timeEnd = record.tsStart + record.timeChild;
-    record.timeChild += std::min(wallNow, timeEnd + wallTimeMs) - timeEnd;
-    timeEnd = record.clkStart + record.clksChild;
-    record.clksChild += std::min(cpuNow, timeEnd + cpuTimeMs) - timeEnd;
+    uint64_t maxWt, maxCt;
+    maxWt = wallNow - (record.tsStart + record.timeChild);
+    maxCt = cpuNow - (record.clkStart + record.clksChild);
+    record.timeChild += std::min(maxWt, wallTimeMs);
+    record.clksChild += std::min(maxCt, cpuTimeMs);
 
     //Integrate time
     this->localClksByType[timeType] += cpuTimeMs;

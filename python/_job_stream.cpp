@@ -948,19 +948,25 @@ void _timerStart() {
     if (_pyTimers == 0) {
         _pyTimers = new std::vector<PyTimeInfo>();
     }
-    _pyTimers->emplace_back(
-                job_stream::message::Location::getCurrentTimeMs(),
-                _cpuThreadTimeMs());
+    uint64_t wt = job_stream::message::Location::getCurrentTimeMs();
+    uint64_t ct = _cpuThreadTimeMs();
+    _pyTimers->emplace_back(wt, ct);
 }
 
 
 /** Returns the value since the latest clock- and cpu- timers */
 bp::tuple _timerPop() {
-    uint64_t wt = job_stream::message::Location::getCurrentTimeMs();
     uint64_t ct = _cpuThreadTimeMs();
+    uint64_t wt = job_stream::message::Location::getCurrentTimeMs();
     auto& tup = _pyTimers->back();
-    auto res = bp::make_tuple(wt - std::get<0>(tup),
-            ct - std::get<1>(tup));
+    //Unfortunately, the resolution of getCurrentTimeMs() seems to be slightly
+    //less than that of _cpuThreadTimeMs.  This leads to bad situations where
+    //the reported cpu time is greater than reported wall clock time, which
+    //is impossible.  So, take the larger for wall-clock time.
+    ct -= std::get<1>(tup);
+    wt -= std::get<0>(tup);
+    wt = std::max(ct, wt);
+    auto res = bp::make_tuple(wt, ct);
     _pyTimers->pop_back();
     return res;
 }
@@ -979,17 +985,11 @@ PyTimeInfo _timeInfoFromBp(bp::object o) {
 void _timerHandleResult(job_stream::processor::Processor* p,
         bp::object res) {
     if (!res.is_none()) {
-        if (bp::len(res) != 2) {
-            throw std::runtime_error("Python returned tuple not len 2");
-        }
-
-        //Timing information from an internal library
-        PyTimeInfo sysT = _timeInfoFromBp(res[0]);
-        PyTimeInfo userT = _timeInfoFromBp(res[1]);
-        p->_modifyWorkTimer(job_stream::processor::Processor::TIME_SYSTEM,
-                std::get<0>(sysT), std::get<1>(sysT));
+        //Timing information from an internal library; time is USER only,
+        //all else assumed to be SYSTEM.
+        PyTimeInfo usrT = _timeInfoFromBp(res);
         p->_modifyWorkTimer(job_stream::processor::Processor::TIME_USER,
-                std::get<0>(userT), std::get<1>(userT));
+                std::get<0>(usrT), std::get<1>(usrT));
     }
 }
 
