@@ -1,0 +1,185 @@
+#! /usr/bin/env python3
+
+import contextlib
+import distutils.spawn
+import os
+import subprocess
+import sys
+import tempfile
+import textwrap
+
+import job_stream.usersettings as usersettings
+
+ENVVAR = "JOB_STREAM_CFG"
+
+def _settings():
+    s = usersettings.Settings('com.lamegameproductions.job_stream')
+    s.add_setting("hostfile", str, default=None)
+    s.load_settings()
+
+    # Stored as string
+    if s.hostfile == 'None':
+        s.hostfile = None
+
+    return s
+
+
+def _which(prog):
+    return distutils.spawn.find_executable(prog)
+
+
+def doDefault(hostfile):
+    s = _settings()
+    if hostfile is None:
+        print(s.hostfile)
+    else:
+        if hostfile.strip():
+            s.hostfile = os.path.abspath(hostfile)
+        else:
+            s.hostfile = None
+        s.save_settings()
+    sys.exit(0)
+
+
+def doHelp():
+    print(textwrap.dedent(main.__doc__))
+
+
+def doRun(hostfile, argv):
+    """Runs the program and arguments specified by argv using mpirun with
+    hostfile.
+    """
+    mpirun = _which('mpirun')
+    prog = _which(argv[0])
+    env = os.environ.copy()
+    env[ENVVAR] = hostfile
+
+    hosts = set()
+    with open(hostfile) as f:
+        for line in f:
+            l = line.strip()
+            if l.startswith("#"):
+                continue
+            host, other = (l + ' ').split(' ', 1)
+            hosts.add(host)
+    hosts = ','.join(hosts)
+
+    r = subprocess.Popen([ mpirun, '-host', hosts, prog ] + argv[1:],
+            env=env)
+    sys.exit(r.wait())
+
+
+def main(sysArgv):
+    """
+    Either runs a job_stream application correctly or sets the user's
+    default config file.
+
+    Usage:
+        job_stream [--hostfile FILE | --host HOSTS] PROG [ARGS...]
+        job_stream --default FILE
+        job_stream --help
+
+    Options:
+        --hostfile FILE: Use FILE to determine which machines should be used
+                to run the job_stream.
+        --host HOSTS: When using arbitrary hosts is desired over a hosts file,
+                use --hosts.  The format is a comma-separated list of lines
+                from a normal hostfile.  E.g., --host 'cpu1,cpu2 maxCpu=2'.
+        --default [FILE]: Sets the --hostfile argument when --hostfile is not
+                specified, for future invocations of job_stream.  This
+                configuration is stored in your user directory.
+
+                If FILE is omitted, the current default hostfile is printed (or
+                None for none set)
+        --help: Show this help
+
+    Arguments:
+        PROG: The program to run.  job_stream will use the program from the
+                current environment; that is, it is virtualenv safe.
+        ARGS: Arguments to the program.
+    """
+
+    jsOpts = []
+    argv = []
+
+    stillJs = True
+    isArg = False
+    noArgOk = False
+    for arg in sysArgv[1:]:
+        if stillJs:
+            if arg.startswith("--") or isArg:
+                jsOpts.append(arg)
+                if isArg:
+                    isArg = False
+                elif arg in [ '--default', '--hostfile', '--host' ]:
+                    isArg = True
+                    if arg == '--default':
+                        noArgOk = True
+            else:
+                stillJs = False
+        if not stillJs:
+            argv.append(arg)
+    if isArg and not noArgOk:
+        sys.stderr.write("Expected value for -- argument\n")
+        sys.exit(2)
+
+    if '--help' in jsOpts:
+        doHelp()
+        sys.exit(8)
+
+    if len(jsOpts) > 2:
+        sys.stderr.write("At most two arguments allowed to job_stream before "
+                "the program to be executed.\n")
+        doHelp()
+        sys.exit(2)
+
+    if jsOpts and jsOpts[0] == '--default':
+        if argv:
+            sys.stderr.write("Must not specify additional arguments with "
+                    "--default\n")
+            doHelp()
+            sys.exit(2)
+        if len(jsOpts) > 2:
+            sys.stderr.write("--default expected only one other argument\n")
+            doHelp()
+            sys.exit(2)
+        doDefault(jsOpts[1] if len(jsOpts) == 2 else None)
+
+    # Default operation
+    settings = _settings()
+
+    thisHostfile = None
+    @contextlib.contextmanager
+    def tmpHostfile():
+        """Empty context block since normal usage has no tmpfile"""
+        yield
+
+    if jsOpts and jsOpts[0] == '--hostfile':
+        thisHostfile = os.path.abspath(jsOpts[1])
+    elif jsOpts and jsOpts[0] == '--host':
+        tmpHostfile = tempfile.NamedTemporaryFile("w+t")
+        tmpHostfile.write("\n".join(jsOpts[1].split(",")))
+        tmpHostfile.flush()
+
+        thisHostfile = tmpHostfile.name
+    elif jsOpts:
+        sys.stderr.write("Unrecognized option: {}\n".format(jsOpts[0]))
+        doHelp()
+        sys.exit(2)
+
+    if thisHostfile is None:
+        if settings.hostfile is None:
+            sys.stderr.write("No --hostfile specified and no --default has "
+                    "been set\n")
+            doHelp()
+            sys.exit(2)
+
+        thisHostfile = settings.hostfile
+
+    with tmpHostfile:
+        doRun(thisHostfile, argv)
+
+
+if __name__ == '__main__':
+    main(sys.argv)
+

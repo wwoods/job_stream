@@ -176,14 +176,16 @@ job_stream = Extension('_job_stream',
         extra_link_args = linkerExtras)
 
 setup(name = 'job_stream',
-        version = '0.1.14',
-        install_requires = [ 'six' ],
+        version = '0.1.15',
+        install_requires = [ 'appdirs', 'six' ],
         description = 'job_stream: easy and sophisticated parallelization',
         long_description = long_desc,
         author = 'Walt Woods',
         author_email = 'woodswalben@gmail.com',
         url = 'https://github.com/wwoods/job_stream',
         license = 'MIT',
+        scripts = [ 'bin/job_stream' ],
         packages = [ 'job_stream' ],
         package_dir = { '': 'python' },
         ext_modules = [ job_stream ])
+

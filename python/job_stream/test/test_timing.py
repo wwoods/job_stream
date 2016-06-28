@@ -43,10 +43,10 @@ class TestTimingNoMulti(JobStreamTest):
                         i += 1
             """.format(self.USE_MULTI)
         r = self.executeAndGetTime(src)
-        self.assertLess(0.04, r['userPct'] * r['runTime'])
-        self.assertGreater(0.2, r['userPct'] * r['runTime'])
-        self.assertLess(0.04, r['userCpu'] * r['runTime'])
-        self.assertGreater(0.05, r['userCpu'] * r['runTime'])
+        self.assertLess(0.04, (r['userPct']+0.01) * r['runTime'])
+        self.assertGreater(0.2, (r['userPct']-0.01) * r['runTime'])
+        self.assertLess(0.04, (r['userCpu']+0.01) * r['runTime'])
+        self.assertGreater(0.05, (r['userCpu']-0.01) * r['runTime'])
 
 
     def test_job_sleep(self):
@@ -59,9 +59,9 @@ class TestTimingNoMulti(JobStreamTest):
                     time.sleep(0.011)
             """.format(self.USE_MULTI)
         r = self.executeAndGetTime(src)
-        self.assertLess(0.04, r['userPct'] * r['runTime'])
-        self.assertGreater(0.2, r['userPct'] * r['runTime'])
-        self.assertGreater(0.01, r['userCpu'] * r['runTime'])
+        self.assertLess(0.04, (r['userPct']+0.01) * r['runTime'])
+        self.assertGreater(0.2, (r['userPct']-0.01) * r['runTime'])
+        self.assertGreater(0.01, (r['userCpu']-0.01) * r['runTime'])
 
 
     def test_job_cpuFrame(self):
@@ -87,10 +87,10 @@ class TestTimingNoMulti(JobStreamTest):
                     pass
             """.format(self.USE_MULTI)
         r = self.executeAndGetTime(src)
-        self.assertLess(0.1, r['userPct'] * r['runTime'])
-        self.assertGreater(0.8, r['userPct'] * r['runTime'])
-        self.assertLess(0.1, r['userCpu'] * r['runTime'])
-        self.assertGreater(0.2, r['userCpu'] * r['runTime'])
+        self.assertLess(0.1, (r['userPct']+0.01) * r['runTime'])
+        self.assertGreater(0.8, (r['userPct']-0.01) * r['runTime'])
+        self.assertLess(0.1, (r['userCpu']+0.01) * r['runTime'])
+        self.assertGreater(0.2, (r['userCpu']-0.01) * r['runTime'])
 
 
 
