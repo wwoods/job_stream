@@ -4,6 +4,7 @@ from .common import JobStreamTest
 import distutils.spawn
 import os
 import subprocess
+import tempfile
 
 exDir = os.path.join(os.path.dirname(__file__), 'lib/')
 
@@ -57,7 +58,28 @@ class TestBin(JobStreamTest):
         self.assertEqual(8, r)
 
 
-    def test_run(self):
+    def test_runDuplicateHost(self):
+        r, stdout, stderr = self._run([ '--host', 'a,a', 'ls' ])
+        print("stdout\n{}\nstderr\n{}".format(stdout, stderr))
+        self.assertNotEqual(0, r)
+        self.assertTrue('Duplicate host entry? a' in stderr)
+
+
+    def test_runWithDefault(self):
+        old = self._runOk([ '--default' ]).strip()
+        try:
+            with tempfile.NamedTemporaryFile('w+t') as f:
+                f.write("{}\n".format(self._hostname()))
+                f.flush()
+
+                self._runOk([ '--default', f.name ])
+                r = self._runOk([ 'echo', 'hi' ]).strip()
+                self.assertLinesEqual('hi\n', r)
+        finally:
+            self._runOk([ '--default', old ])
+
+
+    def test_runHost(self):
         stdout = self._runOk([ '--host', self._hostname(), 'python',
                 os.path.join(exDir, 'testJob.py') ])
         self.assertLinesEqual("2\n3\n5\n9\naddOne setup\n", stdout)

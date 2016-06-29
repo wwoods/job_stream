@@ -61,6 +61,8 @@ def doRun(hostfile, argv):
             if l.startswith("#"):
                 continue
             host, other = (l + ' ').split(' ', 1)
+            if host in hosts:
+                raise ValueError("Duplicate host entry? {}".format(host))
             hosts.add(host)
     hosts = ','.join(hosts)
 
@@ -153,6 +155,7 @@ def main(sysArgv):
     def tmpHostfile():
         """Empty context block since normal usage has no tmpfile"""
         yield
+    tmpHostfile = tmpHostfile()
 
     if jsOpts and jsOpts[0] == '--hostfile':
         thisHostfile = os.path.abspath(jsOpts[1])
