@@ -58,7 +58,7 @@ def doRun(hostfile, argv):
     with open(hostfile) as f:
         for line in f:
             l = line.strip()
-            if l.startswith("#"):
+            if not l or l.startswith("#"):
                 continue
             host, other = (l + ' ').split(' ', 1)
             if host in hosts:
