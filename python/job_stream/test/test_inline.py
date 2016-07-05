@@ -33,6 +33,28 @@ class TestInline(JobStreamTest):
         self.assertLinesEqual("1\n2\n3\n" * 10, r[0])
 
 
+    def test_checkpointDouble(self):
+        # Ensure that running two job_streams with a checkpoint fails
+        chkpt = os.path.join(tempfile.gettempdir(), "test.chkpt")
+        self.safeRemove([chkpt, chkpt+".done"])
+        src = """
+                import job_stream.inline as inline
+                with inline.Work([1], checkpointFile="{tmp}") as w:
+                    @w.job
+                    def p(n):
+                        return n
+                with inline.Work([1]) as w:
+                    @w.job
+                    def p(n):
+                        return n
+                """.format(tmp=chkpt)
+        try:
+            self.executePy(src)
+            self.fail("Did not raise")
+        except ExecuteError as e:
+            self.assertTrue('Cannot run more than one' in e.stderr)
+
+
     def test_finish(self):
         # Ensure that finish works
         r = self.executePy("""

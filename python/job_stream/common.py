@@ -25,6 +25,7 @@ Or:
 import _job_stream as _j
 
 import multiprocessing
+import os
 import pickle
 import six
 import sys
@@ -606,6 +607,7 @@ def map(func, *sequence, **kwargs):
     return result
 
 
+_hasRun = [ False, False ]
 def run(configDictOrPath, **kwargs):
     """Runs the given YAML file or config dictionary.
 
@@ -644,6 +646,19 @@ def run(configDictOrPath, **kwargs):
 
     if 'checkpointFile' in kwargs and not kwargs['checkpointFile']:
         kwargs.pop('checkpointFile')
+
+    # Flag as having been run before; multiple job_streams plus checkpoints do
+    # not mix well!
+    withCheckpoint = False
+    if 'checkpointFile' in kwargs or 'JOBS_CHECKPOINT' in os.environ:
+        withCheckpoint = True
+    _hasRun[1] = _hasRun[1] or withCheckpoint
+    if _hasRun[0] and _hasRun[1]:
+        raise ValueError("Cannot run more than one job_stream when using "
+                "checkpoints; there is no suitable control mechanism for "
+                "resolving which checkpoint belongs to which job_stream.")
+    _hasRun[0] = True
+
 
     try:
         _j.registerEncoding(Object, _StackAlreadyPrintedError, _encode,
