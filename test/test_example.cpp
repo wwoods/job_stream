@@ -194,6 +194,7 @@ TEST_CASE("example/job_stream_example/checkpoint.yaml", "[checkpoint]") {
             args << "-np " << np << " example/job_stream_example "
                     "-c test.chkpt --check-sync 10 ../example/checkpoint.yaml 10";
             std::remove("test.chkpt");
+            std::remove("test.chkpt.done");
 
             std::string stderrOld;
             { //First run, shouldn't load from checkpoint
@@ -318,6 +319,7 @@ TEST_CASE("example/job_stream_example/exampleRecurBug.yaml", "[checkpoint]") {
             args << "-np " << np << " example/job_stream_example "
                     "-c test.chkpt --check-sync 100 ../example/exampleRecurBug.yaml";
             std::remove("test.chkpt");
+            std::remove("test.chkpt.done");
             int resultsSeen = 0;
             std::ostringstream allErr, allOut;
             { //First run, shouldn't load from checkpoint
@@ -450,6 +452,7 @@ TEST_CASE("example/job_stream_example/exampleRecurCheckpoint.yaml", "[checkpoint
             args << "-np " << np << " example/job_stream_example "
                     "-c test.chkpt --disable-steal --check-sync 100 ../example/exampleRecurCheckpoint.yaml";
             std::remove("test.chkpt");
+            std::remove("test.chkpt.done");
             std::ostringstream allErr;
             int resultsSeen = 0;
             { //First run, shouldn't load from checkpoint

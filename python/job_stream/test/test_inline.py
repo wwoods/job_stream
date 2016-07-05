@@ -7,11 +7,7 @@ class TestInline(JobStreamTest):
     def test_checkpoint(self):
         # Ensure that results are saved across checkpoints
         chkpt = os.path.join(tempfile.gettempdir(), "test.chkpt")
-        try:
-            os.remove(chkpt)
-        except OSError as e:
-            if e.errno != 2:
-                raise
+        self.safeRemove([chkpt, chkpt+".done"])
         src = """
         import job_stream.inline as inline
         import os
@@ -116,10 +112,11 @@ for r in work.run():
 
     def test_init(self):
         # Ensure that @init works
-        self.safeRemove("blah.chkpt")
-        self.safeRemove("blah")
+        tmpFiles = [ "blah", "blah.chkpt", "blah.chkpt.done" ]
+        self.safeRemove(tmpFiles)
         try:
             cmd = """
+import time
 import job_stream.inline as inline
 work = inline.Work([ 3, 8, 9 ], checkpointFile = "blah.chkpt",
         checkpointSyncInterval = 0)
@@ -135,6 +132,8 @@ work.job(inline._ForceCheckpointJob)
 
 @work.job
 def failure(w):
+    # Let the checkpoint finish...
+    time.sleep(0.1)
     raise ValueError("HUHM?")
 
 work.run()"""
@@ -147,12 +146,12 @@ work.run()"""
                 self.executePy(cmd)
 
             # Should have been run exactly once
+            self.assertFalse(os.path.lexists("blah.chkpt.done"))
             self.assertTrue(os.path.lexists("blah.chkpt"))
             self.assertTrue(os.path.lexists("blah"))
             self.assertEqual("1", open("blah").read())
         finally:
-            self.safeRemove("blah.chkpt")
-            self.safeRemove("blah")
+            self.safeRemove(tmpFiles)
 
 
     def test_initWork(self):

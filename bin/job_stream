@@ -1,5 +1,6 @@
 #! /usr/bin/env python3
 
+import click
 import contextlib
 import distutils.spawn
 import os
@@ -10,7 +11,20 @@ import textwrap
 
 import job_stream.usersettings as usersettings
 
-ENVVAR = "JOB_STREAM_CFG"
+ENVVAR = "JOBS_CONFIG"
+ENVVAR_CHECKPOINT = "JOBS_CHECKPOINT"
+
+def _checkpointArgs(c, checkpoint):
+    chkpt = None
+    if c:
+        if checkpoint is not None:
+            raise ValueError("Use one of -c or --checkpoint, not both")
+        chkpt = "job_stream.chkpt"
+    elif checkpoint is not None:
+        chkpt = checkpoint
+
+    return chkpt
+
 
 def _settings():
     s = usersettings.Settings('com.lamegameproductions.job_stream')
@@ -28,31 +42,24 @@ def _which(prog):
     return distutils.spawn.find_executable(prog)
 
 
-def doDefault(hostfile):
-    s = _settings()
-    if hostfile is None:
-        print(s.hostfile)
-    else:
-        if hostfile.strip():
-            s.hostfile = os.path.abspath(hostfile)
-        else:
-            s.hostfile = None
-        s.save_settings()
-    sys.exit(0)
-
-
-def doHelp():
-    print(textwrap.dedent(main.__doc__))
-
-
-def doRun(hostfile, argv):
+def doRun(hostfile, checkpoint, argv):
     """Runs the program and arguments specified by argv using mpirun with
     hostfile.
     """
     mpirun = _which('mpirun')
     prog = _which(argv[0])
+    useMpi = True
     env = os.environ.copy()
+    env['PYTHONUNBUFFERED'] = '1'
     env[ENVVAR] = hostfile
+    if checkpoint is not None:
+        env[ENVVAR_CHECKPOINT] = checkpoint
+
+        if os.path.lexists(checkpoint + '.done'):
+            # job_stream WILL exit anyway.  Therefore, do not run it over
+            # MPI and pollute stderr with a bunch of copies of the same
+            # message
+            useMpi = False
 
     hosts = set()
     with open(hostfile) as f:
@@ -66,90 +73,49 @@ def doRun(hostfile, argv):
             hosts.add(host)
     hosts = ','.join(hosts)
 
-    r = subprocess.Popen([ mpirun, '-host', hosts, prog ] + argv[1:],
-            env=env)
+    mpiArgs = (mpirun, '-host', hosts)
+    if not useMpi:
+        mpiArgs = ()
+
+    r = subprocess.Popen(mpiArgs + (prog,) + argv[1:], env=env)
     sys.exit(r.wait())
 
 
-def main(sysArgv):
+@click.command()
+@click.option('-c/--no-c', help="Enable checkpoints with the default name "
+        "job_stream.chkpt.  Note that this file will reside in the current "
+        "working directory.")
+@click.option('--checkpoint', help="Enable checkpoints with a custom "
+        "name/path; may also be supplied as {}.".format(ENVVAR_CHECKPOINT),
+        envvar=ENVVAR_CHECKPOINT)
+@click.option('--hostfile', help="Use HOSTFILE to determine which machines "
+        "should run the job_stream process.")
+@click.option('--host', help="Run the job_stream process on HOST, a "
+        "comma-separated list of servers, the same as lines from a hostfile.  "
+        "E.g., --host 'cpu1,cpu2 maxCpu=2'.")
+@click.argument('prog')
+@click.argument('args', nargs=-1)
+def main(prog, args, hostfile, host, c, checkpoint):
     """
-    Either runs a job_stream application correctly or sets the user's
-    default config file.
+    Runs the job_stream application PROG using ARGS as arguments.  Note that
+    PROG will be resolved to an absolute path from within the current
+    environment; for Python applications, this means that running job_stream
+    within a virtualenv is safe.
 
-    Usage:
-        job_stream [--hostfile FILE | --host HOSTS] PROG [ARGS...]
-        job_stream --default FILE
-        job_stream --help
+    Often, PROG should be preceded by '--', to let the option parser know that
+    any options after PROG belong to PROG and not to job_stream (e.g.
+    job_stream -- bash -c 'echo `hostname`').
 
-    Options:
-        --hostfile FILE: Use FILE to determine which machines should be used
-                to run the job_stream.
-        --host HOSTS: When using arbitrary hosts is desired over a hosts file,
-                use --hosts.  The format is a comma-separated list of lines
-                from a normal hostfile.  E.g., --host 'cpu1,cpu2 maxCpu=2'.
-        --default [FILE]: Sets the --hostfile argument when --hostfile is not
-                specified, for future invocations of job_stream.  This
-                configuration is stored in your user directory.
+    PROG may be 'config' to access job_stream's default configuration.
 
-                If FILE is omitted, the current default hostfile is printed (or
-                None for none set)
-        --help: Show this help
-
-    Arguments:
-        PROG: The program to run.  job_stream will use the program from the
-                current environment; that is, it is virtualenv safe.
-        ARGS: Arguments to the program.
+    PROG may be 'git-results-progress' to print the timestamp of the checkpoint
+    file associated with job_stream's arguments.  This will raise an exception
+    if no checkpoint argument (-c, --checkpoint, or JOBS_CHECKPOINT) is
+    specified.
     """
-
-    jsOpts = []
-    argv = []
-
-    stillJs = True
-    isArg = False
-    noArgOk = False
-    for arg in sysArgv[1:]:
-        if stillJs:
-            if arg.startswith("--") or isArg:
-                jsOpts.append(arg)
-                if isArg:
-                    isArg = False
-                elif arg in [ '--default', '--hostfile', '--host' ]:
-                    isArg = True
-                    if arg == '--default':
-                        noArgOk = True
-            else:
-                stillJs = False
-        if not stillJs:
-            argv.append(arg)
-    if isArg and not noArgOk:
-        sys.stderr.write("Expected value for -- argument\n")
-        sys.exit(2)
-
-    if '--help' in jsOpts:
-        doHelp()
-        sys.exit(8)
-
-    if len(jsOpts) > 2:
-        sys.stderr.write("At most two arguments allowed to job_stream before "
-                "the program to be executed.\n")
-        doHelp()
-        sys.exit(2)
-
-    if jsOpts and jsOpts[0] == '--default':
-        if argv:
-            sys.stderr.write("Must not specify additional arguments with "
-                    "--default\n")
-            doHelp()
-            sys.exit(2)
-        if len(jsOpts) > 2:
-            sys.stderr.write("--default expected only one other argument\n")
-            doHelp()
-            sys.exit(2)
-        doDefault(jsOpts[1] if len(jsOpts) == 2 else None)
-
-    # Default operation
     settings = _settings()
 
+    ## Hostfile configuration
     thisHostfile = None
     @contextlib.contextmanager
     def tmpHostfile():
@@ -157,18 +123,16 @@ def main(sysArgv):
         yield
     tmpHostfile = tmpHostfile()
 
-    if jsOpts and jsOpts[0] == '--hostfile':
-        thisHostfile = os.path.abspath(jsOpts[1])
-    elif jsOpts and jsOpts[0] == '--host':
+    if hostfile is not None:
+        thisHostfile = os.path.abspath(hostfile)
+        if host is not None:
+            raise ValueError("Incompatible options: --hostfile and --host")
+    elif host is not None:
         tmpHostfile = tempfile.NamedTemporaryFile("w+t")
-        tmpHostfile.write("\n".join(jsOpts[1].split(",")))
+        tmpHostfile.write("\n".join(host.split(",")))
         tmpHostfile.flush()
 
         thisHostfile = tmpHostfile.name
-    elif jsOpts:
-        sys.stderr.write("Unrecognized option: {}\n".format(jsOpts[0]))
-        doHelp()
-        sys.exit(2)
 
     if thisHostfile is None:
         if settings.hostfile is None:
@@ -179,10 +143,90 @@ def main(sysArgv):
 
         thisHostfile = settings.hostfile
 
-    with tmpHostfile:
-        doRun(thisHostfile, argv)
+    ## Checkpoint configuration
+    chkpt = _checkpointArgs(c, checkpoint)
+
+    ## Checkpoint progress check?
+    if prog.lower() == 'git-results-progress':
+        gitResultsProgress(chkpt, args)
+    else:
+        with tmpHostfile:
+            doRun(thisHostfile, chkpt, (prog,) + args)
+
+
+@click.command()
+@click.argument('setting', nargs=-1)
+def config(setting):
+    r"""With no SETTING, prints out all configuration options available.
+
+    Otherwise, each SETTING is a KEY=VALUE to set for this user's
+    configuration.
+
+    \b
+    Valid KEYs:
+        hostfile: Path to the default hostfile to use (--hostfile)
+    """
+    keys = [ 'hostfile' ]
+
+    settings = _settings()
+    if not setting:
+        for k in keys:
+            print("{}={}".format(k, getattr(settings, k)))
+    else:
+        for s in setting:
+            if '=' not in s:
+                raise ValueError("Each SETTING must have an '=' in it to "
+                        "distinguish between KEY and VALUE: {}".format(s))
+
+            key, val = s.split('=', 1)
+            if key not in keys:
+                raise ValueError("KEY '{}' not found?  {}".format(key, keys))
+
+            v = val.strip()
+            if not v:
+                v = None
+
+            if key == 'hostfile':
+                # Path
+                setattr(settings, key,
+                        os.path.abspath(v) if v is not None else v)
+            else:
+                # Other
+                setattr(settings, key, v)
+        settings.save_settings()
+
+
+def gitResultsProgress(chkpt, args):
+    """Utility for git-results' "progress" configuration for auto-retry, or
+    for any other utility that wants to know if the job_stream is making
+    progress or failing repeatedly.
+
+    Prints, to stdout, a single, monotonically-increasing floating-point number
+    that will be a constant when progress is not being made.
+    """
+    if args:
+        print("Usage: git-results [-c] [--checkpoint CHECKPOINT] "
+                "git-results-progress\n\n{}".format(
+                    gitResultsProgress.__doc__))
+        sys.exit(0)
+
+    if chkpt is None:
+        raise ValueError("No checkpoint file specified")
+
+    try:
+        print(os.path.getmtime(chkpt))
+    except FileNotFoundError:
+        try:
+            print(os.path.getmtime(chkpt + ".done"))
+        except FileNotFoundError:
+            print("-1")
 
 
 if __name__ == '__main__':
-    main(sys.argv)
+    if len(sys.argv) < 2:
+        main(['--help'])
+    elif sys.argv[1].lower() == 'config':
+        config(sys.argv[2:])
+    else:
+        main(sys.argv[1:])
 

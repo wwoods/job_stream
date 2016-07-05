@@ -132,6 +132,15 @@ class Work(object):
 
     def __exit__(self, errType, value, tb):
         if errType is None:
+
+            # If no result was specified, we do not want to cache and return
+            # results either.  That is, there is no way to get the result of a
+            # with block.
+            if not self._hasFinish and self._resultHandler is None:
+                @self.result
+                def handleResult(r):
+                    pass
+
             self.run()
 
 

@@ -1,3 +1,5 @@
+*.chkpt
+*.chkpt.done
 *.pyc
 
 /MANIFEST

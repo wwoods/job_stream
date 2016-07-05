@@ -28,20 +28,26 @@ class TestCheckpoints(JobStreamTest):
 
 
     def test_checkpoint1(self):
-        self.safeRemove(tmpPath)
         args = [ os.path.join(libPath, "checkpoint_1.py"), tmpPath ]
+
+        self.safeRemove([ tmpPath, tmpPath + '.done' ])
         allOut, allErr, trials = self.runTilDone(args, np = 1)
         self.assertEqual("4\n", allOut)
+
+        self.safeRemove([ tmpPath, tmpPath + '.done' ])
         allOut, allErr, trials = self.runTilDone(args, np = 4)
         self.assertEqual("4\n", allOut)
 
 
     def test_checkpoint2(self):
-        self.safeRemove(tmpPath)
         args = [ os.path.join(libPath, "checkpoint_2.py"), tmpPath ]
+
+        self.safeRemove([ tmpPath, tmpPath + '.done' ])
         allOut, allErr, trials = self.runTilDone(args)
         self.assertTrue(10 <= trials)
         self.assertLinesEqual("110\n143\n143\n143\n", allOut)
+
+        self.safeRemove([ tmpPath, tmpPath + '.done' ])
         allOut, allErr, trials = self.runTilDone(args, np = 2)
         self.assertTrue(10 <= trials)
         self.assertLinesEqual("110\n143\n143\n143\n", allOut)

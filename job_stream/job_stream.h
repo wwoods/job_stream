@@ -24,6 +24,7 @@ namespace job_stream {
     enum ApplicationRetval {
         RETVAL_OK = 0,
         RETVAL_CHECKPOINT_FORCED = 0x10,
+        RETVAL_CHECKPOINT_WAS_DONE = 0x11,
     };
 
 

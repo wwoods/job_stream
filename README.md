@@ -10,6 +10,7 @@ Contents:
     * [Building the C++ Shared Library](#building-shared-library)
     * [Build Paths](#build-paths)
         * [Linux](#linux)
+* [Distributed execution](#distributed-execution)
 * [Python](#python)
     * [The Inline Module](#the-inline-module)
         * [inline.Work](#inline-work)
@@ -30,6 +31,7 @@ Contents:
         * [Nested for i in x](#nested-for-i-in-x)
         * [Aggregating outside of a for loop](#aggregating-outside-of-a-for-loop)
         * [Aggregating multiple items outside of a for loop](#aggregating-multiple-items-outside-of-a-for-loop)
+        * [Printing the line count of each file in a folder](#python-line-count)
 * [C++ Basics](#c-basics)
     * [Reducers and Frames](#reducers-and-frames)
 * [Words of Warning](#words-of-warning)
@@ -63,46 +65,21 @@ with Work(range(1000)) as w:
         print(x)
 ```
 
+If you wanted to run this script, we'll call it `test.py`, on every machine in
+your MPI cluster:
 
-Or for more of a real-world example, if we wanted line counts for all of the files in a directory:
-
-```python
-# Import the inline library of job_stream (works for 99% of cases and produces code
-# that is easier to follow).  Object is a blank object, and Work is the workhorse of
-# the job_stream.inline library.
-from job_stream.inline import Object, Work
-import os
-import sys
-path = sys.argv[1] if len(sys.argv) > 1 else '.'
-
-# Start by defining our Work as the files in the given directory
-w = Work([ p for p in os.listdir(path)
-        if os.path.isfile(p) ])
-
-# For each file given, count the number of lines in the file and print
-@w.job
-def countLines(filename):
-    count = len(list(open(filename)))
-    print("{}: {} lines".format(filename, count))
-    return count
-
-# Join all of the prior line counts by summing them into an object's "total" attribute
-@w.reduce(store = lambda: Object(total = 0))
-def sumDirectory(store, inputs, others):
-    for count in inputs:
-        store.total += count
-    for o in others:
-        store.total += o.total
-
-# Now that we have the total, print it
-@w.job
-def printTotal(store):
-    print("======")
-    print("Total: {} lines".format(store.total))
-
-# Execute the job stream
-w.run()
+```sh
+$ job_stream --hostfile mpiHostfile python test.py
 ```
+
+If your process is long-running, and machines in your cluster can go down, use
+job_stream's built-in checkpointing to make sure your application isn't doing
+the same work over and over:
+
+```sh
+$ job_stream -c --hostfile mpiHostfile python test.py
+```
+
 
 
 Pretty simple, right?  job_stream lets developers write their code in an imperative style, and does all the heavy lifting behind the scenes.  While there are a lot of task processing libraries out there, job_stream bends over backwards to make writing distributed processing tasks easy.  What all is in the box?
@@ -178,6 +155,44 @@ know your platform's mechanisms of amending default build and run paths:
 * LD_LIBRARY_PATH=... - Colon-delimited paths to shared libraries for linking
   and running binaries
 
+##<a name="distributed-execution"></a>Distributed execution
+
+job_stream comes bundled with a binary to help running job_stream applications: that executable is installed as `job_stream` in your Python distribution's `bin` folder.  At its simplest, `job_stream` is a wrapper for `mpirun`.  This means that it provides support for an MPI-like hostfile that lists machines to distribute your work across.  Example usage:
+
+```
+# This file's contents are in a file called hostfile
+machine1
+machine2
+#machine3  Commented lines will not be used
+```
+
+```
+$ job_stream --hostfile hostfile -- python script.py
+```
+
+The above will run `script.py` across machine1 and machine2.  The `job_stream`
+wrapper also allows specifying checkpoints so that you do not lose progress
+on a job if your machines go down:
+
+```
+$ job_stream -c ...
+```
+
+The `-c` flag means that progress is to be stored in the working directory as
+`job_stream.chkpt`; a different path and filename may be specified by using
+`--checkpoint PATH` instead.  Should the application crash, the job may be
+resumed by re-executing the same command as the original invocation.
+
+Often, a machine you are running experiments from will have a cluster that you
+want to run all of your work on.  In this case, `job_stream` lets you specify
+a default hostfile to use:
+
+```
+$ job_stream config hostfile=./path/to/hostfile
+```
+
+The configuration may be verified by running `job_stream config` without any
+additional arguments.
 
 ##<a name="python"></a>Python
 
@@ -740,6 +755,45 @@ result, = w.run()
 ```
 
 
+####<a name="python-line-count"></a>Printing the line count of each file in a folder
+
+For more of a real-world example, if we wanted line counts for all of the files in a directory:
+
+```python
+# Import the inline library of job_stream (works for 99% of cases and produces
+# code that is easier to follow).  Object is a blank object, and Work is the
+# workhorse of the job_stream.inline library.
+from job_stream.inline import Object, Work
+import os
+import sys
+path = sys.argv[1] if len(sys.argv) > 1 else '.'
+
+# Start by defining our Work as the files in the given directory
+with Work([ p for p in os.listdir(path) if os.path.isfile(p) ]) as w:
+    # For each file given, count the number of lines in the file and print
+    @w.job
+    def countLines(filename):
+        count = len(list(open(filename)))
+        print("{}: {} lines".format(filename, count))
+        return count
+
+    # Join all of the prior line counts by summing them into an object's
+    # "total" attribute
+    @w.reduce(store = lambda: Object(total = 0))
+    def sumDirectory(store, inputs, others):
+        for count in inputs:
+            store.total += count
+        for o in others:
+            store.total += o.total
+
+    # Now that we have the total, print it
+    @w.job
+    def printTotal(store):
+        print("======")
+        print("Total: {} lines".format(store.total))
+```
+
+
 ##<a name="c-basics"></a>C++ Basics
 
 job_stream works by allowing you to specify various "streams" through your
@@ -1259,6 +1313,9 @@ early on.  So handleDone() gets called with 20, 62, and finally 188.
 
 ##<a name="recent-changelog"></a>Recent Changelog
 
+* 2016-7-05 - Checkpoints now make a .done file to prevent accidental results
+  overwriting.  Updated job_stream binary to be able to specify checkpoints
+  and to have a slightly improved interface.  Python version to 0.1.18.
 * 2016-6-28 - Added job_stream binary to stop users from needing to know how
   to use mpirun, and more importantly, to open the way for uses like maxCpu
   or flagging other resources.

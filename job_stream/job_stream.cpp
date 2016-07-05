@@ -26,6 +26,73 @@ namespace job_stream {
 std::shared_ptr<mpi::environment> mpiEnvHolder;
 
 
+/** Called when the application wants to run an application with checkpoint
+ * named `path`.
+ *
+ * Returns: The actual checkpoint to use.
+ * */
+std::string _checkpointInit(const std::string& path) {
+    std::string chkpt = path;
+    if (path.empty()) {
+        const char* envChkpt = std::getenv("JOBS_CHECKPOINT");
+        if (envChkpt) {
+            //When no checkpoint specified on command line, use from
+            //environment.
+            chkpt = std::string(envChkpt);
+        }
+    }
+
+    if (chkpt.empty()) {
+        //Nothing to do, no checkpoint being used
+        return chkpt;
+    }
+
+    //Can we use this?
+    bool doneExists = false;
+    {
+        std::ifstream cf(chkpt + ".done");
+        if (cf) {
+            doneExists = true;
+        }
+    }
+    if (doneExists) {
+        fprintf(stderr, "job_stream has noticed that you are using a "
+                "checkpoint file named %s, but that the marker for this "
+                "invocation being finished, %s.done, exists.\n\nIf this is "
+                "a new invocation of this particular job_stream process, "
+                "please delete %s.done.\n\nThis warning exists to prevent "
+                "the user from accidentally overwriting results from a "
+                "previous invocation, since job_stream automatically resumes "
+                "unfinished work.\n", chkpt.c_str(), chkpt.c_str(),
+                chkpt.c_str());
+        exit(RETVAL_CHECKPOINT_WAS_DONE);
+    }
+
+    return chkpt;
+}
+
+
+/** Called when the application has finished, so the checkpoint at `path`
+ * should be deleted.
+ * */
+void _checkpointCleanup(const std::string& path) {
+    if (path.empty()) {
+        //Nothing to do, checkpoints are not being used.
+        return;
+    }
+
+    //First touch the .done version
+    {
+        std::ofstream of(path + ".done");
+        of << "This invocation of job_stream finished; delete this file when "
+                "you wish to run another invocation.\n";
+    }
+    //If we get here, there were no errors.  If there were no errors, we should
+    //delete the checkpoint.
+    std::remove(path.c_str());
+}
+
+
 void _startMpi() {
     if (!mpiEnvHolder) {
         //Important that this happen before MPI init!!!
@@ -224,15 +291,13 @@ void runProcessor(int argc, char** argv) {
     _startMpi();
     mpi::communicator world;
 
+    checkpoint = _checkpointInit(checkpoint);
     processor::Processor p(mpiEnvHolder, world, config, checkpoint);
     p.setCheckpointInterval(checkpointMs);
     p.setStealEnabled(!stealOff);
     p.run(inputLine);
 
-    //If we get here, there were no errors.  If there were no errors, we should
-    //delete the checkpoint.
-
-    std::remove(checkpoint.c_str());
+    _checkpointCleanup(checkpoint);
 }
 
 
@@ -241,8 +306,8 @@ void runProcessor(const SystemArguments& args) {
     _startMpi();
     mpi::communicator world;
 
-    processor::Processor p(mpiEnvHolder, world, args.config,
-            args.checkpointFile);
+    std::string checkpointFile = _checkpointInit(args.checkpointFile);
+    processor::Processor p(mpiEnvHolder, world, args.config, checkpointFile);
     p.checkExternalSignals = args.checkExternalSignals;
     p.handleOutputCallback = args.handleOutputCallback;
     p.setCheckpointInterval(args.checkpointIntervalMs);
@@ -253,8 +318,7 @@ void runProcessor(const SystemArguments& args) {
     p.setStealEnabled(!args.disableSteal);
     p.run(args.inputLine);
 
-    //If we get here, there were no errors, so we should delete the checkpoint
-    std::remove(args.checkpointFile.c_str());
+    _checkpointCleanup(checkpointFile);
 }
 
 } //job_stream

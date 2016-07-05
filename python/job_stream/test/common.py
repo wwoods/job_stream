@@ -86,7 +86,13 @@ class JobStreamTest(unittest.TestCase):
             return self.execute(f.name, np=np)
 
 
-    def safeRemove(self, path):
+    def safeRemove(self, pathOrPaths):
+        path = pathOrPaths
+        if isinstance(path, (tuple, list)):
+            for p in path:
+                self.safeRemove(p)
+            return
+
         try:
             os.remove(path)
         except OSError as e:
