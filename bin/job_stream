@@ -73,7 +73,15 @@ def doRun(hostfile, checkpoint, argv):
             hosts.add(host)
     hosts = ','.join(hosts)
 
-    mpiArgs = (mpirun, '-host', hosts)
+    # MPI does not automatically export environment variables... ugh.
+    # Supposedly this makes sense in certain super computing contexts, however
+    # not exporting environment variables would make job_stream applications
+    # need to follow a much more explicit format.  The idea is that you can
+    # execute the program locally to test, or with `job_stream` for
+    # parallelization.
+    mpiEnvVars = [ ('-x', key) for key in env ]
+    mpiArgs = (mpirun, '-host', hosts) + tuple(
+            b for a in mpiEnvVars for b in a)
     if not useMpi:
         mpiArgs = ()
 

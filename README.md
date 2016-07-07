@@ -639,12 +639,12 @@ w.run()
 
 ####<a name="nested-for-i-in-x"></a>Nested for i in x
 
-To parallelize this:
+To parallelize this (computing triangle numbers):
 
 ```python
-for x in range(10):
+for x in range(1, 10):
     sum = 0
-    for i in range(x):
+    for i in range(x+1):
         sum += i
     print("{}: {}".format(x, sum))
 ```
@@ -652,37 +652,36 @@ for x in range(10):
 Write this:
 
 ```python
-from job_stream.inline import Work
-w = Work(range(10))
+from job_stream.inline import Multiple, Work
+with Work(range(1, 10)) as w:
+    # For each of our initial bits of work, we open a frame to further
+    # parallelize within each bit of work
+    @w.frame
+    def innerFor(store, first):
+        """This function is called whenever everything in the frame is
+        finished.  Usually, that means it is called once when a frame should
+        request more work, and once when all of that work is done.
 
-# For each of our initial bits of work, we open a frame to further parallelize within
-# each bit of work
-@w.frame
-def innerFor(store, first):
-    """This function is called whenever everything in the frame is finished.  Usually,
-    that means it is called once when a frame should request more work, and once when
-    all of that work is done.
+        Any work returned by this function will be processed by the jobs within
+        the frame, and finally aggregated into the 'store' variable at the
+        frameEnd function."""
 
-    Any work returned by this function will be processed by the jobs within the frame,
-    and finally aggregated into the 'store' variable at the frameEnd function."""
+        if not hasattr(store, 'init'):
+            # First run, uninitialized
+            store.init = True
+            store.value = 0
+            # Anything returned from a frame or frameEnd function will recur to
+            # all of the jobs between the frame and its corresponding frameEnd
+            return Multiple(range(first+1))
 
-    if not hasattr(store, 'init'):
-        # First run, uninitialized
-        store.init = True
-        store.value = 0
-        # Anything returned from a frame or frameEnd function will recur to all of the
-        # jobs between the frame and its corresponding frameEnd
-        return list(range(first))
+        # If we get here, we've already processed all of our earlier recurs.
+        # To mimic the nested for loop above, that just means that we need to
+        # print our results
+        print("{}: {}".format(first, store.value))
 
-    # If we get here, we've already processed all of our earlier recurs.  To mimic the
-    # nested for loop above, that just means that we need to print our results
-    print("{}: {}".format(first, store.value))
-
-@w.frameEnd
-def innerForEnd(store, next):
-    store.value += next
-
-w.run()
+    @w.frameEnd
+    def innerForEnd(store, next):
+        store.value += next
 ```
 
 
@@ -1313,6 +1312,8 @@ early on.  So handleDone() gets called with 20, 62, and finally 188.
 
 ##<a name="recent-changelog"></a>Recent Changelog
 
+* 2016-7-07 - mpirun doesn't automatically forward environment variables; this
+  has been fixed for the job_stream binary.  Python version bump to 0.1.19.
 * 2016-7-05 - Checkpoints now make a .done file to prevent accidental results
   overwriting.  Updated job_stream binary to be able to specify checkpoints
   and to have a slightly improved interface.  Python version to 0.1.18.
