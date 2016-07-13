@@ -1312,6 +1312,8 @@ early on.  So handleDone() gets called with 20, 62, and finally 188.
 
 ##<a name="recent-changelog"></a>Recent Changelog
 
+* 2016-7-13 - Minor fix for bin/job_stream; hosts now remain sorted in their
+  original order, fixing the server with rank 0 to a specific host.
 * 2016-7-07 - mpirun doesn't automatically forward environment variables; this
   has been fixed for the job_stream binary.  Python version bump to 0.1.19.
 * 2016-7-05 - Checkpoints now make a .done file to prevent accidental results

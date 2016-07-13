@@ -61,7 +61,7 @@ def doRun(hostfile, checkpoint, argv):
             # message
             useMpi = False
 
-    hosts = set()
+    hosts = []  # List, not set, so that order is preserved
     with open(hostfile) as f:
         for line in f:
             l = line.strip()
@@ -70,7 +70,7 @@ def doRun(hostfile, checkpoint, argv):
             host, other = (l + ' ').split(' ', 1)
             if host in hosts:
                 raise ValueError("Duplicate host entry? {}".format(host))
-            hosts.add(host)
+            hosts.append(host)
     hosts = ','.join(hosts)
 
     # MPI does not automatically export environment variables... ugh.
