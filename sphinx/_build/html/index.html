@@ -1,0 +1,416 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Welcome to job_stream’s documentation! &mdash; job_stream 0.1.19 documentation</title>
+  
+
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+    <link rel="top" title="job_stream 0.1.19 documentation" href="#"/>
+        <link rel="next" title="job_stream" href="_autosummary/job_stream.html"/> 
+
+  
+  <script src="_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="#" class="icon icon-home"> job_stream
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.1.19
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+                <ul>
+<li class="toctree-l1"><a class="reference internal" href="_autosummary/job_stream.html">job_stream</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+        <a href="#">job_stream</a>
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+ 
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="#">Docs</a> &raquo;</li>
+      
+    <li>Welcome to job_stream&#8217;s documentation!</li>
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="_sources/index.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="welcome-to-job-stream-s-documentation">
+<h1>Welcome to job_stream&#8217;s documentation!<a class="headerlink" href="#welcome-to-job-stream-s-documentation" title="Permalink to this headline">¶</a></h1>
+<p>Contents:</p>
+<div class="toctree-wrapper compound">
+</div>
+<table border="1" class="longtable docutils">
+<colgroup>
+<col width="10%" />
+<col width="90%" />
+</colgroup>
+<tbody valign="top">
+<tr class="row-odd"><td><a class="reference internal" href="_autosummary/job_stream.html#module-job_stream" title="job_stream"><code class="xref py py-obj docutils literal"><span class="pre">job_stream</span></code></a></td>
+<td>job_stream&#8217;s python module implementation.</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition-todo admonition" id="index-0">
+<p class="first admonition-title">Todo</p>
+<p class="last">The brokePrimes example freezes sometimes.  Fix that.</p>
+</div>
+<div class="section" id="presentation-notes">
+<h2>Presentation Notes<a class="headerlink" href="#presentation-notes" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="find-all-primes-1000">
+<h2>Find all primes &lt; 1000?<a class="headerlink" href="#find-all-primes-1000" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="code">
+<h3>Code<a class="headerlink" href="#code" title="Permalink to this headline">¶</a></h3>
+<div class="highlight-python"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">job_stream.inline</span> <span class="kn">import</span> <span class="n">Work</span>
+<span class="hll"><span class="k">with</span> <span class="n">Work</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1000</span><span class="p">))</span> <span class="k">as</span> <span class="n">w</span><span class="p">:</span>
+</span><span class="hll">    <span class="nd">@w.job</span>
+</span>    <span class="k">def</span> <span class="nf">isPrime</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">y</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">x</span> <span class="o">**</span> <span class="mf">0.5</span><span class="p">)</span><span class="o">+</span><span class="mi">1</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">x</span> <span class="o">%</span> <span class="n">y</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">return</span>
+        <span class="k">return</span> <span class="n">x</span>
+
+<span class="hll">    <span class="nd">@w.finish</span>
+</span>    <span class="k">def</span> <span class="nf">printPrimes</span><span class="p">(</span><span class="n">r</span><span class="p">):</span>
+        <span class="k">print</span><span class="p">(</span><span class="s2">&quot;Found {} primes; last 3: {}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">r</span><span class="p">),</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">r</span><span class="p">)[</span><span class="o">-</span><span class="mi">3</span><span class="p">:]))</span>
+
+</pre></div>
+</td></tr></table></div>
+</div>
+<div class="section" id="output">
+<h3>Output<a class="headerlink" href="#output" title="Permalink to this headline">¶</a></h3>
+<div class="highlight-default"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1
+2
+3</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="hll"><span class="mi">0</span><span class="n">_wwoods</span><span class="o">-</span><span class="n">MacBookPro</span> <span class="mi">292</span><span class="o">%</span> <span class="n">user</span> <span class="n">time</span> <span class="p">(</span><span class="mi">1</span><span class="o">%</span> <span class="n">mpi</span><span class="p">),</span> <span class="mi">10</span><span class="o">%</span> <span class="n">user</span> <span class="n">cpu</span><span class="p">,</span> <span class="mi">145</span> <span class="n">messages</span> <span class="p">(</span><span class="mi">0</span><span class="o">%</span> <span class="n">user</span><span class="p">)</span>
+</span><span class="hll"><span class="n">C</span> <span class="mi">292</span><span class="o">%</span> <span class="n">user</span> <span class="n">time</span><span class="p">,</span> <span class="mi">31</span><span class="o">%</span> <span class="n">user</span> <span class="n">cpu</span><span class="p">,</span> <span class="n">quality</span> <span class="mf">0.32</span> <span class="n">cpus</span><span class="p">,</span> <span class="n">ran</span> <span class="mf">0.303</span><span class="n">s</span>
+</span><span class="n">Found</span> <span class="mi">168</span> <span class="n">primes</span><span class="p">;</span> <span class="n">last</span> <span class="mi">3</span><span class="p">:</span> <span class="p">[</span><span class="mi">983</span><span class="p">,</span> <span class="mi">991</span><span class="p">,</span> <span class="mi">997</span><span class="p">]</span>
+</pre></div>
+</td></tr></table></div>
+</div>
+</div>
+<div class="section" id="really-broken-primes-1000">
+<h2>Really broken primes &lt; 1000?<a class="headerlink" href="#really-broken-primes-1000" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="id1">
+<h3>Code<a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h3>
+<div class="highlight-python"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">job_stream.inline</span> <span class="kn">import</span> <span class="n">Work</span>
+<span class="hll"><span class="k">with</span> <span class="n">Work</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1000</span><span class="p">),</span> <span class="n">checkpointFile</span><span class="o">=</span><span class="s2">&quot;example.chkpt&quot;</span><span class="p">,</span> <span class="o">**</span><span class="n">demoKwargs</span><span class="p">)</span> <span class="k">as</span> <span class="n">w</span><span class="p">:</span>
+</span>    <span class="nd">@w.job</span>
+    <span class="k">def</span> <span class="nf">isPrime</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+<span class="hll">        <span class="n">failsSometimes</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>  <span class="c1"># Fails 0.2% of the time</span>
+</span>        <span class="k">for</span> <span class="n">y</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">x</span> <span class="o">**</span> <span class="mf">0.5</span><span class="p">)</span><span class="o">+</span><span class="mi">1</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">x</span> <span class="o">%</span> <span class="n">y</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">return</span>
+        <span class="k">return</span> <span class="n">x</span>
+
+    <span class="nd">@w.finish</span>
+    <span class="k">def</span> <span class="nf">printPrimes</span><span class="p">(</span><span class="n">r</span><span class="p">):</span>
+        <span class="k">print</span><span class="p">(</span><span class="s2">&quot;Found {} primes; last 3: {}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">r</span><span class="p">),</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">r</span><span class="p">)[</span><span class="o">-</span><span class="mi">3</span><span class="p">:]))</span>
+
+</pre></div>
+</td></tr></table></div>
+</div>
+<div class="section" id="id2">
+<h3>Output<a class="headerlink" href="#id2" title="Permalink to this headline">¶</a></h3>
+<p>First run:</p>
+<div class="highlight-default"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="mi">0</span><span class="p">:</span><span class="n">wwoods</span><span class="o">-</span><span class="n">MacBookPro</span><span class="p">:</span><span class="mi">31826</span><span class="p">:</span><span class="mi">1</span> <span class="n">Using</span> <span class="n">example</span><span class="o">.</span><span class="n">chkpt</span> <span class="k">as</span> <span class="n">checkpoint</span> <span class="n">file</span>
+<span class="mi">0</span><span class="p">:</span><span class="n">wwoods</span><span class="o">-</span><span class="n">MacBookPro</span><span class="p">:</span><span class="mi">31826</span><span class="p">:</span><span class="mi">1</span> <span class="n">Checkpoint</span> <span class="n">starting</span>
+<span class="mi">0</span><span class="p">:</span><span class="n">wwoods</span><span class="o">-</span><span class="n">MacBookPro</span><span class="p">:</span><span class="mi">31826</span><span class="p">:</span><span class="mi">1</span> <span class="n">Checkpoint</span> <span class="n">activity</span> <span class="n">synced</span> <span class="n">after</span> <span class="mi">4</span><span class="n">ms</span><span class="p">,</span> <span class="n">including</span> <span class="n">mandatory</span> <span class="mi">0</span><span class="n">ms</span> <span class="n">quiet</span> <span class="n">period</span>
+<span class="mi">0</span><span class="p">:</span><span class="n">wwoods</span><span class="o">-</span><span class="n">MacBookPro</span><span class="p">:</span><span class="mi">31826</span><span class="p">:</span><span class="mi">1</span> <span class="n">Checkpoint</span> <span class="n">took</span> <span class="mi">6</span><span class="n">ms</span><span class="p">,</span> <span class="n">resuming</span> <span class="n">computation</span>
+<span class="n">Traceback</span> <span class="p">(</span><span class="n">most</span> <span class="n">recent</span> <span class="n">call</span> <span class="n">last</span><span class="p">):</span>
+  <span class="n">File</span> <span class="s2">&quot;/home/wwoods/walt/dev/psu/pyenv/local/lib/python2.7/site-packages/job_stream/common.py&quot;</span><span class="p">,</span> <span class="n">line</span> <span class="mi">127</span><span class="p">,</span> <span class="ow">in</span> <span class="n">_localCallNoStore</span>
+    <span class="nb">getattr</span><span class="p">(</span><span class="n">o</span><span class="p">,</span> <span class="n">method</span><span class="p">)(</span><span class="o">*</span><span class="n">args</span><span class="p">)</span>
+  <span class="n">File</span> <span class="s2">&quot;/home/wwoods/walt/dev/psu/pyenv/local/lib/python2.7/site-packages/job_stream/inline.py&quot;</span><span class="p">,</span> <span class="n">line</span> <span class="mi">275</span><span class="p">,</span> <span class="ow">in</span> <span class="n">handle</span>
+    <span class="n">results</span> <span class="o">=</span> <span class="n">func</span><span class="p">(</span><span class="n">work</span><span class="p">)</span>
+  <span class="n">File</span> <span class="s2">&quot;brokePrimes.py&quot;</span><span class="p">,</span> <span class="n">line</span> <span class="mi">11</span><span class="p">,</span> <span class="ow">in</span> <span class="n">isPrime</span>
+    <span class="n">failsSometimes</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>  <span class="c1"># Fails 0.2% of the time</span>
+  <span class="n">File</span> <span class="s2">&quot;brokePrimes.py&quot;</span><span class="p">,</span> <span class="n">line</span> <span class="mi">4</span><span class="p">,</span> <span class="ow">in</span> <span class="n">failsSometimes</span>
+    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Random failure&quot;</span><span class="p">)</span>
+<span class="ne">ValueError</span><span class="p">:</span> <span class="n">Random</span> <span class="n">failure</span>
+<span class="mi">0</span><span class="p">:</span><span class="n">wwoods</span><span class="o">-</span><span class="n">MacBookPro</span><span class="p">:</span><span class="mi">31826</span><span class="p">:</span><span class="mi">2</span> <span class="n">While</span> <span class="n">processing</span> <span class="n">work</span> <span class="k">with</span> <span class="n">target</span><span class="p">:</span> <span class="p">[</span><span class="mi">0</span><span class="p">]::[</span><span class="mi">1</span><span class="p">]</span>
+</pre></div>
+</td></tr></table></div>
+<p>Second run:</p>
+<div class="highlight-default"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1
+2
+3
+4
+5</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="mi">0</span><span class="p">:</span><span class="n">wwoods</span><span class="o">-</span><span class="n">MacBookPro</span><span class="p">:</span><span class="mi">31899</span><span class="p">:</span><span class="mi">1</span> <span class="n">resumed</span> <span class="kn">from</span> <span class="nn">checkpoint</span> <span class="p">(</span><span class="mi">589</span> <span class="n">pending</span> <span class="n">messages</span><span class="p">)</span>
+<span class="mi">0</span><span class="p">:</span><span class="n">wwoods</span><span class="o">-</span><span class="n">MacBookPro</span><span class="p">:</span><span class="mi">31899</span><span class="p">:</span><span class="mi">1</span> <span class="n">Using</span> <span class="n">example</span><span class="o">.</span><span class="n">chkpt</span> <span class="k">as</span> <span class="n">checkpoint</span> <span class="n">file</span>
+<span class="mi">0</span><span class="n">_wwoods</span><span class="o">-</span><span class="n">MacBookPro</span> <span class="mi">120</span><span class="o">%</span> <span class="n">user</span> <span class="n">time</span> <span class="p">(</span><span class="mi">0</span><span class="o">%</span> <span class="n">mpi</span><span class="p">),</span> <span class="mi">14</span><span class="o">%</span> <span class="n">user</span> <span class="n">cpu</span><span class="p">,</span> <span class="mi">156</span> <span class="n">messages</span> <span class="p">(</span><span class="mi">0</span><span class="o">%</span> <span class="n">user</span><span class="p">)</span>
+<span class="n">C</span> <span class="mi">120</span><span class="o">%</span> <span class="n">user</span> <span class="n">time</span><span class="p">,</span> <span class="mi">17</span><span class="o">%</span> <span class="n">user</span> <span class="n">cpu</span><span class="p">,</span> <span class="n">quality</span> <span class="mf">0.18</span> <span class="n">cpus</span><span class="p">,</span> <span class="n">ran</span> <span class="mf">0.338</span><span class="n">s</span>
+<span class="n">Found</span> <span class="mi">168</span> <span class="n">primes</span><span class="p">;</span> <span class="n">last</span> <span class="mi">3</span><span class="p">:</span> <span class="p">[</span><span class="mi">983</span><span class="p">,</span> <span class="mi">991</span><span class="p">,</span> <span class="mi">997</span><span class="p">]</span>
+</pre></div>
+</td></tr></table></div>
+</div>
+</div>
+<div class="section" id="triangle-numbers">
+<h2>Triangle Numbers<a class="headerlink" href="#triangle-numbers" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="id3">
+<h3>Code<a class="headerlink" href="#id3" title="Permalink to this headline">¶</a></h3>
+<div class="highlight-python"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">job_stream.inline</span> <span class="kn">import</span> <span class="n">Work</span><span class="p">,</span> <span class="n">Multiple</span>
+<span class="k">with</span> <span class="n">Work</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">5</span><span class="p">))</span> <span class="k">as</span> <span class="n">w</span><span class="p">:</span>
+<span class="hll">    <span class="nd">@w.frame</span>
+</span><span class="hll">    <span class="k">def</span> <span class="nf">startTriangle</span><span class="p">(</span><span class="n">store</span><span class="p">,</span> <span class="n">first</span><span class="p">):</span>
+</span>        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">store</span><span class="p">,</span> <span class="s1">&#39;value&#39;</span><span class="p">):</span>
+            <span class="n">store</span><span class="o">.</span><span class="n">n</span> <span class="o">=</span> <span class="n">first</span>
+            <span class="n">store</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="k">return</span> <span class="n">Multiple</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="n">first</span><span class="p">))</span>
+
+<span class="hll">    <span class="n">w</span><span class="o">.</span><span class="n">job</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span>
+</span>
+<span class="hll">    <span class="nd">@w.frameEnd</span>
+</span><span class="hll">    <span class="k">def</span> <span class="nf">endTriangle</span><span class="p">(</span><span class="n">store</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+</span>        <span class="n">store</span><span class="o">.</span><span class="n">value</span> <span class="o">+=</span> <span class="n">x</span>
+
+    <span class="nd">@w.result</span>
+    <span class="k">def</span> <span class="nf">printResult</span><span class="p">(</span><span class="n">store</span><span class="p">):</span>
+        <span class="k">print</span><span class="p">(</span><span class="s2">&quot;Triangle number {} is {}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">store</span><span class="o">.</span><span class="n">n</span><span class="p">,</span> <span class="n">store</span><span class="o">.</span><span class="n">value</span><span class="p">))</span>
+
+</pre></div>
+</td></tr></table></div>
+</div>
+<div class="section" id="id4">
+<h3>Output<a class="headerlink" href="#id4" title="Permalink to this headline">¶</a></h3>
+<div class="highlight-default"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1
+2
+3
+4
+5
+6
+7</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="mi">0</span><span class="n">_wwoods</span><span class="o">-</span><span class="n">MacBookPro</span> <span class="mi">40</span><span class="o">%</span> <span class="n">user</span> <span class="n">time</span> <span class="p">(</span><span class="mi">1</span><span class="o">%</span> <span class="n">mpi</span><span class="p">),</span> <span class="mi">0</span><span class="o">%</span> <span class="n">user</span> <span class="n">cpu</span><span class="p">,</span> <span class="mi">77</span> <span class="n">messages</span> <span class="p">(</span><span class="mi">0</span><span class="o">%</span> <span class="n">user</span><span class="p">)</span>
+<span class="n">C</span> <span class="mi">40</span><span class="o">%</span> <span class="n">user</span> <span class="n">time</span><span class="p">,</span> <span class="mi">0</span><span class="o">%</span> <span class="n">user</span> <span class="n">cpu</span><span class="p">,</span> <span class="n">quality</span> <span class="mf">0.00</span> <span class="n">cpus</span><span class="p">,</span> <span class="n">ran</span> <span class="mf">0.180</span><span class="n">s</span>
+<span class="n">Triangle</span> <span class="n">number</span> <span class="mi">0</span> <span class="ow">is</span> <span class="mi">0</span>
+<span class="n">Triangle</span> <span class="n">number</span> <span class="mi">1</span> <span class="ow">is</span> <span class="mi">1</span>
+<span class="n">Triangle</span> <span class="n">number</span> <span class="mi">4</span> <span class="ow">is</span> <span class="mi">10</span>
+<span class="n">Triangle</span> <span class="n">number</span> <span class="mi">3</span> <span class="ow">is</span> <span class="mi">6</span>
+<span class="n">Triangle</span> <span class="n">number</span> <span class="mi">2</span> <span class="ow">is</span> <span class="mi">3</span>
+</pre></div>
+</td></tr></table></div>
+</div>
+</div>
+</div>
+<div class="section" id="indices-and-tables">
+<h1>Indices and tables<a class="headerlink" href="#indices-and-tables" title="Permalink to this headline">¶</a></h1>
+<ul class="simple">
+<li><a class="reference internal" href="genindex.html"><span class="std std-ref">Index</span></a></li>
+<li><a class="reference internal" href="py-modindex.html"><span class="std std-ref">Module Index</span></a></li>
+<li><a class="reference internal" href="search.html"><span class="std std-ref">Search Page</span></a></li>
+</ul>
+</div>
+
+
+           </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="_autosummary/job_stream.html" class="btn btn-neutral float-right" title="job_stream" accesskey="n">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2016, Walt Woods.
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'./',
+            VERSION:'0.1.19',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true
+        };
+    </script>
+      <script type="text/javascript" src="_static/jquery.js"></script>
+      <script type="text/javascript" src="_static/underscore.js"></script>
+      <script type="text/javascript" src="_static/doctools.js"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>
