@@ -1,0 +1,98 @@
+.. job_stream documentation master file, created by
+   sphinx-quickstart on Fri May 27 11:01:45 2016.
+   You can adapt this file completely to your liking, but it should at least
+   contain the root `toctree` directive.
+
+Welcome to job_stream's documentation!
+======================================
+
+Contents:
+
+.. toctree::
+   :maxdepth: 2
+
+.. autosummary::
+    :toctree: _autosummary
+
+    job_stream
+
+.. todo::
+
+    The brokePrimes example freezes sometimes.  Fix that.
+
+Presentation Notes
+------------------
+
+Find all primes < 1000?
+-----------------------
+
+Code
+~~~~
+
+.. literalinclude:: presCode/primes.py
+    :language: python
+    :linenos:
+    :emphasize-lines: 2,3,10
+
+Output
+~~~~~~
+
+.. literalinclude:: presCode/primes.out
+    :linenos:
+    :emphasize-lines: 1-2
+
+
+Really broken primes < 1000?
+----------------------------
+
+Code
+~~~~
+
+.. literalinclude:: presCode/brokePrimes.py
+    :language: python
+    :linenos:
+    :lines: 7-
+    :emphasize-lines: 2,5
+
+Output
+~~~~~~
+
+First run:
+
+.. literalinclude:: presCode/brokePrimes.out
+    :lines: 1-4,141-
+    :linenos:
+
+Second run:
+
+.. literalinclude:: presCode/brokePrimes.out2
+    :lines: 1-2,159-
+    :linenos:
+
+
+Triangle Numbers
+----------------
+
+Code
+~~~~
+
+.. literalinclude:: presCode/triangleNums.py
+    :language: python
+    :linenos:
+    :emphasize-lines: 3-4, 10, 12-13
+
+Output
+~~~~~~
+
+.. literalinclude:: presCode/triangleNums.out
+    :linenos:
+
+
+
+Indices and tables
+==================
+
+* :ref:`genindex`
+* :ref:`modindex`
+* :ref:`search`
+

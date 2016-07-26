@@ -1,0 +1,743 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>job_stream.inline &mdash; job_stream 0.1.19 documentation</title>
+  
+
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+    <link rel="top" title="job_stream 0.1.19 documentation" href="../../index.html"/>
+        <link rel="up" title="Module code" href="../index.html"/> 
+
+  
+  <script src="../../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../../index.html" class="icon icon-home"> job_stream
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.1.19
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+                <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../_autosummary/job_stream.html">job_stream</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+        <a href="../../index.html">job_stream</a>
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../../index.html">Docs</a> &raquo;</li>
+      
+          <li><a href="../index.html">Module code</a> &raquo;</li>
+      
+    <li>job_stream.inline</li>
+      <li class="wy-breadcrumbs-aside">
+        
+          
+        
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for job_stream.inline</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;job_stream.inline provides a more intuitive way of specifying flow that relieves some</span>
+<span class="sd">of the labor of thinking about data definitions</span>
+
+<span class="sd">For example, to count the average word length in a string:</span>
+
+<span class="sd">.. code-block:: python</span>
+
+<span class="sd">    from job_stream import inline</span>
+
+<span class="sd">    w = inline.Work(&quot;Hello there world, how are you?&quot;.split())</span>
+
+<span class="sd">    @w.job</span>
+<span class="sd">    def getLen(w):</span>
+<span class="sd">        return len(w)</span>
+
+<span class="sd">    @w.reduce(emit = lambda store: store.len / store.count)</span>
+<span class="sd">    def findAverage(store, inputs, others):</span>
+<span class="sd">        if not hasattr(store, &#39;init&#39;):</span>
+<span class="sd">            store.init = True</span>
+<span class="sd">            store.count = 0</span>
+<span class="sd">            store.len = 0.0</span>
+
+<span class="sd">        for i in inputs:</span>
+<span class="sd">            store.len += i</span>
+<span class="sd">            store.count += 1</span>
+<span class="sd">        for o in others:</span>
+<span class="sd">            store.len += o.len</span>
+<span class="sd">            store.count += o.count</span>
+
+<span class="sd">    result, = w.run()</span>
+
+
+<span class="sd">Hierarchy of ``job_stream.inline`` Pipes</span>
+<span class="sd">========================================</span>
+
+<span class="sd">Sometimes, code follows a commmon skeleton with some parallel code in the</span>
+<span class="sd">middle.  The :mod:`job_stream.baked` library is an example of this;</span>
+<span class="sd">:meth:`job_stream.baked.sweep` takes as its argument a function that populates</span>
+<span class="sd">a :class:`job_stream.inline.Work` object with operations to perform for each</span>
+<span class="sd">original argument.</span>
+
+<span class="sd">.. code-block:: python</span>
+
+<span class="sd">    from job_stream.baked import sweep</span>
+<span class="sd">    import numpy as np</span>
+
+<span class="sd">    with sweep({ &#39;a&#39;: np.arange(10) }) as w:</span>
+<span class="sd">        @w.job</span>
+<span class="sd">        def square(n):</span>
+<span class="sd">            return { &#39;value&#39;: n*n + np.random.random() }</span>
+
+<span class="sd">It is also recommended that if a user class has functionality that can be</span>
+<span class="sd">added to a ``job_stream`` pipe, that it expose that functionality in an</span>
+<span class="sd">``@classmethod`` as ``jobs_{name}``:</span>
+
+<span class="sd">.. code-block:: python</span>
+
+<span class="sd">    from job_stream.inline import Args, Work</span>
+
+<span class="sd">    class MyClass:</span>
+<span class="sd">        def classify(inputs):</span>
+<span class="sd">            return inputs[0]</span>
+
+
+<span class="sd">        @classmethod</span>
+<span class="sd">        def jobs_classify(w):</span>
+<span class="sd">            @w.job</span>
+<span class="sd">            def _classify(classifier, inputs):</span>
+<span class="sd">                return classifier.classify(inputs)</span>
+
+<span class="sd">    with Work([ Args(MyClass(), [i]) for i in range(10) ]) as w:</span>
+<span class="sd">        MyClass.jobs_classify(w)</span>
+
+<span class="sd">TODO - Make above a reality... job_stream.baked module.  Add &#39;trial&#39; to keys auto-populated by sweep() (in addition to &#39;id&#39;).</span>
+<span class="sd">TODO - make this documentation format the default....  make html-pages should auto-populate the gh-pages branch (check on master, no uncommitted changes, etc).  Needs a .nojekyll file</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">job_stream</span>
+<span class="kn">import</span> <span class="nn">pickle</span>
+<span class="kn">import</span> <span class="nn">inspect</span>
+<span class="kn">import</span> <span class="nn">os</span>
+
+<span class="c1"># Imports from job_stream</span>
+<span class="n">Object</span> <span class="o">=</span> <span class="n">job_stream</span><span class="o">.</span><span class="n">Object</span>
+
+<span class="c1"># Used to register new classes so they can be pickle&#39;d appropriately</span>
+<span class="n">_moduleSelf</span> <span class="o">=</span> <span class="nb">globals</span><span class="p">()</span>
+
+<span class="n">_typeCount</span> <span class="o">=</span> <span class="p">[</span> <span class="mi">0</span> <span class="p">]</span>
+
+<div class="viewcode-block" id="_ForceCheckpointJob"><a class="viewcode-back" href="../../_autosummary/_autosummary/job_stream.inline.html#job_stream.inline._ForceCheckpointJob">[docs]</a><span class="k">class</span> <span class="nc">_ForceCheckpointJob</span><span class="p">(</span><span class="n">job_stream</span><span class="o">.</span><span class="n">Job</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Used for tests; raises exception after checkpoint.&quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">handleWork</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">work</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_forceCheckpoint</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">emit</span><span class="p">(</span><span class="n">work</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="_ForceCheckpointAndGoJob"><a class="viewcode-back" href="../../_autosummary/_autosummary/job_stream.inline.html#job_stream.inline._ForceCheckpointAndGoJob">[docs]</a><span class="k">class</span> <span class="nc">_ForceCheckpointAndGoJob</span><span class="p">(</span><span class="n">job_stream</span><span class="o">.</span><span class="n">Job</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Used for tests; execution continues after checkpoint.&quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">handleWork</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">work</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_forceCheckpoint</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">emit</span><span class="p">(</span><span class="n">work</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="_UnwrapperJob"><a class="viewcode-back" href="../../_autosummary/_autosummary/job_stream.inline.html#job_stream.inline._UnwrapperJob">[docs]</a><span class="k">class</span> <span class="nc">_UnwrapperJob</span><span class="p">(</span><span class="n">job_stream</span><span class="o">.</span><span class="n">Job</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Job to make processing after a reducer possible and sensical for inline.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">USE_MULTIPROCESSING</span> <span class="o">=</span> <span class="kc">False</span>
+
+    <span class="k">def</span> <span class="nf">handleWork</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">work</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">w</span> <span class="ow">in</span> <span class="n">work</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">emit</span><span class="p">(</span><span class="n">w</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Multiple"><a class="viewcode-back" href="../../_autosummary/_autosummary/job_stream.inline.html#job_stream.inline.Multiple">[docs]</a><span class="k">class</span> <span class="nc">Multiple</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;If some inline code wants to emit or recur multiple pieces of work, an instance of</span>
+<span class="sd">    this class is the way to do it.  For instance:</span>
+
+<span class="sd">    return Multiple([ 1, 2, 3 ])</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">workList</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">workList</span> <span class="o">=</span> <span class="n">workList</span></div>
+
+
+<span class="k">class</span> <span class="nc">Work</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">initialWork</span> <span class="o">=</span> <span class="p">[],</span> <span class="n">useMultiprocessing</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+            <span class="o">**</span><span class="n">runKwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Represents a job_stream pipeline.  May be passed a list or other</span>
+<span class="sd">        iterable of initial work, as well as any of the following flags:</span>
+
+<span class="sd">        useMultiprocessing [True] - If True, then all job_stream work will be</span>
+<span class="sd">            handled in child processes spawned via Python&#39;s multiprocessing</span>
+<span class="sd">            module.  This is used to get around the limitations of the GIL,</span>
+<span class="sd">            but if your application&#39;s setup (not the jobs themselves) uses a lot</span>
+<span class="sd">            of memory and your computation is handled by either non-GIL</span>
+<span class="sd">            protected code or in another process anyway, it is appropriate to</span>
+<span class="sd">            turn this off.</span>
+
+<span class="sd">        checkpointFile [str] - If specified, job_stream will run in checkpoint</span>
+<span class="sd">            mode, periodically dumping progress to this file.  If this file</span>
+<span class="sd">            exists when run() is called, then simulation will be resumed</span>
+<span class="sd">            from the state stored in this file.</span>
+
+<span class="sd">        checkpointInterval [float] - Time, in seconds, between the completion</span>
+<span class="sd">            of one checkpoint and the beginning of the next.</span>
+
+<span class="sd">        checkpointSyncInterval [float] - Debug / test usage only.  Time, in</span>
+<span class="sd">            seconds, to wait for sync when taking a checkpoint.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_initialWork</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">initialWork</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_initialWorkDepth</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_useMultiprocessing</span> <span class="o">=</span> <span class="n">useMultiprocessing</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_runKwargs</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">runKwargs</span><span class="p">)</span>
+        <span class="c1"># The YAML config that we&#39;re building, essentially</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_config</span> <span class="o">=</span> <span class="p">{</span> <span class="s1">&#39;jobs&#39;</span><span class="p">:</span> <span class="p">[]</span> <span class="p">}</span>
+        <span class="c1"># Functions ran on init</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_inits</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="c1"># Function ran to handle a result.  If set, nothing else may be added</span>
+        <span class="c1"># to the pipe!</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_resultHandler</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="c1"># finish() has been called</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_hasFinish</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="c1"># parent node for current scope</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_stack</span> <span class="o">=</span> <span class="p">[</span> <span class="p">{</span> <span class="s1">&#39;config&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span> <span class="p">}</span> <span class="p">]</span>
+
+
+    <span class="k">def</span> <span class="nf">__enter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span>
+
+
+    <span class="k">def</span> <span class="nf">__exit__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">errType</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">tb</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">errType</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+
+            <span class="c1"># If no result was specified, we do not want to cache and return</span>
+            <span class="c1"># results either.  That is, there is no way to get the result of a</span>
+            <span class="c1"># with block.</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_hasFinish</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_resultHandler</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="nd">@self</span><span class="o">.</span><span class="n">result</span>
+                <span class="k">def</span> <span class="nf">handleResult</span><span class="p">(</span><span class="n">r</span><span class="p">):</span>
+                    <span class="k">pass</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+
+
+    <span class="k">def</span> <span class="nf">init</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">func</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Decorates a method that is called only once on the primary host</span>
+<span class="sd">        before any jobs run.  The method is never run when continuing from</span>
+<span class="sd">        a checkpoint.</span>
+
+<span class="sd">        Useful for e.g. creating folders, deleting temporary files from previous</span>
+<span class="sd">        runs, etc.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">func</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="k">lambda</span> <span class="n">func2</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">init</span><span class="p">(</span><span class="n">func2</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_assertNoResult</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_assertFuncArgs</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_inits</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">func</span>
+
+
+    <span class="k">def</span> <span class="nf">finish</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">func</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Decorates a method that is called only once on the primary host,</span>
+<span class="sd">        after all jobs have finished.</span>
+
+<span class="sd">        The decorated method takes a single argument, which is a list of all</span>
+<span class="sd">        results returned from the jobs within the stream.</span>
+
+<span class="sd">        Anything returned within the decorated method will be emitted from the</span>
+<span class="sd">        job_stream, meaning it will be returned by run().  User code should not</span>
+<span class="sd">        typically rely on this; it is used mainly for e.g. IPython notebooks.</span>
+
+<span class="sd">        Cannot be used if Work.result is used.  Work.result is preferred, if</span>
+<span class="sd">        your job stream&#39;s output can be processed one piece at a time (more</span>
+<span class="sd">        efficient in that results can be discarded after they are processed).&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">func</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="k">lambda</span> <span class="n">func2</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">finish</span><span class="p">(</span><span class="n">func2</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_assertNoResult</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_assertFuncArgs</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+
+        <span class="nd">@self</span><span class="o">.</span><span class="n">reduce</span><span class="p">(</span><span class="n">store</span> <span class="o">=</span> <span class="k">lambda</span><span class="p">:</span> <span class="p">[],</span> <span class="n">emit</span> <span class="o">=</span> <span class="n">func</span><span class="p">)</span>
+        <span class="k">def</span> <span class="nf">collectResults</span><span class="p">(</span><span class="n">store</span><span class="p">,</span> <span class="n">works</span><span class="p">,</span> <span class="n">others</span><span class="p">):</span>
+            <span class="n">store</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">works</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">o</span> <span class="ow">in</span> <span class="n">others</span><span class="p">:</span>
+                <span class="n">store</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">o</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_hasFinish</span> <span class="o">=</span> <span class="kc">True</span>
+
+
+    <span class="k">def</span> <span class="nf">frame</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">func</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Decorates a function that begins a frame.  A frame is started with</span>
+<span class="sd">        a single piece of work, and then recurses other pieces of work into</span>
+<span class="sd">        itself until some stopping condition.  The decorated function should</span>
+<span class="sd">        accept two arguments:</span>
+
+<span class="sd">        store - The storage object used to remember results from the frame</span>
+<span class="sd">        first - The first work that began this frame.</span>
+
+<span class="sd">        Any results returned are recursed into the frame.</span>
+
+<span class="sd">        Decorator kwargs:</span>
+<span class="sd">        store - The constructor for a storage object.  Defaults to inline.Object</span>
+<span class="sd">        emit - A function taking a storage object and returning the work that</span>
+<span class="sd">                should be forwarded to the next member of the stream.  Defaults</span>
+<span class="sd">                to emitting the store itself.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">func</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># Non-decorating form</span>
+            <span class="k">return</span> <span class="k">lambda</span> <span class="n">func2</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">frame</span><span class="p">(</span><span class="n">func2</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_assertNoResult</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_assertFuncArgs</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="n">fargs</span> <span class="o">=</span> <span class="n">Object</span><span class="p">()</span>
+        <span class="n">fargs</span><span class="o">.</span><span class="n">store</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;store&#39;</span><span class="p">,</span> <span class="n">Object</span><span class="p">)</span>
+        <span class="n">fargs</span><span class="o">.</span><span class="n">emit</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;emit&#39;</span><span class="p">,</span> <span class="k">lambda</span> <span class="n">store</span><span class="p">:</span> <span class="n">store</span><span class="p">)</span>
+        <span class="n">fargs</span><span class="o">.</span><span class="n">useMulti</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;useMultiprocessing&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_useMultiprocessing</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">kwargs</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span><span class="s2">&quot;Unrecognized arguments: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">kwargs</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span>
+
+        <span class="n">fconf</span> <span class="o">=</span> <span class="p">{</span> <span class="s1">&#39;jobs&#39;</span><span class="p">:</span> <span class="p">[]</span> <span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_stack</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="s1">&#39;config&#39;</span><span class="p">][</span><span class="s1">&#39;jobs&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">fconf</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_stack</span><span class="o">.</span><span class="n">append</span><span class="p">({</span> <span class="s1">&#39;frameFunc&#39;</span><span class="p">:</span> <span class="n">func</span><span class="p">,</span> <span class="s1">&#39;frameArgs&#39;</span><span class="p">:</span> <span class="n">fargs</span><span class="p">,</span> <span class="s1">&#39;config&#39;</span><span class="p">:</span> <span class="n">fconf</span> <span class="p">})</span>
+
+        <span class="k">return</span> <span class="n">func</span>
+
+
+    <span class="k">def</span> <span class="nf">frameEnd</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">func</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Ends a frame.  The decorated function should accept two arguments:</span>
+
+<span class="sd">        store - The storage object used to remember results from the frame (same</span>
+<span class="sd">                as in the frame() decorated method).</span>
+<span class="sd">        next - The next result object that ran through the frame.</span>
+
+<span class="sd">        Any results returned are recursed into the frame.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">func</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># Non-decorating</span>
+            <span class="k">return</span> <span class="k">lambda</span> <span class="n">func2</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">frameEnd</span><span class="p">(</span><span class="n">func2</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="s1">&#39;frameFunc&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stack</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;frameEnd call does not match up with frame!&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_assertNoResult</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_assertFuncArgs</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="n">fargs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stack</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="s1">&#39;frameArgs&#39;</span><span class="p">]</span>
+        <span class="n">funcStart</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stack</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="s1">&#39;frameFunc&#39;</span><span class="p">]</span>
+        <span class="c1"># Note that the inline version skips straight from handleFirst to handleDone, then</span>
+        <span class="c1"># handleNext based on recurrence.</span>
+        <span class="k">def</span> <span class="nf">handleFirst</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">store</span><span class="p">,</span> <span class="n">first</span><span class="p">):</span>
+            <span class="n">store</span><span class="o">.</span><span class="n">first</span> <span class="o">=</span> <span class="n">first</span>
+            <span class="n">store</span><span class="o">.</span><span class="n">obj</span> <span class="o">=</span> <span class="n">fargs</span><span class="o">.</span><span class="n">store</span><span class="p">()</span>
+        <span class="k">def</span> <span class="nf">handleNext</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">store</span><span class="p">,</span> <span class="nb">next</span><span class="p">):</span>
+            <span class="n">results</span> <span class="o">=</span> <span class="n">func</span><span class="p">(</span><span class="n">store</span><span class="o">.</span><span class="n">obj</span><span class="p">,</span> <span class="nb">next</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_listCall</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">recur</span><span class="p">,</span> <span class="n">results</span><span class="p">)</span>
+        <span class="k">def</span> <span class="nf">handleDone</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">store</span><span class="p">):</span>
+            <span class="n">results</span> <span class="o">=</span> <span class="n">funcStart</span><span class="p">(</span><span class="n">store</span><span class="o">.</span><span class="n">obj</span><span class="p">,</span> <span class="n">store</span><span class="o">.</span><span class="n">first</span><span class="p">)</span>
+            <span class="n">hadRecur</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_listCall</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">recur</span><span class="p">,</span> <span class="n">results</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">hadRecur</span><span class="p">:</span>
+                <span class="c1"># Frame is done, so emit our results</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_listCall</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">emit</span><span class="p">,</span> <span class="n">fargs</span><span class="o">.</span><span class="n">emit</span><span class="p">(</span><span class="n">store</span><span class="o">.</span><span class="n">obj</span><span class="p">))</span>
+
+        <span class="n">frame</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_newType</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_stack</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="s1">&#39;frameFunc&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">__name__</span><span class="p">,</span>
+                <span class="n">job_stream</span><span class="o">.</span><span class="n">Frame</span><span class="p">,</span> <span class="n">handleFirst</span> <span class="o">=</span> <span class="n">handleFirst</span><span class="p">,</span> <span class="n">handleNext</span> <span class="o">=</span> <span class="n">handleNext</span><span class="p">,</span>
+                <span class="n">handleDone</span> <span class="o">=</span> <span class="n">handleDone</span><span class="p">,</span> <span class="n">useMultiprocessing</span> <span class="o">=</span> <span class="n">fargs</span><span class="o">.</span><span class="n">useMulti</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_stack</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="s1">&#39;config&#39;</span><span class="p">][</span><span class="s1">&#39;frame&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">frame</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_stack</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+        <span class="c1"># Since we always make a stack entry to start a frame, should never be empty here</span>
+        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stack</span>
+
+        <span class="k">return</span> <span class="n">func</span>
+
+
+    <span class="k">def</span> <span class="nf">job</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">func</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Decorates a job.  The decorated function must take one argument,</span>
+<span class="sd">        which is the work coming into the job.  Anything returned is passed</span>
+<span class="sd">        along to the next member of the stream.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">func</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># Invocation, not decoration</span>
+            <span class="k">return</span> <span class="k">lambda</span> <span class="n">func2</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">job</span><span class="p">(</span><span class="n">func2</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_assertNoResult</span><span class="p">()</span>
+        <span class="n">funcCls</span> <span class="o">=</span> <span class="n">func</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">inspect</span><span class="o">.</span><span class="n">isclass</span><span class="p">(</span><span class="n">funcCls</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_assertFuncArgs</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="k">def</span> <span class="nf">handle</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">work</span><span class="p">):</span>
+                <span class="n">results</span> <span class="o">=</span> <span class="n">func</span><span class="p">(</span><span class="n">work</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_listCall</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">emit</span><span class="p">,</span> <span class="n">results</span><span class="p">)</span>
+
+            <span class="n">funcCls</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_newType</span><span class="p">(</span><span class="n">func</span><span class="o">.</span><span class="n">__name__</span><span class="p">,</span> <span class="n">job_stream</span><span class="o">.</span><span class="n">Job</span><span class="p">,</span> <span class="n">handleWork</span> <span class="o">=</span> <span class="n">handle</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_stack</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="s1">&#39;config&#39;</span><span class="p">][</span><span class="s1">&#39;jobs&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">funcCls</span><span class="p">)</span>
+
+        <span class="c1"># Return original function for multiplicity</span>
+        <span class="k">return</span> <span class="n">func</span>
+
+
+    <span class="k">def</span> <span class="nf">reduce</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">func</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Decorates a reducer.  Reducers are distributed (function does not</span>
+<span class="sd">        run on only one machine per reduction).  Typically this is used to</span>
+<span class="sd">        gather and aggregate results.  Any set of work coming into a reducer</span>
+<span class="sd">        will be emitted as a single piece of work.</span>
+
+<span class="sd">        The decorated function should take three arguments:</span>
+<span class="sd">        store - The storage object on this machine.</span>
+<span class="sd">        works - A list of work coming into the reducer</span>
+<span class="sd">        others - A list of storage objects being joined into this reducer from</span>
+<span class="sd">                other sources.</span>
+
+<span class="sd">        Any return value is recurred as work into the reducer.</span>
+
+<span class="sd">        Decorator kwargs:</span>
+<span class="sd">        store - Constructor for the storage element.  Defaults to inline.Object</span>
+<span class="sd">        emit - Function that takes the store and returns work to be forwarded</span>
+<span class="sd">                to the next element in the stream.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">func</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># Invocation with kwargs vs paren-less decoration</span>
+            <span class="k">return</span> <span class="k">lambda</span> <span class="n">func2</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">reduce</span><span class="p">(</span><span class="n">func2</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_assertNoResult</span><span class="p">()</span>
+        <span class="n">reducerCls</span> <span class="o">=</span> <span class="n">func</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">inspect</span><span class="o">.</span><span class="n">isclass</span><span class="p">(</span><span class="n">reducerCls</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_assertFuncArgs</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+            <span class="n">storeType</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;store&#39;</span><span class="p">,</span> <span class="n">Object</span><span class="p">)</span>
+            <span class="n">emitValue</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;emit&#39;</span><span class="p">,</span> <span class="k">lambda</span> <span class="n">store</span><span class="p">:</span> <span class="n">store</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">kwargs</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span><span class="s2">&quot;Unknown kwargs: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">kwargs</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span>
+
+            <span class="k">def</span> <span class="nf">init</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">store</span><span class="p">):</span>
+                <span class="n">store</span><span class="o">.</span><span class="n">obj</span> <span class="o">=</span> <span class="n">storeType</span><span class="p">()</span>
+            <span class="k">def</span> <span class="nf">add</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">store</span><span class="p">,</span> <span class="n">w</span><span class="p">):</span>
+                <span class="n">results</span> <span class="o">=</span> <span class="n">func</span><span class="p">(</span><span class="n">store</span><span class="o">.</span><span class="n">obj</span><span class="p">,</span> <span class="p">[</span> <span class="n">w</span> <span class="p">],</span> <span class="p">[])</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_listCall</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">recur</span><span class="p">,</span> <span class="n">results</span><span class="p">)</span>
+            <span class="k">def</span> <span class="nf">join</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">store</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+                <span class="n">results</span> <span class="o">=</span> <span class="n">func</span><span class="p">(</span><span class="n">store</span><span class="o">.</span><span class="n">obj</span><span class="p">,</span> <span class="p">[],</span> <span class="p">[</span> <span class="n">other</span> <span class="p">])</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_listCall</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">recur</span><span class="p">,</span> <span class="n">results</span><span class="p">)</span>
+            <span class="k">def</span> <span class="nf">done</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">store</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_listCall</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">emit</span><span class="p">,</span> <span class="n">emitValue</span><span class="p">(</span><span class="n">store</span><span class="o">.</span><span class="n">obj</span><span class="p">))</span>
+            <span class="n">reducerCls</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_newType</span><span class="p">(</span><span class="n">func</span><span class="o">.</span><span class="n">__name__</span><span class="p">,</span>
+                    <span class="n">job_stream</span><span class="o">.</span><span class="n">Reducer</span><span class="p">,</span> <span class="n">handleInit</span> <span class="o">=</span> <span class="n">init</span><span class="p">,</span> <span class="n">handleAdd</span> <span class="o">=</span> <span class="n">add</span><span class="p">,</span>
+                    <span class="n">handleJoin</span> <span class="o">=</span> <span class="n">join</span><span class="p">,</span> <span class="n">handleDone</span> <span class="o">=</span> <span class="n">done</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_stack</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="s1">&#39;config&#39;</span><span class="p">][</span><span class="s1">&#39;reducer&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">reducerCls</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_stack</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stack</span><span class="p">:</span>
+            <span class="c1"># We popped off the last.  To allow inline jobs to still be added</span>
+            <span class="c1"># (post processing), we ensure that we still have a stack</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">[</span><span class="s1">&#39;jobs&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">_UnwrapperJob</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_initialWorkDepth</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_config</span> <span class="o">=</span> <span class="p">{</span> <span class="s1">&#39;jobs&#39;</span><span class="p">:</span> <span class="p">[</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span> <span class="p">]</span> <span class="p">}</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_stack</span><span class="o">.</span><span class="n">append</span><span class="p">({</span> <span class="s1">&#39;config&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span> <span class="p">})</span>
+
+        <span class="c1"># Return the original function so that the user may call it, if</span>
+        <span class="c1"># desired</span>
+        <span class="k">return</span> <span class="n">func</span>
+
+
+    <span class="k">def</span> <span class="nf">result</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">func</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Decorates a result handler, which is called only on the primary host</span>
+<span class="sd">        exactly once for each piece of work that exits the system.  The handler</span>
+<span class="sd">        receives a single argument, which is the piece of work exiting the</span>
+<span class="sd">        system.</span>
+
+<span class="sd">        If no result handlers are decorated, then inline will use a collector</span>
+<span class="sd">        that gathers the results and returns them in a list from the run()</span>
+<span class="sd">        method (run() will return None on machines that are not the primary</span>
+<span class="sd">        host).&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">func</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="k">lambda</span> <span class="n">func2</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">result</span><span class="p">(</span><span class="n">func2</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_assertNoResult</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_assertFuncArgs</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">kwargs</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span><span class="s2">&quot;Unknown kwargs: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">kwargs</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_resultHandler</span> <span class="o">=</span> <span class="n">func</span>
+
+        <span class="c1"># Return original function so it may be referred to as usual</span>
+        <span class="k">return</span> <span class="n">func</span>
+
+
+    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Runs the Work, executing all decorated methods in the order they</span>
+<span class="sd">        were specified.  A few kwargs passed to Work() will be forwarded to</span>
+<span class="sd">        job_stream.run().</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">runKwargs</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_runKwargs</span><span class="p">)</span>
+
+        <span class="c1"># Hack in a finish() that returns the results, if no finish or results</span>
+        <span class="c1"># is specified</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="p">[</span> <span class="kc">None</span> <span class="p">]</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_hasFinish</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_resultHandler</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="nd">@self</span><span class="o">.</span><span class="n">finish</span>
+            <span class="k">def</span> <span class="nf">returnResults</span><span class="p">(</span><span class="n">results</span><span class="p">):</span>
+                <span class="k">return</span> <span class="n">results</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_hasFinish</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_resultHandler</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;finish() and result()?&quot;</span><span class="p">)</span>
+            <span class="k">def</span> <span class="nf">handleSingleResult</span><span class="p">(</span><span class="n">onlyResult</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">result</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Got multiple results?&quot;</span><span class="p">)</span>
+                <span class="n">result</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">onlyResult</span>
+            <span class="n">runKwargs</span><span class="p">[</span><span class="s1">&#39;handleResult&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">handleSingleResult</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_resultHandler</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;No finish() nor result()?&quot;</span><span class="p">)</span>
+            <span class="n">runKwargs</span><span class="p">[</span><span class="s1">&#39;handleResult&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_resultHandler</span>
+
+        <span class="c1"># Run init functions, if it&#39;s the first execution of this stream</span>
+        <span class="n">isFirst</span> <span class="o">=</span> <span class="kc">True</span>
+
+        <span class="c1"># Is this a continuation?</span>
+        <span class="k">if</span> <span class="n">runKwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;checkpointFile&#39;</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">lexists</span><span class="p">(</span><span class="n">runKwargs</span><span class="p">[</span><span class="s1">&#39;checkpointFile&#39;</span><span class="p">]):</span>
+                <span class="n">isFirst</span> <span class="o">=</span> <span class="kc">False</span>
+
+        <span class="c1"># Init?</span>
+        <span class="k">if</span> <span class="n">isFirst</span> <span class="ow">and</span> <span class="n">job_stream</span><span class="o">.</span><span class="n">getRank</span><span class="p">()</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="c1"># Call initial functions</span>
+            <span class="k">def</span> <span class="nf">addToInitial</span><span class="p">(</span><span class="n">w</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_initialWork</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">w</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">init</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_inits</span><span class="p">:</span>
+                <span class="c1"># Remember, anything returned from init() adds to our initial</span>
+                <span class="c1"># work.</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_listCall</span><span class="p">(</span><span class="n">addToInitial</span><span class="p">,</span> <span class="n">init</span><span class="p">())</span>
+
+        <span class="c1"># Bury our initial work appropriately</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_initialWorkDepth</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_initialWork</span> <span class="o">=</span> <span class="p">[</span> <span class="bp">self</span><span class="o">.</span><span class="n">_initialWork</span> <span class="p">]</span>
+        <span class="n">job_stream</span><span class="o">.</span><span class="n">work</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_initialWork</span>
+        <span class="n">job_stream</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">,</span> <span class="o">**</span><span class="n">runKwargs</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">result</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+
+    <span class="k">def</span> <span class="nf">_assertFuncArgs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">func</span><span class="p">,</span> <span class="n">i</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Ensures that the function func takes exactly i args.  Makes error</span>
+<span class="sd">        messages more friendly.&quot;&quot;&quot;</span>
+        <span class="n">numArgs</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">inspect</span><span class="o">.</span><span class="n">getargspec</span><span class="p">(</span><span class="n">func</span><span class="p">)</span><span class="o">.</span><span class="n">args</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">numArgs</span> <span class="o">!=</span> <span class="n">i</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Function </span><span class="si">{}</span><span class="s2"> must take exactly </span><span class="si">{}</span><span class="s2"> args; takes </span><span class="si">{}</span><span class="s2">&quot;</span>
+                    <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">numArgs</span><span class="p">))</span>
+
+
+    <span class="k">def</span> <span class="nf">_assertNoResult</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Ensures that @w.result hasn&#39;t been used yet, otherwise raises an</span>
+<span class="sd">        error.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_hasFinish</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;After Work.finish is used, no other elements may &quot;</span>
+                    <span class="s2">&quot;be added to the job stream.&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_resultHandler</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;After Work.result is used, no other elements may &quot;</span>
+                    <span class="s2">&quot;be added to the job stream.&quot;</span><span class="p">)</span>
+
+
+    <span class="k">def</span> <span class="nf">_listCall</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">boundMethod</span><span class="p">,</span> <span class="n">results</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Calls boundMethod (which is something like Job.emit) for each member of results,</span>
+<span class="sd">        if results is Multiple.</span>
+
+<span class="sd">        Returns True if the boundMethod was called at all (non-None result), False</span>
+<span class="sd">        otherwise.&quot;&quot;&quot;</span>
+        <span class="n">called</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">results</span><span class="p">,</span> <span class="n">Multiple</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">results</span><span class="o">.</span><span class="n">workList</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">r</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="k">continue</span>
+                <span class="n">boundMethod</span><span class="p">(</span><span class="n">r</span><span class="p">)</span>
+                <span class="n">called</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">elif</span> <span class="n">results</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">pass</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">boundMethod</span><span class="p">(</span><span class="n">results</span><span class="p">)</span>
+            <span class="n">called</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">return</span> <span class="n">called</span>
+
+
+    <span class="k">def</span> <span class="nf">_newType</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">nameBase</span><span class="p">,</span> <span class="n">clsBase</span><span class="p">,</span> <span class="o">**</span><span class="n">funcs</span><span class="p">):</span>
+        <span class="n">tname</span> <span class="o">=</span> <span class="s2">&quot;_</span><span class="si">{}</span><span class="s2">_</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">nameBase</span><span class="p">,</span> <span class="n">_typeCount</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="n">_typeCount</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="n">useMulti</span> <span class="o">=</span> <span class="n">funcs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;useMultiprocessing&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_useMultiprocessing</span><span class="p">)</span>
+        <span class="n">clsAttrs</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">funcs</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">useMulti</span><span class="p">:</span>
+            <span class="n">clsAttrs</span><span class="p">[</span><span class="s1">&#39;USE_MULTIPROCESSING&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="n">cls</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="n">tname</span><span class="p">,</span> <span class="p">(</span><span class="n">clsBase</span><span class="p">,),</span> <span class="n">clsAttrs</span><span class="p">)</span>
+        <span class="n">_moduleSelf</span><span class="p">[</span><span class="n">tname</span><span class="p">]</span> <span class="o">=</span> <span class="n">cls</span>
+        <span class="k">return</span> <span class="n">cls</span>
+
+
+<div class="viewcode-block" id="map"><a class="viewcode-back" href="../../_autosummary/_autosummary/job_stream.inline.html#job_stream.inline.map">[docs]</a><span class="k">def</span> <span class="nf">map</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="o">*</span><span class="n">sequence</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns [ func(*a) for a in sequence ] in a parallel manner.  Identical</span>
+<span class="sd">    to the builtin map(), except parallelized.</span>
+
+<span class="sd">    kwargs - Passed to job_stream.inline.Work().</span>
+
+<span class="sd">    This implementation differs from job_stream.map() so that it can</span>
+<span class="sd">    demonstrate the functionality of the inline module.  The behavior is</span>
+<span class="sd">    identical.&quot;&quot;&quot;</span>
+    <span class="n">arr</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">enumerate</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="n">sequence</span><span class="p">)))</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="p">[</span> <span class="kc">None</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">arr</span><span class="p">))</span> <span class="p">]</span>
+    <span class="k">with</span> <span class="n">Work</span><span class="p">(</span><span class="n">arr</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="k">as</span> <span class="n">w</span><span class="p">:</span>
+        <span class="nd">@w</span><span class="o">.</span><span class="n">job</span>
+        <span class="k">def</span> <span class="nf">mapWork</span><span class="p">(</span><span class="n">w</span><span class="p">):</span>
+            <span class="n">i</span><span class="p">,</span> <span class="n">arg</span> <span class="o">=</span> <span class="n">w</span>
+            <span class="k">return</span> <span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">func</span><span class="p">(</span><span class="o">*</span><span class="n">arg</span><span class="p">))</span>
+
+        <span class="nd">@w</span><span class="o">.</span><span class="n">result</span>
+        <span class="k">def</span> <span class="nf">storeResult</span><span class="p">(</span><span class="n">w</span><span class="p">):</span>
+            <span class="n">result</span><span class="p">[</span><span class="n">w</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span> <span class="o">=</span> <span class="n">w</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">result</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2016, Walt Woods.
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../../',
+            VERSION:'0.1.19',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true
+        };
+    </script>
+      <script type="text/javascript" src="../../_static/jquery.js"></script>
+      <script type="text/javascript" src="../../_static/underscore.js"></script>
+      <script type="text/javascript" src="../../_static/doctools.js"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

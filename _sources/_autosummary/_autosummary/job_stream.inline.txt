@@ -1,0 +1,9 @@
+job_stream.inline
+=================
+
+.. contents::
+
+.. automodule:: job_stream.inline
+
+    Members
+    =======
