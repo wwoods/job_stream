@@ -89,7 +89,8 @@ those recorded values.
 .. note:: The experiment with ``param == 1.`` required many more trials because
         10% of 1 is smaller than 10% of 10 or 5.5.  However,
         :meth:`job_stream.baked.sweep` allows the stopping criteria tolerances
-        to be changed; see the documentation.
+        to be changed, as well as a hard limit set on the number of trials;
+        see the documentation for more information.
 
 
 Features
