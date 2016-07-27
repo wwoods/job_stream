@@ -175,8 +175,9 @@ job_stream = Extension('_job_stream',
         extra_compile_args = [ '-std=c++0x' ],
         extra_link_args = linkerExtras)
 
+exec(open('python/job_stream/version.py').read())
 setup(name = 'job_stream',
-        version = '0.1.21',
+        version = __version__,  # From python/job_stream/version.py
         install_requires = [ 'appdirs', 'click', 'pandas', 'six' ],
         description = 'job_stream: easy and sophisticated parallelization',
         long_description = long_desc,

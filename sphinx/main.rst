@@ -60,8 +60,8 @@ Using the :meth:`job_stream.baked.sweep` method, ``job_stream`` can automaticall
     import numpy as np
 
     # Parameters to be tested can be passed as the first argument to sweep;
-    # the second argument would control the maximum number of allowable
-    # trials.
+    # the second argument, if specified, is the number of trials for each
+    # parameter combination (negative to auto-detect with a maximum threshold).
     with sweep({ 'param': np.linspace(1, 10, 3) }) as w:
         @w.job
         def handle(id, trial, param):

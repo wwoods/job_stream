@@ -128,15 +128,26 @@ def sweep(variables={}, trials=0, output=None, trialsParms={}):
         raise ValueError("Both E and eps cannot be zero in trialsParms")
 
     allParms = set()
+    nExperiments = 0
     if isinstance(variables, list):
+        nExperiments = len(variables)
         for v in variables:
             if not isinstance(v, dict):
                 raise ValueError("If a list, variables must contain dicts")
+            if len(allParms) == 0:
+                allParms.update(v.keys())
+            else:
+                if allParms != set(v.keys()):
+                    raise ValueError("All parameter dictionaries must have "
+                            "same keys; found {} against {}".format(allParms,
+                                set(v.keys())))
             for k in v:
                 allParms.add(k)
     elif isinstance(variables, dict):
-        for k in variables:
+        nExperiments = 1
+        for k, v in variables.items():
             allParms.add(k)
+            nExperiments *= len(v)
     else:
         raise NotImplementedError(variables)
 
@@ -195,7 +206,7 @@ def sweep(variables={}, trials=0, output=None, trialsParms={}):
             v = v.copy()
             v['id'] = store.id
             store.id += 1
-            return v
+            return (v, store.actualMin)
 
 
         def _getZc(n):
@@ -242,7 +253,12 @@ def sweep(variables={}, trials=0, output=None, trialsParms={}):
                 # Start as many experiment combinations as we have CPUs for,
                 # with one extra to keep things busy
                 nCpu = inline.getCpuCount()
-                while len(initial) < (nCpu // nTrialsMin) + 1:
+
+                # Calculate the actual minimum number of trials to run
+                store.actualMin = min(nTrialsMax, max(nTrialsMin,
+                        (nCpu // nExperiments)))
+
+                while len(initial) < (nCpu // store.actualMin) + 1:
                     n = _getNextParams(store)
                     if n is None:
                         break
@@ -269,13 +285,13 @@ def sweep(variables={}, trials=0, output=None, trialsParms={}):
         def spinUpTrials(store, first):
             if not hasattr(store, 'init'):
                 store.init = True
-                store.parms = first
+                store.parms = first[0]
                 store.trialDone = 0
-                store.trialNext = nTrialsMin
+                store.trialNext = first[1]
                 store.resultAvg = collections.defaultdict(float)
                 store.resultVar = collections.defaultdict(float)
                 return Multiple([ Args(trial=i, **store.parms)
-                        for i in range(nTrialsMin) ])
+                        for i in range(store.trialNext) ])
 
             # If we get here, this trial is done; convert variances to
             # deviations
@@ -304,6 +320,11 @@ def sweep(variables={}, trials=0, output=None, trialsParms={}):
 
         @w.frameEnd
         def spinDownTrials(store, result):
+            if (not isinstance(result, dict)
+                    or store.trialDone + 1 > store.trialNext):
+                raise ValueError("Result from sweep()'s pipeline must be a "
+                        "single dict (cannot emit Multiple either)")
+
             store.trialDone += 1
             n = store.trialDone
 
@@ -331,8 +352,8 @@ def sweep(variables={}, trials=0, output=None, trialsParms={}):
                 devs[k] = oldDev + oldAvg ** 2 - newAvg ** 2 + (
                         v ** 2 - oldDev - oldAvg ** 2) / n
 
-            if nTrialsMin == nTrialsMax:
-                # Nothing more to run, OR not enough data to decide yet
+            if store.trialNext >= nTrialsMax:
+                # Nothing more to run
                 return
 
             numToSpawn = 0
@@ -340,8 +361,8 @@ def sweep(variables={}, trials=0, output=None, trialsParms={}):
                 # Not enough information to predict the number of trials, so
                 # do not propagate more unless only one was propagated in the
                 # first place.
-                if nTrialsMin != 1:
-                    # More than one propagated, OK
+                if store.trialNext != 1:
+                    # More than one propagated
                     numToSpawn = 0
                 else:
                     # We need another to get statistical significance

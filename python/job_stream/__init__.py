@@ -21,3 +21,5 @@ Submodules
 from .common import (Object, checkpointInfo, getCpuCount, getRank, invoke, map,
         _cpuThreadTime)
 
+from .version import __version__
+

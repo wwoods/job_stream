@@ -1,6 +1,8 @@
 Changelog
 =========
 
+* 2016-7-27 - :mod:`job_stream.baked` module.  Vastly improved documentation.
+  Python bump to 0.1.22.  job_stream.__version__ added in Python.
 * 2016-7-13 - Minor fix for bin/job_stream; hosts now remain sorted in their
   original order, fixing the server with rank 0 to a specific host.
 * 2016-7-07 - mpirun doesn't automatically forward environment variables; this
