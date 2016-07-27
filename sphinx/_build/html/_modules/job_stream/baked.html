@@ -1,0 +1,580 @@
+
+
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>job_stream.baked &mdash; job_stream 0.1.20 documentation</title>
+  
+
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  
+
+  
+    <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+
+  
+    <link rel="top" title="job_stream 0.1.20 documentation" href="../../index.html"/>
+        <link rel="up" title="Module code" href="../index.html"/> 
+
+  
+  <script src="../../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../../index.html" class="icon icon-home"> job_stream
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.1.20
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+                <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../main.html">job_stream</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../changelog.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../roadmap.html">Roadmap</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../python.html">Python API</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+        <a href="../../index.html">job_stream</a>
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../../index.html">Docs</a> &raquo;</li>
+      
+          <li><a href="../index.html">Module code</a> &raquo;</li>
+      
+    <li>job_stream.baked</li>
+      <li class="wy-breadcrumbs-aside">
+        
+          
+        
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for job_stream.baked</h1><div class="highlight"><pre>
+<span></span><span class="sd">r&quot;&quot;&quot;Pre-baked templates for common distributed operations.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">job_stream.inline</span> <span class="k">as</span> <span class="nn">inline</span>
+<span class="kn">from</span> <span class="nn">job_stream.inline</span> <span class="k">import</span> <span class="n">Args</span><span class="p">,</span> <span class="n">Multiple</span><span class="p">,</span> <span class="n">Work</span>
+
+<span class="kn">import</span> <span class="nn">collections</span>
+<span class="kn">import</span> <span class="nn">contextlib</span>
+<span class="kn">import</span> <span class="nn">math</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+
+<span class="nd">@contextlib</span><span class="o">.</span><span class="n">contextmanager</span>
+<div class="viewcode-block" id="sweep"><a class="viewcode-back" href="../../_autosummary/job_stream.baked.html#job_stream.baked.sweep">[docs]</a><span class="k">def</span> <span class="nf">sweep</span><span class="p">(</span><span class="n">variables</span><span class="o">=</span><span class="p">{},</span> <span class="n">trials</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">output</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">trialsParms</span><span class="o">=</span><span class="p">{}):</span>
+    <span class="sd">&quot;&quot;&quot;Generic experiment framework; wraps a user&#39;s job_stream (realized via</span>
+<span class="sd">    :mod:`job_stream.inline.Work`.  The wrapped job_stream should take a</span>
+<span class="sd">    parameter dictionary and return a dictionary of results to track.  The</span>
+<span class="sd">    numerical statistics of several invocations of the user&#39;s code will be</span>
+<span class="sd">    reported.  For example:</span>
+
+<span class="sd">    .. code-block:: python</span>
+
+<span class="sd">        from job_stream.baked import sweep</span>
+<span class="sd">        import numpy as np</span>
+
+<span class="sd">        with sweep({ &#39;a&#39;: np.arange(10) }) as w:</span>
+<span class="sd">            @w.job</span>
+<span class="sd">            def square(id, trial, a):</span>
+<span class="sd">                return { &#39;value&#39;: a*a + np.random.random() }</span>
+
+<span class="sd">    The above will print out a CSV file (in a legible, table format) that </span>
+<span class="sd">    details the mean of ``value`` for ``a = 0, a = 1, ..., a = 9``.  </span>
+<span class="sd">    Additionally, the standard deviation and expected (95% confidence) error</span>
+<span class="sd">    of the reported mean will be printed.</span>
+
+<span class="sd">    .. note:: While training e.g. a machine learning model, it may be</span>
+<span class="sd">            desirable to print the model&#39;s accuracy at different points</span>
+<span class="sd">            throughout the training.  To accomplish this, it is recommended</span>
+<span class="sd">            that the user code remember the accuracy throughout training and</span>
+<span class="sd">            multiplex the column in the final answer (e.g., ``value_at_0``,</span>
+<span class="sd">            ``value_at_1000``, etc).</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        variables (any):</span>
+<span class="sd">            Any of:</span>
+
+<span class="sd">            * :class:`dict`: ``{ &#39;parameter name&#39;: [ &#39;values to try&#39; ] }``.</span>
+
+<span class="sd">              Tries every combination of values for the specified parameters.</span>
+
+<span class="sd">              Often, ``values to try`` will come from a function such as</span>
+<span class="sd">              ``numpy.linspace``, which generates a number of intermediate</span>
+<span class="sd">              values on a range.</span>
+
+<span class="sd">              .. warning:: When more than one parameter is specified, the</span>
+<span class="sd">                      number of experiments that will run will be the</span>
+<span class="sd">                      multiplication of the number of values to try</span>
+<span class="sd">                      for each; that is, all combinations are tried.</span>
+<span class="sd">                      This will quickly take a long time to run, so be</span>
+<span class="sd">                      careful.</span>
+
+<span class="sd">            * :class:`list`: ``[ { &#39;parameter name&#39;: &#39;value&#39; } ]``.</span>
+
+<span class="sd">              Tries only the specified combinations.  The dictionaries are</span>
+<span class="sd">              passed as-is.</span>
+
+<span class="sd">            Regardless of the type passed, the arguments seen by the user&#39;s</span>
+<span class="sd">            jobs will also include ``id``, a unique identifier for the</span>
+<span class="sd">            combination of parameters, and ``trial``, the current iteration of</span>
+<span class="sd">            that combination.</span>
+
+<span class="sd">        trials (int):</span>
+<span class="sd">            The number of times to try each parameter combination.</span>
+
+<span class="sd">            If greater than zero, this number is exact.</span>
+
+<span class="sd">            If zero, the number will be automatically discerned based on the</span>
+<span class="sd">            standard deviations of each returned property.  More specifically,</span>
+<span class="sd">            the algorithm proposed by Driels et al. in 2004, &quot;Determining the</span>
+<span class="sd">            Number of Iterations for Monte Carlo Simulations of Weapon</span>
+<span class="sd">            Effectiveness,&quot; will be used to guarantee that every mean returned</span>
+<span class="sd">            will be within 10% of the true value with 95% confidence.</span>
+
+<span class="sd">            If less than zero, the same algorithm is used as for a zero value,</span>
+<span class="sd">            but the number of trials ran will not exceed ``abs(trials)``.</span>
+
+<span class="sd">        output (str): If ``None``, results are printed to stdout and the</span>
+<span class="sd">            program exits.  If anything else, presumed to be the path to a</span>
+<span class="sd">            CSV file where the results will be dumped.</span>
+
+<span class="sd">        trialsParms (dict):</span>
+<span class="sd">            A dictionary of keys used to configure the auto-detect used to</span>
+<span class="sd">            determine the number of trials needed.</span>
+
+<span class="sd">            E</span>
+<span class="sd">                The percentage of relative error between the true mean and the</span>
+<span class="sd">                reported mean.  For instance, if E is 0.1, then there is a 95%</span>
+<span class="sd">                confidence that the true value is on the range of the estimated</span>
+<span class="sd">                value * (1. +- 0.1).  Defaults to 0.1.</span>
+
+<span class="sd">            eps</span>
+<span class="sd">                The absolute minimum estimated error.  Defaults to 1e-2.</span>
+
+<span class="sd">    Return:</span>
+<span class="sd">        Nothing is returned.  However, both stdout and, if specified, the csv</span>
+<span class="sd">        indicated by ``output`` will have a grid with all trial ids,</span>
+<span class="sd">        parameters, and results printed.  Each result column will represent</span>
+<span class="sd">        the mean value; additionally, the estimated standard deviation and the</span>
+<span class="sd">        95% confidence error of the reported mean will be printed.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">variables</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;variables must be list or dict: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">variables</span><span class="p">))</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">trials</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;trials must be int&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">output</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;output must be str or None&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">trialsParms</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;trialsParms must be a dict&quot;</span><span class="p">)</span>
+
+    <span class="n">trialsParmsDefaults</span> <span class="o">=</span> <span class="p">{</span> <span class="s1">&#39;E&#39;</span><span class="p">:</span> <span class="mf">0.1</span><span class="p">,</span> <span class="s1">&#39;eps&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="n">e</span><span class="o">-</span><span class="mi">2</span> <span class="p">}</span>
+    <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">trialsParms</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">k</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">trialsParmsDefaults</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Bad trialsParms key: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">k</span><span class="p">))</span>
+    <span class="n">trialsParmsDefaults</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">trialsParms</span><span class="p">)</span>
+
+    <span class="n">allParms</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">variables</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">variables</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;If a list, variables must contain dicts&quot;</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">v</span><span class="p">:</span>
+                <span class="n">allParms</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">k</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">variables</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">variables</span><span class="p">:</span>
+            <span class="n">allParms</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">k</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="n">variables</span><span class="p">)</span>
+
+    <span class="n">nTrialsMin</span> <span class="o">=</span> <span class="mi">3</span>
+    <span class="n">nTrialsMax</span> <span class="o">=</span> <span class="mi">10000</span>
+    <span class="k">if</span> <span class="n">trials</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">nTrialsMax</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">trials</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">trials</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">nTrialsMin</span> <span class="o">=</span> <span class="n">trials</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">nTrialsMin</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">nTrialsMin</span><span class="p">,</span> <span class="nb">abs</span><span class="p">(</span><span class="n">trials</span><span class="p">))</span>
+
+    <span class="k">with</span> <span class="n">Work</span><span class="p">([</span><span class="mi">1</span><span class="p">])</span> <span class="k">as</span> <span class="n">w</span><span class="p">:</span>
+        <span class="k">def</span> <span class="nf">_getNextParams</span><span class="p">(</span><span class="n">store</span><span class="p">):</span>
+            <span class="sd">&quot;&quot;&quot;Returns the next parameter combination that needs to be tried.</span>
+<span class="sd">            &quot;&quot;&quot;</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">variables</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">store</span><span class="p">,</span> <span class="s1">&#39;i&#39;</span><span class="p">):</span>
+                    <span class="n">store</span><span class="o">.</span><span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="k">if</span> <span class="n">store</span><span class="o">.</span><span class="n">i</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">variables</span><span class="p">):</span>
+                    <span class="k">return</span>
+                <span class="n">store</span><span class="o">.</span><span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="n">v</span> <span class="o">=</span> <span class="n">variables</span><span class="p">[</span><span class="n">store</span><span class="o">.</span><span class="n">i</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Parameter was not dict? </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">v</span><span class="p">))</span>
+            <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">variables</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">store</span><span class="p">,</span> <span class="s1">&#39;stack&#39;</span><span class="p">):</span>
+                    <span class="n">store</span><span class="o">.</span><span class="n">keys</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">variables</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+                    <span class="n">store</span><span class="o">.</span><span class="n">stack</span> <span class="o">=</span> <span class="p">{</span> <span class="n">name</span><span class="p">:</span> <span class="mi">0</span> <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">store</span><span class="o">.</span><span class="n">keys</span> <span class="p">}</span>
+                    <span class="n">store</span><span class="o">.</span><span class="n">carry</span> <span class="o">=</span> <span class="mi">0</span>
+
+                <span class="k">if</span> <span class="n">store</span><span class="o">.</span><span class="n">carry</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="c1"># All set, no more combinations to try</span>
+                    <span class="k">return</span>
+
+                <span class="c1"># Load up next set</span>
+                <span class="n">v</span> <span class="o">=</span> <span class="p">{}</span>
+                <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">vals</span> <span class="ow">in</span> <span class="n">variables</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                    <span class="n">v</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">vals</span><span class="p">[</span><span class="n">store</span><span class="o">.</span><span class="n">stack</span><span class="p">[</span><span class="n">name</span><span class="p">]]</span>
+
+                <span class="c1"># Increment and cascade</span>
+                <span class="n">store</span><span class="o">.</span><span class="n">carry</span> <span class="o">=</span> <span class="mi">1</span>
+                <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">store</span><span class="o">.</span><span class="n">keys</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">store</span><span class="o">.</span><span class="n">carry</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                        <span class="k">break</span>
+                    <span class="n">store</span><span class="o">.</span><span class="n">stack</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+                    <span class="k">if</span> <span class="n">store</span><span class="o">.</span><span class="n">stack</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="nb">len</span><span class="p">(</span><span class="n">variables</span><span class="p">[</span><span class="n">k</span><span class="p">]):</span>
+                        <span class="n">store</span><span class="o">.</span><span class="n">stack</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+                        <span class="n">store</span><span class="o">.</span><span class="n">carry</span> <span class="o">=</span> <span class="mi">1</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">store</span><span class="o">.</span><span class="n">carry</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="n">variables</span><span class="p">)</span>
+
+            <span class="c1"># v is dict with parameters at the moment; give it an ID</span>
+            <span class="n">v</span> <span class="o">=</span> <span class="n">v</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+            <span class="n">v</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">store</span><span class="o">.</span><span class="n">id</span>
+            <span class="n">store</span><span class="o">.</span><span class="n">id</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="k">return</span> <span class="n">v</span>
+
+
+        <span class="k">def</span> <span class="nf">_getZc</span><span class="p">(</span><span class="n">n</span><span class="p">):</span>
+            <span class="sd">&quot;&quot;&quot;For a given number of trials n, returns z_c from Driels et al.</span>
+<span class="sd">            and whether or not there should be an extra trial due to</span>
+<span class="sd">            uncertainty.</span>
+<span class="sd">            &quot;&quot;&quot;</span>
+            <span class="c1"># An extra trial is required for low counts, due to the fact</span>
+            <span class="c1"># that there is higher variance in the calculated deviation.</span>
+            <span class="n">extra</span> <span class="o">=</span> <span class="mi">1</span>
+
+            <span class="n">vFree</span> <span class="o">=</span> <span class="n">n</span> <span class="o">-</span> <span class="mi">1</span>
+            <span class="n">zc</span> <span class="o">=</span> <span class="mf">1.96</span>
+            <span class="k">if</span> <span class="n">vFree</span> <span class="o">&gt;</span> <span class="mi">15</span><span class="p">:</span>
+                <span class="c1"># Normal distribution, and enough that we do not need to</span>
+                <span class="c1"># have an extra trial.</span>
+                <span class="n">extra</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="k">elif</span> <span class="n">vFree</span> <span class="o">&gt;=</span> <span class="mi">10</span><span class="p">:</span>
+                <span class="c1"># Here and below is a t-distribution; note that this comes</span>
+                <span class="c1"># from the 97.5% column in Table 3 of Driels et al., since</span>
+                <span class="c1"># those coefficients don&#39;t include the tail</span>
+                <span class="n">zc</span> <span class="o">=</span> <span class="mf">2.23</span>
+            <span class="k">elif</span> <span class="n">vFree</span> <span class="o">&gt;=</span> <span class="mi">5</span><span class="p">:</span>
+                <span class="n">zc</span> <span class="o">=</span> <span class="mf">2.57</span>
+            <span class="k">elif</span> <span class="n">vFree</span> <span class="o">&gt;=</span> <span class="mi">4</span><span class="p">:</span>
+                <span class="n">zc</span> <span class="o">=</span> <span class="mf">2.78</span>
+            <span class="k">elif</span> <span class="n">vFree</span> <span class="o">&gt;=</span> <span class="mi">3</span><span class="p">:</span>
+                <span class="n">zc</span> <span class="o">=</span> <span class="mf">3.18</span>
+            <span class="k">elif</span> <span class="n">vFree</span> <span class="o">&gt;=</span> <span class="mi">2</span><span class="p">:</span>
+                <span class="n">zc</span> <span class="o">=</span> <span class="mf">4.30</span>
+            <span class="k">elif</span> <span class="n">vFree</span> <span class="o">&gt;=</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="n">zc</span> <span class="o">=</span> <span class="mf">12.71</span>
+            <span class="k">return</span> <span class="n">zc</span><span class="p">,</span> <span class="n">extra</span>
+
+
+        <span class="nd">@w</span><span class="o">.</span><span class="n">frame</span>
+        <span class="k">def</span> <span class="nf">spinUpParms</span><span class="p">(</span><span class="n">store</span><span class="p">,</span> <span class="n">first</span><span class="p">):</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">store</span><span class="p">,</span> <span class="s1">&#39;init&#39;</span><span class="p">):</span>
+                <span class="n">store</span><span class="o">.</span><span class="n">init</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="n">store</span><span class="o">.</span><span class="n">id</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="n">store</span><span class="o">.</span><span class="n">results</span> <span class="o">=</span> <span class="p">[]</span>
+
+                <span class="n">initial</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="c1"># Start as many experiment combinations as we have CPUs for,</span>
+                <span class="c1"># with one extra to keep things busy</span>
+                <span class="n">nCpu</span> <span class="o">=</span> <span class="n">inline</span><span class="o">.</span><span class="n">getCpuCount</span><span class="p">()</span>
+                <span class="k">while</span> <span class="nb">len</span><span class="p">(</span><span class="n">initial</span><span class="p">)</span> <span class="o">&lt;</span> <span class="p">(</span><span class="n">nCpu</span> <span class="o">//</span> <span class="n">nTrialsMin</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">:</span>
+                    <span class="n">n</span> <span class="o">=</span> <span class="n">_getNextParams</span><span class="p">(</span><span class="n">store</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">n</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                        <span class="k">break</span>
+                    <span class="n">initial</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
+                <span class="k">return</span> <span class="n">Multiple</span><span class="p">(</span><span class="n">initial</span><span class="p">)</span>
+
+            <span class="c1"># Get here, we&#39;re done.  Print results, optionally put in csv</span>
+            <span class="n">otherCols</span> <span class="o">=</span> <span class="p">{</span> <span class="s1">&#39;id&#39;</span><span class="p">,</span> <span class="s1">&#39;trials&#39;</span> <span class="p">}</span>
+            <span class="n">otherCols</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">allParms</span><span class="p">)</span>
+            <span class="n">valCols</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">store</span><span class="o">.</span><span class="n">results</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">r</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">otherCols</span> <span class="ow">or</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">valCols</span><span class="p">:</span>
+                        <span class="k">continue</span>
+                    <span class="n">valCols</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">k</span><span class="p">)</span>
+            <span class="n">cols</span> <span class="o">=</span> <span class="p">[</span> <span class="s1">&#39;id&#39;</span><span class="p">,</span> <span class="s1">&#39;trials&#39;</span> <span class="p">]</span> <span class="o">+</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">allParms</span><span class="p">)</span> <span class="o">+</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">valCols</span><span class="p">)</span>
+            <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">store</span><span class="o">.</span><span class="n">results</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="n">cols</span><span class="p">)</span>
+            <span class="n">df</span><span class="o">.</span><span class="n">set_index</span><span class="p">(</span><span class="s1">&#39;id&#39;</span><span class="p">,</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">to_string</span><span class="p">())</span>
+            <span class="k">if</span> <span class="n">output</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">df</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="n">output</span><span class="p">)</span>
+
+        <span class="nd">@w</span><span class="o">.</span><span class="n">frame</span><span class="p">(</span><span class="n">emit</span><span class="o">=</span><span class="k">lambda</span> <span class="n">s</span><span class="p">:</span> <span class="n">s</span><span class="o">.</span><span class="n">result</span><span class="p">)</span>
+        <span class="k">def</span> <span class="nf">spinUpTrials</span><span class="p">(</span><span class="n">store</span><span class="p">,</span> <span class="n">first</span><span class="p">):</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">store</span><span class="p">,</span> <span class="s1">&#39;init&#39;</span><span class="p">):</span>
+                <span class="n">store</span><span class="o">.</span><span class="n">init</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="n">store</span><span class="o">.</span><span class="n">parms</span> <span class="o">=</span> <span class="n">first</span>
+                <span class="n">store</span><span class="o">.</span><span class="n">trialDone</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="n">store</span><span class="o">.</span><span class="n">trialNext</span> <span class="o">=</span> <span class="n">nTrialsMin</span>
+                <span class="n">store</span><span class="o">.</span><span class="n">resultAvg</span> <span class="o">=</span> <span class="n">collections</span><span class="o">.</span><span class="n">defaultdict</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span>
+                <span class="n">store</span><span class="o">.</span><span class="n">resultVar</span> <span class="o">=</span> <span class="n">collections</span><span class="o">.</span><span class="n">defaultdict</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span>
+                <span class="k">return</span> <span class="n">Multiple</span><span class="p">([</span> <span class="n">Args</span><span class="p">(</span><span class="n">trial</span><span class="o">=</span><span class="n">i</span><span class="p">,</span> <span class="o">**</span><span class="n">store</span><span class="o">.</span><span class="n">parms</span><span class="p">)</span>
+                        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nTrialsMin</span><span class="p">)</span> <span class="p">])</span>
+
+            <span class="c1"># If we get here, this trial is done; convert variances to</span>
+            <span class="c1"># deviations</span>
+            <span class="n">devs</span> <span class="o">=</span> <span class="p">{</span> <span class="n">k</span><span class="p">:</span> <span class="n">v</span> <span class="o">**</span> <span class="mf">0.5</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">store</span><span class="o">.</span><span class="n">resultVar</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="p">}</span>
+            <span class="n">store</span><span class="o">.</span><span class="n">result</span> <span class="o">=</span> <span class="n">store</span><span class="o">.</span><span class="n">parms</span>
+            <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="p">[</span> <span class="p">(</span><span class="s1">&#39;trials&#39;</span><span class="p">,</span> <span class="n">store</span><span class="o">.</span><span class="n">trialDone</span><span class="p">)</span> <span class="p">]:</span>
+                <span class="k">if</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">store</span><span class="o">.</span><span class="n">result</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Duplicate key: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">k</span><span class="p">))</span>
+                <span class="n">store</span><span class="o">.</span><span class="n">result</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span>
+            <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">store</span><span class="o">.</span><span class="n">resultAvg</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="n">store</span><span class="o">.</span><span class="n">result</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span>
+                <span class="n">devk</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">{}</span><span class="s1">_dev&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">k</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">devk</span> <span class="ow">in</span> <span class="n">store</span><span class="o">.</span><span class="n">result</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Duplicate key: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">devk</span><span class="p">))</span>
+                <span class="n">store</span><span class="o">.</span><span class="n">result</span><span class="p">[</span><span class="n">devk</span><span class="p">]</span> <span class="o">=</span> <span class="n">devs</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+
+                <span class="c1"># Calculate error region with 95% confidence</span>
+                <span class="n">n</span> <span class="o">=</span> <span class="n">store</span><span class="o">.</span><span class="n">trialDone</span>
+                <span class="n">zc</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">_getZc</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
+                <span class="n">errk</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">{}</span><span class="s1">_err&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">k</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">errk</span> <span class="ow">in</span> <span class="n">store</span><span class="o">.</span><span class="n">result</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Duplicate key: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">errk</span><span class="p">))</span>
+                <span class="n">store</span><span class="o">.</span><span class="n">result</span><span class="p">[</span><span class="n">errk</span><span class="p">]</span> <span class="o">=</span> <span class="n">zc</span> <span class="o">*</span> <span class="n">devs</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">/</span> <span class="n">n</span> <span class="o">**</span> <span class="mf">0.5</span>
+
+        <span class="k">yield</span> <span class="n">w</span>
+
+        <span class="nd">@w</span><span class="o">.</span><span class="n">frameEnd</span>
+        <span class="k">def</span> <span class="nf">spinDownTrials</span><span class="p">(</span><span class="n">store</span><span class="p">,</span> <span class="n">result</span><span class="p">):</span>
+            <span class="n">store</span><span class="o">.</span><span class="n">trialDone</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="n">n</span> <span class="o">=</span> <span class="n">store</span><span class="o">.</span><span class="n">trialDone</span>
+
+            <span class="n">avgs</span> <span class="o">=</span> <span class="n">store</span><span class="o">.</span><span class="n">resultAvg</span>
+            <span class="n">devs</span> <span class="o">=</span> <span class="n">store</span><span class="o">.</span><span class="n">resultVar</span>
+
+            <span class="c1"># Recurse through each result; all keys must be present in each</span>
+            <span class="c1"># result</span>
+            <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">avgs</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                <span class="k">if</span> <span class="n">k</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">result</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Key </span><span class="si">{}</span><span class="s2"> was not in a result&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">k</span><span class="p">))</span>
+
+            <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">result</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">if</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">store</span><span class="o">.</span><span class="n">parms</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Duplicate result key </span><span class="si">{}</span><span class="s2"> found in &quot;</span>
+                            <span class="s2">&quot;parameters as well&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">k</span><span class="p">))</span>
+                <span class="k">if</span> <span class="n">n</span> <span class="o">!=</span> <span class="mi">1</span> <span class="ow">and</span> <span class="n">k</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">avgs</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Key </span><span class="si">{}</span><span class="s2"> was not in a result&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">k</span><span class="p">))</span>
+
+                <span class="c1"># Valid for n == 1</span>
+                <span class="n">oldAvg</span> <span class="o">=</span> <span class="n">avgs</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+                <span class="n">oldDev</span> <span class="o">=</span> <span class="n">devs</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+                <span class="n">newAvg</span> <span class="o">=</span> <span class="n">oldAvg</span> <span class="o">+</span> <span class="p">(</span><span class="n">v</span> <span class="o">-</span> <span class="n">oldAvg</span><span class="p">)</span> <span class="o">/</span> <span class="n">n</span>
+                <span class="n">avgs</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">newAvg</span>
+                <span class="n">devs</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">oldDev</span> <span class="o">+</span> <span class="n">oldAvg</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">-</span> <span class="n">newAvg</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">+</span> <span class="p">(</span>
+                        <span class="n">v</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">-</span> <span class="n">oldDev</span> <span class="o">-</span> <span class="n">oldAvg</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span> <span class="o">/</span> <span class="n">n</span>
+
+            <span class="k">if</span> <span class="n">nTrialsMin</span> <span class="o">==</span> <span class="n">nTrialsMax</span><span class="p">:</span>
+                <span class="c1"># Nothing more to run, OR not enough data to decide yet</span>
+                <span class="k">return</span>
+
+            <span class="n">numToSpawn</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="k">if</span> <span class="n">n</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="c1"># Not enough information to predict the number of trials, so</span>
+                <span class="c1"># do not propagate more unless only one was propagated in the</span>
+                <span class="c1"># first place.</span>
+                <span class="k">if</span> <span class="n">nTrialsMin</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+                    <span class="c1"># More than one propagated, OK</span>
+                    <span class="n">numToSpawn</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="c1"># We need another to get statistical significance</span>
+                    <span class="n">numToSpawn</span> <span class="o">=</span> <span class="mi">1</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># Determine if more results are needed... remember, we&#39;re</span>
+                <span class="c1"># looking for 95% confidence that the true mean is +- E% of the</span>
+                <span class="c1"># Number of free variables is the same as the number of samples</span>
+                <span class="c1"># minus one</span>
+                <span class="n">zc</span><span class="p">,</span> <span class="n">extra</span> <span class="o">=</span> <span class="n">_getZc</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
+
+                <span class="n">numNeeded</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="c1"># Find the most needed</span>
+                <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">avgs</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                    <span class="n">avg</span> <span class="o">=</span> <span class="n">avgs</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+                    <span class="n">dev</span> <span class="o">=</span> <span class="n">devs</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">**</span> <span class="mf">0.5</span>
+                    <span class="n">err</span> <span class="o">=</span> <span class="n">trialsParmsDefaults</span><span class="p">[</span><span class="s1">&#39;E&#39;</span><span class="p">]</span> <span class="o">*</span> <span class="nb">abs</span><span class="p">(</span><span class="n">avg</span><span class="p">)</span>
+                    <span class="n">err</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">err</span><span class="p">,</span> <span class="n">trialsParmsDefaults</span><span class="p">[</span><span class="s1">&#39;eps&#39;</span><span class="p">])</span>
+                    <span class="n">need</span> <span class="o">=</span> <span class="n">zc</span> <span class="o">*</span> <span class="n">dev</span> <span class="o">/</span> <span class="n">err</span>
+                    <span class="n">numNeeded</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">numNeeded</span><span class="p">,</span>
+                            <span class="nb">int</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="n">need</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">+</span> <span class="n">extra</span><span class="p">)))</span>
+
+                <span class="c1"># Spawn a number equal to num needed minus num already spawned</span>
+                <span class="n">numNeeded</span> <span class="o">=</span> <span class="n">numNeeded</span> <span class="o">-</span> <span class="n">store</span><span class="o">.</span><span class="n">trialNext</span>
+                <span class="c1"># Spawn at most two more per completed... this is quite quick</span>
+                <span class="c1"># growth but will be bounded by the absolute number needed.</span>
+                <span class="n">numToSpawn</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="nb">max</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">numNeeded</span><span class="p">))</span>
+                <span class="n">numToSpawn</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">store</span><span class="o">.</span><span class="n">trialDone</span> <span class="o">-</span> <span class="n">store</span><span class="o">.</span><span class="n">trialNext</span>
+                        <span class="o">+</span> <span class="n">inline</span><span class="o">.</span><span class="n">getCpuCount</span><span class="p">(),</span> <span class="n">numToSpawn</span><span class="p">)</span>
+                <span class="n">numToSpawn</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">nTrialsMax</span> <span class="o">-</span> <span class="n">store</span><span class="o">.</span><span class="n">trialNext</span><span class="p">,</span> <span class="n">numToSpawn</span><span class="p">)</span>
+
+            <span class="n">store</span><span class="o">.</span><span class="n">trialNext</span> <span class="o">+=</span> <span class="n">numToSpawn</span>
+            <span class="k">return</span> <span class="n">Multiple</span><span class="p">([</span>
+                    <span class="n">Args</span><span class="p">(</span><span class="n">trial</span><span class="o">=</span><span class="n">store</span><span class="o">.</span><span class="n">trialNext</span> <span class="o">-</span> <span class="mi">1</span> <span class="o">-</span> <span class="n">i</span><span class="p">,</span> <span class="o">**</span><span class="n">store</span><span class="o">.</span><span class="n">parms</span><span class="p">)</span>
+                    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">numToSpawn</span><span class="p">)</span> <span class="p">])</span>
+
+        <span class="nd">@w</span><span class="o">.</span><span class="n">frameEnd</span>
+        <span class="k">def</span> <span class="nf">spinDownParms</span><span class="p">(</span><span class="n">store</span><span class="p">,</span> <span class="n">parms</span><span class="p">):</span>
+            <span class="n">store</span><span class="o">.</span><span class="n">results</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">parms</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">_getNextParams</span><span class="p">(</span><span class="n">store</span><span class="p">)</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2016, Walt Woods.
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../../',
+            VERSION:'0.1.20',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true
+        };
+    </script>
+      <script type="text/javascript" src="../../_static/jquery.js"></script>
+      <script type="text/javascript" src="../../_static/underscore.js"></script>
+      <script type="text/javascript" src="../../_static/doctools.js"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

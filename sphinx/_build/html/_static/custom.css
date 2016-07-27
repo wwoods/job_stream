@@ -1,0 +1,6 @@
+.section > h2::after {
+    content: "";
+    display: block;
+    border-bottom: solid 0.1em #404040;
+    width: 100%;
+}

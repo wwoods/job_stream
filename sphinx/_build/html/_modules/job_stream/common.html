@@ -1,5 +1,7 @@
 
 
+
+
 <!DOCTYPE html>
 <!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
@@ -8,7 +10,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>job_stream.common &mdash; job_stream 0.1.19 documentation</title>
+  <title>job_stream.common &mdash; job_stream 0.1.20 documentation</title>
   
 
   
@@ -28,9 +30,11 @@
   
 
   
+    <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
 
   
-    <link rel="top" title="job_stream 0.1.19 documentation" href="../../index.html"/>
+    <link rel="top" title="job_stream 0.1.20 documentation" href="../../index.html"/>
         <link rel="up" title="Module code" href="../index.html"/> 
 
   
@@ -59,7 +63,7 @@
             
             
               <div class="version">
-                0.1.19
+                0.1.20
               </div>
             
           
@@ -81,7 +85,12 @@
             
             
                 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../_autosummary/job_stream.html">job_stream</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../main.html">job_stream</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../changelog.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../roadmap.html">Roadmap</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../python.html">Python API</a></li>
 </ul>
 
             
@@ -130,14 +139,22 @@
 <span></span><span class="sd">&quot;&quot;&quot;The core job_stream adapter in Python.  This file is responsible for</span>
 <span class="sd">providing adaptations for all of the needed C++ code.</span>
 
+<span class="sd">.. warning::</span>
+
+<span class="sd">    New users should look at using the :mod:`job_stream.inline` module instead</span>
+<span class="sd">    of the classes in this file.</span>
+
 <span class="sd">Example usage:</span>
 
-<span class="sd">    class AddOne(job_stream.Job):</span>
+<span class="sd">.. code-block:: python</span>
+
+<span class="sd">    from job_stream import common</span>
+<span class="sd">    class AddOne(common.Job):</span>
 <span class="sd">        def handleWork(self, work):</span>
 <span class="sd">            self.emit(work + 1)</span>
 
-<span class="sd">    job_stream.work.extend([ 8, 9 ])</span>
-<span class="sd">    job_stream.run({</span>
+<span class="sd">    common.work.extend([ 8, 9 ])</span>
+<span class="sd">    common.run({</span>
 <span class="sd">            &#39;jobs&#39;: [</span>
 <span class="sd">                { &#39;type&#39;: AddOne }</span>
 <span class="sd">            ]</span>
@@ -171,7 +188,7 @@
 <span class="c1"># updated between class definition and job_stream.run()</span>
 <span class="n">_classesToPatch</span> <span class="o">=</span> <span class="p">[]</span>
 <span class="n">_pool</span> <span class="o">=</span> <span class="p">[</span> <span class="kc">None</span> <span class="p">]</span>
-<span class="k">def</span> <span class="nf">_initMultiprocessingPool</span><span class="p">():</span>
+<div class="viewcode-block" id="_initMultiprocessingPool"><a class="viewcode-back" href="../../_autosummary/job_stream.common.html#job_stream.common._initMultiprocessingPool">[docs]</a><span class="k">def</span> <span class="nf">_initMultiprocessingPool</span><span class="p">():</span>
     <span class="sd">&quot;&quot;&quot;The multiprocessing pool is initialized lazily by default, to avoid</span>
 <span class="sd">    overhead if no jobs are using multiprocessing&quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="n">_pool</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
@@ -182,20 +199,20 @@
         <span class="k">def</span> <span class="nf">initProcess</span><span class="p">():</span>
             <span class="k">if</span> <span class="s1">&#39;numpy.random&#39;</span> <span class="ow">in</span> <span class="n">sys</span><span class="o">.</span><span class="n">modules</span><span class="p">:</span>
                 <span class="n">sys</span><span class="o">.</span><span class="n">modules</span><span class="p">[</span><span class="s1">&#39;numpy.random&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">seed</span><span class="p">()</span>
-        <span class="n">_pool</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">multiprocessing</span><span class="o">.</span><span class="n">Pool</span><span class="p">(</span><span class="n">initializer</span> <span class="o">=</span> <span class="n">initProcess</span><span class="p">)</span>
+        <span class="n">_pool</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">multiprocessing</span><span class="o">.</span><span class="n">Pool</span><span class="p">(</span><span class="n">initializer</span> <span class="o">=</span> <span class="n">initProcess</span><span class="p">)</span></div>
 
 
-<span class="k">def</span> <span class="nf">_decode</span><span class="p">(</span><span class="n">s</span><span class="p">):</span>
+<div class="viewcode-block" id="_decode"><a class="viewcode-back" href="../../_autosummary/job_stream.common.html#job_stream.common._decode">[docs]</a><span class="k">def</span> <span class="nf">_decode</span><span class="p">(</span><span class="n">s</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Decodes an object with cPickle&quot;&quot;&quot;</span>
-    <span class="k">return</span> <span class="n">pickle</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">pickle</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">s</span><span class="p">)</span></div>
 
 
-<span class="k">def</span> <span class="nf">_encode</span><span class="p">(</span><span class="n">o</span><span class="p">):</span>
+<div class="viewcode-block" id="_encode"><a class="viewcode-back" href="../../_autosummary/job_stream.common.html#job_stream.common._encode">[docs]</a><span class="k">def</span> <span class="nf">_encode</span><span class="p">(</span><span class="n">o</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Encodes an object with cPickle&quot;&quot;&quot;</span>
-    <span class="k">return</span> <span class="n">pickle</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">o</span><span class="p">,</span> <span class="n">pickle</span><span class="o">.</span><span class="n">HIGHEST_PROTOCOL</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">pickle</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">o</span><span class="p">,</span> <span class="n">pickle</span><span class="o">.</span><span class="n">HIGHEST_PROTOCOL</span><span class="p">)</span></div>
 
 
-<span class="k">class</span> <span class="nc">Object</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<div class="viewcode-block" id="Object"><a class="viewcode-back" href="../../_autosummary/job_stream.common.html#job_stream.common.Object">[docs]</a><span class="k">class</span> <span class="nc">Object</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;A generic object with no attributes of its own.&quot;&quot;&quot;</span>
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">__dict__</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)</span>
@@ -206,13 +223,13 @@
         <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">__dict__</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
             <span class="n">r</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">=</span><span class="si">{}</span><span class="s1">, &#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="nb">repr</span><span class="p">(</span><span class="n">v</span><span class="p">)))</span>
         <span class="n">r</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;)&#39;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">r</span><span class="p">)</span>
+        <span class="k">return</span> <span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">r</span><span class="p">)</span></div>
 
 
-<span class="k">class</span> <span class="nc">_StackAlreadyPrintedError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+<div class="viewcode-block" id="_StackAlreadyPrintedError"><a class="viewcode-back" href="../../_autosummary/job_stream.common.html#job_stream.common._StackAlreadyPrintedError">[docs]</a><span class="k">class</span> <span class="nc">_StackAlreadyPrintedError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;An exception to be used if the stack trace has already been printed,</span>
 <span class="sd">    and an exception needs to be raised just to communicate to job_stream to</span>
-<span class="sd">    abort.&quot;&quot;&quot;</span>
+<span class="sd">    abort.&quot;&quot;&quot;</span></div>
 
 
 <span class="c1"># Initialize the encode and decode values first so that they can be used in</span>
@@ -223,10 +240,10 @@
 <span class="c1"># _j.registerEncoding(Object, _StackAlreadyPrintedError, _encode, _decode)</span>
 
 
-<span class="k">class</span> <span class="nc">_Work</span><span class="p">(</span><span class="nb">list</span><span class="p">):</span>
+<div class="viewcode-block" id="_Work"><a class="viewcode-back" href="../../_autosummary/job_stream.common.html#job_stream.common._Work">[docs]</a><span class="k">class</span> <span class="nc">_Work</span><span class="p">(</span><span class="nb">list</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;List of initial work sent into job_stream.</span>
-<span class="sd">    If left empty, work comes from stdin.&quot;&quot;&quot;</span>
-<span class="n">job_stream</span><span class="o">.</span><span class="n">work</span> <span class="o">=</span> <span class="n">_Work</span><span class="p">()</span>
+<span class="sd">    If left empty, work comes from stdin.&quot;&quot;&quot;</span></div>
+<span class="n">work</span> <span class="o">=</span> <span class="n">_Work</span><span class="p">()</span>
 
 
 <span class="n">_localJobs</span> <span class="o">=</span> <span class="p">{}</span>
@@ -347,7 +364,7 @@
 
 
 
-<span class="k">class</span> <span class="nc">Job</span><span class="p">(</span><span class="n">six</span><span class="o">.</span><span class="n">with_metaclass</span><span class="p">(</span><span class="n">_Job__metaclass__</span><span class="p">,</span> <span class="n">_j</span><span class="o">.</span><span class="n">Job</span><span class="p">)):</span>
+<div class="viewcode-block" id="Job"><a class="viewcode-back" href="../../_autosummary/job_stream.common.html#job_stream.common.Job">[docs]</a><span class="k">class</span> <span class="nc">Job</span><span class="p">(</span><span class="n">six</span><span class="o">.</span><span class="n">with_metaclass</span><span class="p">(</span><span class="n">_Job__metaclass__</span><span class="p">,</span> <span class="n">_j</span><span class="o">.</span><span class="n">Job</span><span class="p">)):</span>
     <span class="sd">&quot;&quot;&quot;Base class for a standard job (starts with some work, and emits zero or</span>
 <span class="sd">    more times).  Handles registration of job class with the job_stream</span>
 <span class="sd">    system.</span>
@@ -358,7 +375,7 @@
 <span class="sd">        &#39;&#39;&#39;Adds 8 to an integer or floating point number&#39;&#39;&#39;</span>
 <span class="sd">        def handleWork(self, work):</span>
 <span class="sd">            self.emit(work + 8)</span>
-<span class="sd">    job_stream.work = [ 1, 2, 3.0 ]</span>
+<span class="sd">    job_stream.common.work = [ 1, 2, 3.0 ]</span>
 <span class="sd">    # This will print 9, 10, and 11.0</span>
 <span class="sd">    job_stream.run({ &#39;jobs&#39;: [ MyJob ] })</span>
 <span class="sd">    &quot;&quot;&quot;</span>
@@ -395,16 +412,16 @@
         <span class="n">cls</span><span class="o">.</span><span class="n">postSetup</span> <span class="o">=</span> <span class="k">lambda</span> <span class="bp">self</span><span class="p">:</span> <span class="kc">True</span>
 
 
-    <span class="k">def</span> <span class="nf">postSetup</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="Job.postSetup"><a class="viewcode-back" href="../../_autosummary/job_stream.common.html#job_stream.common.Job.postSetup">[docs]</a>    <span class="k">def</span> <span class="nf">postSetup</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Called when self.config is set and the Job is fully ready for work,</span>
 <span class="sd">        but before any work is accepted.&quot;&quot;&quot;</span>
-        <span class="k">pass</span>
+        <span class="k">pass</span></div>
 
 
-    <span class="k">def</span> <span class="nf">handleWork</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">work</span><span class="p">):</span>
+<div class="viewcode-block" id="Job.handleWork"><a class="viewcode-back" href="../../_autosummary/job_stream.common.html#job_stream.common.Job.handleWork">[docs]</a>    <span class="k">def</span> <span class="nf">handleWork</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">work</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Handle incoming work, maybe call self.emit() to generate more work</span>
 <span class="sd">        for jobs further down the pipe.&quot;&quot;&quot;</span>
-        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">()</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">()</span></div></div>
 
 
 
@@ -424,7 +441,7 @@
 
 
 
-<span class="k">class</span> <span class="nc">Reducer</span><span class="p">(</span><span class="n">six</span><span class="o">.</span><span class="n">with_metaclass</span><span class="p">(</span><span class="n">_Reducer__metaclass__</span><span class="p">,</span> <span class="n">_j</span><span class="o">.</span><span class="n">Reducer</span><span class="p">)):</span>
+<div class="viewcode-block" id="Reducer"><a class="viewcode-back" href="../../_autosummary/job_stream.common.html#job_stream.common.Reducer">[docs]</a><span class="k">class</span> <span class="nc">Reducer</span><span class="p">(</span><span class="n">six</span><span class="o">.</span><span class="n">with_metaclass</span><span class="p">(</span><span class="n">_Reducer__metaclass__</span><span class="p">,</span> <span class="n">_j</span><span class="o">.</span><span class="n">Reducer</span><span class="p">)):</span>
     <span class="sd">&quot;&quot;&quot;Base class for a Reducer.  A Reducer combines work emitted from the last</span>
 <span class="sd">    stage of a reduction, eventually emitting its own result to the next link</span>
 <span class="sd">    in the processing chain.  A reduction starts when a piece of work enters</span>
@@ -445,7 +462,7 @@
 <span class="sd">            store.count += other.count</span>
 <span class="sd">        def handleDone(self, store):</span>
 <span class="sd">            self.emit(store.count)</span>
-<span class="sd">    job_stream.work = [ &#39;Hello&#39;, &#39;World&#39; ]</span>
+<span class="sd">    job_stream.common.work = [ &#39;Hello&#39;, &#39;World&#39; ]</span>
 <span class="sd">    # Here the reduction starts at the global scope, so it will print out 12,</span>
 <span class="sd">    # which is the original 10 letters plus the two new letter A&#39;s.</span>
 <span class="sd">    print(&quot;First:&quot;)</span>
@@ -498,31 +515,31 @@
         <span class="n">cls</span><span class="o">.</span><span class="n">postSetup</span> <span class="o">=</span> <span class="k">lambda</span> <span class="bp">self</span><span class="p">:</span> <span class="kc">True</span>
 
 
-    <span class="k">def</span> <span class="nf">postSetup</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="Reducer.postSetup"><a class="viewcode-back" href="../../_autosummary/job_stream.common.html#job_stream.common.Reducer.postSetup">[docs]</a>    <span class="k">def</span> <span class="nf">postSetup</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Called when self.config is set and the Job is fully ready for work,</span>
 <span class="sd">        but before any work is accepted.&quot;&quot;&quot;</span>
-        <span class="k">pass</span>
+        <span class="k">pass</span></div>
 
 
-    <span class="k">def</span> <span class="nf">handleInit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">store</span><span class="p">):</span>
+<div class="viewcode-block" id="Reducer.handleInit"><a class="viewcode-back" href="../../_autosummary/job_stream.common.html#job_stream.common.Reducer.handleInit">[docs]</a>    <span class="k">def</span> <span class="nf">handleInit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">store</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Called when a reduction is started.  Store is a python object that</span>
-<span class="sd">        should be modified to remember information between invocations.&quot;&quot;&quot;</span>
+<span class="sd">        should be modified to remember information between invocations.&quot;&quot;&quot;</span></div>
 
 
-    <span class="k">def</span> <span class="nf">handleAdd</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">store</span><span class="p">,</span> <span class="n">work</span><span class="p">):</span>
+<div class="viewcode-block" id="Reducer.handleAdd"><a class="viewcode-back" href="../../_autosummary/job_stream.common.html#job_stream.common.Reducer.handleAdd">[docs]</a>    <span class="k">def</span> <span class="nf">handleAdd</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">store</span><span class="p">,</span> <span class="n">work</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Called when new work arrives at the Reducer.&quot;&quot;&quot;</span>
-        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">()</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">()</span></div>
 
 
-    <span class="k">def</span> <span class="nf">handleJoin</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">store</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+<div class="viewcode-block" id="Reducer.handleJoin"><a class="viewcode-back" href="../../_autosummary/job_stream.common.html#job_stream.common.Reducer.handleJoin">[docs]</a>    <span class="k">def</span> <span class="nf">handleJoin</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">store</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Called to merge two stores from the same Reducer.&quot;&quot;&quot;</span>
-        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">()</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">()</span></div>
 
 
-    <span class="k">def</span> <span class="nf">handleDone</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">store</span><span class="p">):</span>
+<div class="viewcode-block" id="Reducer.handleDone"><a class="viewcode-back" href="../../_autosummary/job_stream.common.html#job_stream.common.Reducer.handleDone">[docs]</a>    <span class="k">def</span> <span class="nf">handleDone</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">store</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Called when the reduction is finished.  The reduction will be marked</span>
 <span class="sd">        as unfinished if a recur() happens.&quot;&quot;&quot;</span>
-        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">()</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">()</span></div></div>
 
 
 
@@ -540,7 +557,7 @@
 
 
 
-<span class="k">class</span> <span class="nc">Frame</span><span class="p">(</span><span class="n">six</span><span class="o">.</span><span class="n">with_metaclass</span><span class="p">(</span><span class="n">_Frame__metaclass__</span><span class="p">,</span> <span class="n">_j</span><span class="o">.</span><span class="n">Frame</span><span class="p">)):</span>
+<div class="viewcode-block" id="Frame"><a class="viewcode-back" href="../../_autosummary/job_stream.common.html#job_stream.common.Frame">[docs]</a><span class="k">class</span> <span class="nc">Frame</span><span class="p">(</span><span class="n">six</span><span class="o">.</span><span class="n">with_metaclass</span><span class="p">(</span><span class="n">_Frame__metaclass__</span><span class="p">,</span> <span class="n">_j</span><span class="o">.</span><span class="n">Frame</span><span class="p">)):</span>
     <span class="sd">&quot;&quot;&quot;Base class for a Frame.  A Frame is a special type of reducer that</span>
 <span class="sd">    performs some special behavior based on the work that begins the reduction.</span>
 <span class="sd">    Typically this is used for checking termination conditions in a recurring</span>
@@ -561,10 +578,10 @@
 <span class="sd">            else:</span>
 <span class="sd">                self.emit(store.word)</span>
 
-<span class="sd">    job_stream.work = [ &#39;abracadabra&#39;, &#39;Hey&#39;, &#39;Apples&#39; ]</span>
+<span class="sd">    job_stream.common.work = [ &#39;abracadabra&#39;, &#39;Hey&#39;, &#39;Apples&#39; ]</span>
 <span class="sd">    # This&#39;ll print out the unmodified abracadabra, add two Ab&#39;s to Apples, and</span>
 <span class="sd">    # four Ab&#39;s to Hey</span>
-<span class="sd">    job_stream.run({</span>
+<span class="sd">    job_stream.common.run({</span>
 <span class="sd">            &#39;jobs&#39;: [ {</span>
 <span class="sd">                &#39;frame&#39;: MakeAtLeastTenLetters,</span>
 <span class="sd">                &#39;jobs&#39;: [ AddAb ]</span>
@@ -603,26 +620,26 @@
         <span class="n">cls</span><span class="o">.</span><span class="n">postSetup</span> <span class="o">=</span> <span class="k">lambda</span> <span class="bp">self</span><span class="p">:</span> <span class="kc">True</span>
 
 
-    <span class="k">def</span> <span class="nf">handleFirst</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">store</span><span class="p">,</span> <span class="n">work</span><span class="p">):</span>
+<div class="viewcode-block" id="Frame.handleFirst"><a class="viewcode-back" href="../../_autosummary/job_stream.common.html#job_stream.common.Frame.handleFirst">[docs]</a>    <span class="k">def</span> <span class="nf">handleFirst</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">store</span><span class="p">,</span> <span class="n">work</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Called for the first work, which starts a reduction.  Store is an</span>
 <span class="sd">        empty Object() to which this method may assign attributes.&quot;&quot;&quot;</span>
-        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">()</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">()</span></div>
 
 
-    <span class="k">def</span> <span class="nf">handleNext</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">store</span><span class="p">,</span> <span class="n">work</span><span class="p">):</span>
+<div class="viewcode-block" id="Frame.handleNext"><a class="viewcode-back" href="../../_autosummary/job_stream.common.html#job_stream.common.Frame.handleNext">[docs]</a>    <span class="k">def</span> <span class="nf">handleNext</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">store</span><span class="p">,</span> <span class="n">work</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Called when finished work arrives at the Frame.&quot;&quot;&quot;</span>
-        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">()</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">()</span></div>
 
 
-    <span class="k">def</span> <span class="nf">handleDone</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">store</span><span class="p">):</span>
+<div class="viewcode-block" id="Frame.handleDone"><a class="viewcode-back" href="../../_autosummary/job_stream.common.html#job_stream.common.Frame.handleDone">[docs]</a>    <span class="k">def</span> <span class="nf">handleDone</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">store</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Called when the reduction is finished.  The reduction will be marked</span>
 <span class="sd">        as unfinished if a recur() happens.&quot;&quot;&quot;</span>
-        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">()</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">()</span></div>
 
 
-    <span class="k">def</span> <span class="nf">postSetup</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="Frame.postSetup"><a class="viewcode-back" href="../../_autosummary/job_stream.common.html#job_stream.common.Frame.postSetup">[docs]</a>    <span class="k">def</span> <span class="nf">postSetup</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Called when self.config is set and the Frame is fully ready for work,</span>
-<span class="sd">        but before any work is accepted.&quot;&quot;&quot;</span>
+<span class="sd">        but before any work is accepted.&quot;&quot;&quot;</span></div></div>
 
 
 <span class="k">def</span> <span class="nf">_convertDictToYaml</span><span class="p">(</span><span class="n">c</span><span class="p">):</span>
@@ -673,21 +690,28 @@
 <span class="n">checkpointInfo</span> <span class="o">=</span> <span class="n">_j</span><span class="o">.</span><span class="n">checkpointInfo</span>
 
 
-<span class="k">def</span> <span class="nf">_cpuThreadTime</span><span class="p">():</span>
+<div class="viewcode-block" id="_cpuThreadTime"><a class="viewcode-back" href="../../_autosummary/job_stream.common.html#job_stream.common._cpuThreadTime">[docs]</a><span class="k">def</span> <span class="nf">_cpuThreadTime</span><span class="p">():</span>
     <span class="sd">&quot;&quot;&quot;Returns the current thread&#39;s CPU time in seconds.  Used for tests of</span>
 <span class="sd">    profiling, mostly.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">return</span> <span class="n">_j</span><span class="o">.</span><span class="n">_cpuThreadTimeMs</span><span class="p">()</span> <span class="o">*</span> <span class="mf">0.001</span>
+    <span class="k">return</span> <span class="n">_j</span><span class="o">.</span><span class="n">_cpuThreadTimeMs</span><span class="p">()</span> <span class="o">*</span> <span class="mf">0.001</span></div>
 
 
-<span class="k">def</span> <span class="nf">getRank</span><span class="p">():</span>
+<div class="viewcode-block" id="getCpuCount"><a class="viewcode-back" href="../../_autosummary/job_stream.common.html#job_stream.common.getCpuCount">[docs]</a><span class="k">def</span> <span class="nf">getCpuCount</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot;Retunrs the number of CPUs in the cluster.  Must be called within a</span>
+<span class="sd">    job_stream, or will raise an error.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">_j</span><span class="o">.</span><span class="n">getCpuCount</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="getRank"><a class="viewcode-back" href="../../_autosummary/job_stream.common.html#job_stream.common.getRank">[docs]</a><span class="k">def</span> <span class="nf">getRank</span><span class="p">():</span>
     <span class="sd">&quot;&quot;&quot;Returns the rank (integer index) of this processor.  Typically, this</span>
 <span class="sd">    value is checked against 0 for work that should only happen once, e.g.</span>
 <span class="sd">    init code.&quot;&quot;&quot;</span>
-    <span class="k">return</span> <span class="n">_j</span><span class="o">.</span><span class="n">getRank</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">_j</span><span class="o">.</span><span class="n">getRank</span><span class="p">()</span></div>
 
 
-<span class="k">def</span> <span class="nf">invoke</span><span class="p">(</span><span class="n">progAndArgs</span><span class="p">,</span> <span class="n">transientErrors</span> <span class="o">=</span> <span class="p">[],</span> <span class="n">maxRetries</span> <span class="o">=</span> <span class="mi">20</span><span class="p">):</span>
+<div class="viewcode-block" id="invoke"><a class="viewcode-back" href="../../_autosummary/job_stream.common.html#job_stream.common.invoke">[docs]</a><span class="k">def</span> <span class="nf">invoke</span><span class="p">(</span><span class="n">progAndArgs</span><span class="p">,</span> <span class="n">transientErrors</span> <span class="o">=</span> <span class="p">[],</span> <span class="n">maxRetries</span> <span class="o">=</span> <span class="mi">20</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Since it can be difficult to launch some programs from an MPI distributed</span>
 <span class="sd">    application, job_stream provides invoke functionality to safely launch an</span>
 <span class="sd">    external program (launching an application such as Xyce, for instance, can</span>
@@ -708,17 +732,18 @@
 
 <span class="sd">    Returns: (contents of stdout, contents of stderr)</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">return</span> <span class="n">_j</span><span class="o">.</span><span class="n">invoke</span><span class="p">(</span><span class="n">progAndArgs</span><span class="p">,</span> <span class="n">transientErrors</span><span class="p">,</span> <span class="n">maxRetries</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">_j</span><span class="o">.</span><span class="n">invoke</span><span class="p">(</span><span class="n">progAndArgs</span><span class="p">,</span> <span class="n">transientErrors</span><span class="p">,</span> <span class="n">maxRetries</span><span class="p">)</span></div>
 
 
-<span class="k">def</span> <span class="nf">map</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="o">*</span><span class="n">sequence</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<div class="viewcode-block" id="map"><a class="viewcode-back" href="../../_autosummary/job_stream.common.html#job_stream.common.map">[docs]</a><span class="k">def</span> <span class="nf">map</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="o">*</span><span class="n">sequence</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Returns [ func(*a) for a in sequence ] in a parallel manner.  Identical</span>
 <span class="sd">    to the builtin map(), except parallelized.</span>
 
 <span class="sd">    kwargs - Passed to job_stream.run().&quot;&quot;&quot;</span>
-    <span class="n">job_stream</span><span class="o">.</span><span class="n">work</span> <span class="o">=</span> <span class="n">_Work</span><span class="p">()</span>
-    <span class="n">job_stream</span><span class="o">.</span><span class="n">work</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span> <span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">a</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">a</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="n">sequence</span><span class="p">))</span> <span class="p">])</span>
-    <span class="n">result</span> <span class="o">=</span> <span class="p">[</span> <span class="kc">None</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">job_stream</span><span class="o">.</span><span class="n">work</span><span class="p">))</span> <span class="p">]</span>
+    <span class="n">job_stream</span><span class="o">.</span><span class="n">common</span><span class="o">.</span><span class="n">work</span> <span class="o">=</span> <span class="n">_Work</span><span class="p">()</span>
+    <span class="n">job_stream</span><span class="o">.</span><span class="n">common</span><span class="o">.</span><span class="n">work</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span> <span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">a</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">a</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="n">sequence</span><span class="p">))</span> <span class="p">])</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="p">[</span> <span class="kc">None</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">job_stream</span><span class="o">.</span><span class="n">common</span><span class="o">.</span><span class="n">work</span><span class="p">))</span> <span class="p">]</span>
 
     <span class="k">def</span> <span class="nf">handleWork</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">work</span><span class="p">):</span>
         <span class="n">s</span><span class="o">.</span><span class="n">emit</span><span class="p">((</span><span class="n">work</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">func</span><span class="p">(</span><span class="o">*</span><span class="n">work</span><span class="p">[</span><span class="mi">1</span><span class="p">])))</span>
@@ -733,11 +758,11 @@
             <span class="n">handleResult</span> <span class="o">=</span> <span class="n">_mapResult</span><span class="p">,</span>
             <span class="o">**</span><span class="n">kwargs</span>
     <span class="p">)</span>
-    <span class="k">return</span> <span class="n">result</span>
+    <span class="k">return</span> <span class="n">result</span></div>
 
 
 <span class="n">_hasRun</span> <span class="o">=</span> <span class="p">[</span> <span class="kc">False</span><span class="p">,</span> <span class="kc">False</span> <span class="p">]</span>
-<span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="n">configDictOrPath</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<div class="viewcode-block" id="run"><a class="viewcode-back" href="../../_autosummary/job_stream.common.html#job_stream.common.run">[docs]</a><span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="n">configDictOrPath</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Runs the given YAML file or config dictionary.</span>
 
 <span class="sd">    Acceptable kwargs:</span>
@@ -792,7 +817,8 @@
     <span class="k">try</span><span class="p">:</span>
         <span class="n">_j</span><span class="o">.</span><span class="n">registerEncoding</span><span class="p">(</span><span class="n">Object</span><span class="p">,</span> <span class="n">_StackAlreadyPrintedError</span><span class="p">,</span> <span class="n">_encode</span><span class="p">,</span>
                 <span class="n">_decode</span><span class="p">)</span>
-        <span class="n">_j</span><span class="o">.</span><span class="n">runProcessor</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="nb">list</span><span class="p">(</span><span class="n">job_stream</span><span class="o">.</span><span class="n">work</span><span class="p">),</span> <span class="n">handleResult</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">_j</span><span class="o">.</span><span class="n">runProcessor</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="nb">list</span><span class="p">(</span><span class="n">job_stream</span><span class="o">.</span><span class="n">common</span><span class="o">.</span><span class="n">work</span><span class="p">),</span> <span class="n">handleResult</span><span class="p">,</span>
+                <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
     <span class="k">finally</span><span class="p">:</span>
         <span class="n">_j</span><span class="o">.</span><span class="n">registerEncoding</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
         <span class="c1"># Close our multiprocessing pool; especially in the interpreter, the</span>
@@ -802,7 +828,7 @@
             <span class="n">p</span> <span class="o">=</span> <span class="n">_pool</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
             <span class="n">_pool</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
             <span class="n">p</span><span class="o">.</span><span class="n">terminate</span><span class="p">()</span>
-            <span class="n">p</span><span class="o">.</span><span class="n">join</span><span class="p">()</span>
+            <span class="n">p</span><span class="o">.</span><span class="n">join</span><span class="p">()</span></div>
 
 </pre></div>
 
@@ -837,7 +863,7 @@
     <script type="text/javascript">
         var DOCUMENTATION_OPTIONS = {
             URL_ROOT:'../../',
-            VERSION:'0.1.19',
+            VERSION:'0.1.20',
             COLLAPSE_INDEX:false,
             FILE_SUFFIX:'.html',
             HAS_SOURCE:  true

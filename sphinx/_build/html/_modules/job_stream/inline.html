@@ -1,5 +1,7 @@
 
 
+
+
 <!DOCTYPE html>
 <!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
@@ -8,7 +10,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>job_stream.inline &mdash; job_stream 0.1.19 documentation</title>
+  <title>job_stream.inline &mdash; job_stream 0.1.20 documentation</title>
   
 
   
@@ -28,9 +30,11 @@
   
 
   
+    <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
 
   
-    <link rel="top" title="job_stream 0.1.19 documentation" href="../../index.html"/>
+    <link rel="top" title="job_stream 0.1.20 documentation" href="../../index.html"/>
         <link rel="up" title="Module code" href="../index.html"/> 
 
   
@@ -59,7 +63,7 @@
             
             
               <div class="version">
-                0.1.19
+                0.1.20
               </div>
             
           
@@ -81,7 +85,12 @@
             
             
                 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../_autosummary/job_stream.html">job_stream</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../main.html">job_stream</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../changelog.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../roadmap.html">Roadmap</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../python.html">Python API</a></li>
 </ul>
 
             
@@ -127,8 +136,8 @@
            <div itemprop="articleBody">
             
   <h1>Source code for job_stream.inline</h1><div class="highlight"><pre>
-<span></span><span class="sd">&quot;&quot;&quot;job_stream.inline provides a more intuitive way of specifying flow that relieves some</span>
-<span class="sd">of the labor of thinking about data definitions</span>
+<span></span><span class="sd">r&quot;&quot;&quot;An intuitive way of specifying data flow using imperative programming</span>
+<span class="sd">techniques.</span>
 
 <span class="sd">For example, to count the average word length in a string:</span>
 
@@ -136,37 +145,56 @@
 
 <span class="sd">    from job_stream import inline</span>
 
-<span class="sd">    w = inline.Work(&quot;Hello there world, how are you?&quot;.split())</span>
+<span class="sd">    # Begin a new job_stream, treating each word in the string as a piece</span>
+<span class="sd">    # of work.</span>
+<span class="sd">    with inline.Work(&quot;Hello there world, how are you?&quot;.split()) as w:</span>
+<span class="sd">        @w.job</span>
+<span class="sd">        def getLen(w):</span>
+<span class="sd">            # Transform each word into its length.</span>
+<span class="sd">            return len(w)</span>
 
-<span class="sd">    @w.job</span>
-<span class="sd">    def getLen(w):</span>
-<span class="sd">        return len(w)</span>
+<span class="sd">        # A reducer combines the above answers; the result from the reducer</span>
+<span class="sd">        # will be the stored cumulative length divided by the number of words,</span>
+<span class="sd">        # or in other words the mean length.</span>
+<span class="sd">        @w.reduce(emit = lambda store: store.len / store.count)</span>
+<span class="sd">        def findAverage(store, inputs, others):</span>
+<span class="sd">            # Initialize the data store if it hasn&#39;t been.</span>
+<span class="sd">            if not hasattr(store, &#39;init&#39;):</span>
+<span class="sd">                store.init = True</span>
+<span class="sd">                store.count = 0</span>
+<span class="sd">                store.len = 0.0</span>
 
-<span class="sd">    @w.reduce(emit = lambda store: store.len / store.count)</span>
-<span class="sd">    def findAverage(store, inputs, others):</span>
-<span class="sd">        if not hasattr(store, &#39;init&#39;):</span>
-<span class="sd">            store.init = True</span>
-<span class="sd">            store.count = 0</span>
-<span class="sd">            store.len = 0.0</span>
+<span class="sd">            # Add each word&#39;s length to ours, and increment count.</span>
+<span class="sd">            for i in inputs:</span>
+<span class="sd">                store.len += i</span>
+<span class="sd">                store.count += 1</span>
+<span class="sd">            # Merge with another reducer, adding their count and length to</span>
+<span class="sd">            # our own.</span>
+<span class="sd">            for o in others:</span>
+<span class="sd">                store.len += o.len</span>
+<span class="sd">                store.count += o.count</span>
 
-<span class="sd">        for i in inputs:</span>
-<span class="sd">            store.len += i</span>
-<span class="sd">            store.count += 1</span>
-<span class="sd">        for o in others:</span>
-<span class="sd">            store.len += o.len</span>
-<span class="sd">            store.count += o.count</span>
+<span class="sd">        @w.result</span>
+<span class="sd">        def printer(result):</span>
+<span class="sd">            # Print out the emit&#39;d average.</span>
+<span class="sd">            print(result)</span>
 
-<span class="sd">    result, = w.run()</span>
+
+<span class="sd">The main class interacted with in ``inline`` code is</span>
+<span class="sd">:class:`job_stream.inline.Work`, which provides methods for decorating Python</span>
+<span class="sd">functions and remembers how the code was organized so that things are executed</span>
+<span class="sd">in the right order.  See :class:`job_stream.inline.Work`&#39;s documentation for</span>
+<span class="sd">more information.</span>
 
 
 <span class="sd">Hierarchy of ``job_stream.inline`` Pipes</span>
 <span class="sd">========================================</span>
 
-<span class="sd">Sometimes, code follows a commmon skeleton with some parallel code in the</span>
+<span class="sd">Sometimes, code follows a common skeleton with some parallel code in the</span>
 <span class="sd">middle.  The :mod:`job_stream.baked` library is an example of this;</span>
-<span class="sd">:meth:`job_stream.baked.sweep` takes as its argument a function that populates</span>
-<span class="sd">a :class:`job_stream.inline.Work` object with operations to perform for each</span>
-<span class="sd">original argument.</span>
+<span class="sd">:meth:`job_stream.baked.sweep` returns a context manager that yields a</span>
+<span class="sd">:class:`job_stream.inline.Work` object used to tell ``sweep`` what operations</span>
+<span class="sd">the user wishes to perform:</span>
 
 <span class="sd">.. code-block:: python</span>
 
@@ -175,11 +203,11 @@
 
 <span class="sd">    with sweep({ &#39;a&#39;: np.arange(10) }) as w:</span>
 <span class="sd">        @w.job</span>
-<span class="sd">        def square(n):</span>
-<span class="sd">            return { &#39;value&#39;: n*n + np.random.random() }</span>
+<span class="sd">        def square(id, trial, a):</span>
+<span class="sd">            return { &#39;value&#39;: a*a + np.random.random() }</span>
 
-<span class="sd">It is also recommended that if a user class has functionality that can be</span>
-<span class="sd">added to a ``job_stream`` pipe, that it expose that functionality in an</span>
+<span class="sd">It is recommended that if a user class has functionality that can be added</span>
+<span class="sd">within a ``job_stream`` pipe, it should expose that functionality in an</span>
 <span class="sd">``@classmethod`` as ``jobs_{name}``:</span>
 
 <span class="sd">.. code-block:: python</span>
@@ -200,25 +228,24 @@
 <span class="sd">    with Work([ Args(MyClass(), [i]) for i in range(10) ]) as w:</span>
 <span class="sd">        MyClass.jobs_classify(w)</span>
 
-<span class="sd">TODO - Make above a reality... job_stream.baked module.  Add &#39;trial&#39; to keys auto-populated by sweep() (in addition to &#39;id&#39;).</span>
-<span class="sd">TODO - make this documentation format the default....  make html-pages should auto-populate the gh-pages branch (check on master, no uncommitted changes, etc).  Needs a .nojekyll file</span>
-
 <span class="sd">&quot;&quot;&quot;</span>
 
-<span class="kn">import</span> <span class="nn">job_stream</span>
+<span class="kn">import</span> <span class="nn">job_stream.common</span>
 <span class="kn">import</span> <span class="nn">pickle</span>
 <span class="kn">import</span> <span class="nn">inspect</span>
 <span class="kn">import</span> <span class="nn">os</span>
 
 <span class="c1"># Imports from job_stream</span>
 <span class="n">Object</span> <span class="o">=</span> <span class="n">job_stream</span><span class="o">.</span><span class="n">Object</span>
+<span class="n">getCpuCount</span> <span class="o">=</span> <span class="n">job_stream</span><span class="o">.</span><span class="n">getCpuCount</span>
+<span class="n">getRank</span> <span class="o">=</span> <span class="n">job_stream</span><span class="o">.</span><span class="n">getRank</span>
 
 <span class="c1"># Used to register new classes so they can be pickle&#39;d appropriately</span>
 <span class="n">_moduleSelf</span> <span class="o">=</span> <span class="nb">globals</span><span class="p">()</span>
 
 <span class="n">_typeCount</span> <span class="o">=</span> <span class="p">[</span> <span class="mi">0</span> <span class="p">]</span>
 
-<div class="viewcode-block" id="_ForceCheckpointJob"><a class="viewcode-back" href="../../_autosummary/_autosummary/job_stream.inline.html#job_stream.inline._ForceCheckpointJob">[docs]</a><span class="k">class</span> <span class="nc">_ForceCheckpointJob</span><span class="p">(</span><span class="n">job_stream</span><span class="o">.</span><span class="n">Job</span><span class="p">):</span>
+<div class="viewcode-block" id="_ForceCheckpointJob"><a class="viewcode-back" href="../../_autosummary/job_stream.inline.html#job_stream.inline._ForceCheckpointJob">[docs]</a><span class="k">class</span> <span class="nc">_ForceCheckpointJob</span><span class="p">(</span><span class="n">job_stream</span><span class="o">.</span><span class="n">common</span><span class="o">.</span><span class="n">Job</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Used for tests; raises exception after checkpoint.&quot;&quot;&quot;</span>
     <span class="k">def</span> <span class="nf">handleWork</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">work</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_forceCheckpoint</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
@@ -226,7 +253,7 @@
 
 
 
-<div class="viewcode-block" id="_ForceCheckpointAndGoJob"><a class="viewcode-back" href="../../_autosummary/_autosummary/job_stream.inline.html#job_stream.inline._ForceCheckpointAndGoJob">[docs]</a><span class="k">class</span> <span class="nc">_ForceCheckpointAndGoJob</span><span class="p">(</span><span class="n">job_stream</span><span class="o">.</span><span class="n">Job</span><span class="p">):</span>
+<div class="viewcode-block" id="_ForceCheckpointAndGoJob"><a class="viewcode-back" href="../../_autosummary/job_stream.inline.html#job_stream.inline._ForceCheckpointAndGoJob">[docs]</a><span class="k">class</span> <span class="nc">_ForceCheckpointAndGoJob</span><span class="p">(</span><span class="n">job_stream</span><span class="o">.</span><span class="n">common</span><span class="o">.</span><span class="n">Job</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Used for tests; execution continues after checkpoint.&quot;&quot;&quot;</span>
     <span class="k">def</span> <span class="nf">handleWork</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">work</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_forceCheckpoint</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
@@ -234,7 +261,7 @@
 
 
 
-<div class="viewcode-block" id="_UnwrapperJob"><a class="viewcode-back" href="../../_autosummary/_autosummary/job_stream.inline.html#job_stream.inline._UnwrapperJob">[docs]</a><span class="k">class</span> <span class="nc">_UnwrapperJob</span><span class="p">(</span><span class="n">job_stream</span><span class="o">.</span><span class="n">Job</span><span class="p">):</span>
+<div class="viewcode-block" id="_UnwrapperJob"><a class="viewcode-back" href="../../_autosummary/job_stream.inline.html#job_stream.inline._UnwrapperJob">[docs]</a><span class="k">class</span> <span class="nc">_UnwrapperJob</span><span class="p">(</span><span class="n">job_stream</span><span class="o">.</span><span class="n">common</span><span class="o">.</span><span class="n">Job</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Job to make processing after a reducer possible and sensical for inline.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">USE_MULTIPROCESSING</span> <span class="o">=</span> <span class="kc">False</span>
@@ -244,7 +271,25 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">emit</span><span class="p">(</span><span class="n">w</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="Multiple"><a class="viewcode-back" href="../../_autosummary/_autosummary/job_stream.inline.html#job_stream.inline.Multiple">[docs]</a><span class="k">class</span> <span class="nc">Multiple</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<div class="viewcode-block" id="Args"><a class="viewcode-back" href="../../_autosummary/job_stream.inline.html#job_stream.inline.Args">[docs]</a><span class="k">class</span> <span class="nc">Args</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Automatically fans-out args and kwargs to the caller.  For example, the</span>
+<span class="sd">    below will print out &quot;Got 1, 2, 3, 4&quot;:</span>
+
+<span class="sd">    .. code-block:: python</span>
+
+<span class="sd">        from job_stream.inline import Args, Work</span>
+
+<span class="sd">        with Work([ Args(1, 2, d=4, c=3) ]) as w:</span>
+<span class="sd">            @w.job</span>
+<span class="sd">            def handle(a, b, c, d):</span>
+<span class="sd">                print(&quot;Got {}, {}, {}, {}&quot;.format(a, b, c, d))</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">args</span> <span class="o">=</span> <span class="n">args</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span> <span class="o">=</span> <span class="n">kwargs</span></div>
+
+
+<div class="viewcode-block" id="Multiple"><a class="viewcode-back" href="../../_autosummary/job_stream.inline.html#job_stream.inline.Multiple">[docs]</a><span class="k">class</span> <span class="nc">Multiple</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;If some inline code wants to emit or recur multiple pieces of work, an instance of</span>
 <span class="sd">    this class is the way to do it.  For instance:</span>
 
@@ -255,30 +300,88 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">workList</span> <span class="o">=</span> <span class="n">workList</span></div>
 
 
-<span class="k">class</span> <span class="nc">Work</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<div class="viewcode-block" id="Work"><a class="viewcode-back" href="../../_autosummary/job_stream.inline.html#job_stream.inline.Work">[docs]</a><span class="k">class</span> <span class="nc">Work</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Represents a job_stream pipeline.  Similar to traditional imperative</span>
+<span class="sd">    coding practices, :class:`Work` passes work in the same direction as the</span>
+<span class="sd">    source file.  In other words, the system starts with something like:</span>
+
+<span class="sd">    .. code-block:: python</span>
+
+<span class="sd">        import job_stream.inline as inline</span>
+<span class="sd">        with inline.Work([1, 2, 3]) as w:</span>
+<span class="sd">            # ...</span>
+
+<span class="sd">    This code will distribute the numbers 1, 2, and 3 into the system.  Once</span>
+<span class="sd">    in the system, any decorated methods will process the data in some way.</span>
+<span class="sd">    *The ordering of the decorated methods matters!*  For instance, running:</span>
+
+<span class="sd">    .. code-block:: python</span>
+
+<span class="sd">        with inline.Work([1]) as w:</span>
+<span class="sd">            @w.job</span>
+<span class="sd">            def first(w):</span>
+<span class="sd">                print(&quot;a: {}&quot;.format(w))</span>
+<span class="sd">                return w+1</span>
+<span class="sd">            @w.job</span>
+<span class="sd">            def second(w):</span>
+<span class="sd">                print(&quot;b: {}&quot;.format(w))</span>
+
+
+<span class="sd">    Will print ``a: 1`` and ``b: 2``.  If the list to :class:`Work` were</span>
+<span class="sd">    longer, then more ``a:`` and ``b:`` lines would be printed, one pair for</span>
+<span class="sd">    each input to the system.</span>
+
+<span class="sd">    .. note:: Multiprocessing</span>
+
+<span class="sd">        Python has the `GIL &lt;https://wiki.python.org/moin/GlobalInterpreterLock&gt;`_</span>
+<span class="sd">        in the default implementation, which typically limits pure-python code</span>
+<span class="sd">        to a single thread.  To get around this, the :mod:`job_stream` module</span>
+<span class="sd">        by default uses multiprocessing for all jobs - that is, your python</span>
+<span class="sd">        code will run in parallel on all cores, in different processes.</span>
+
+<span class="sd">        If this behavior is not desired, particularly if your application loads</span>
+<span class="sd">        a lot of data in memory that you would rather not duplicate, passing</span>
+<span class="sd">        ``useMultiprocessing=False`` to the :class:`Work` object&#39;s initializer</span>
+<span class="sd">        will force all job_stream activity to happen within the original</span>
+<span class="sd">        process:</span>
+
+<span class="sd">        .. code-block:: python</span>
+
+<span class="sd">            Work([ 1, 2 ], useMultiprocessing=False)</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">initialWork</span> <span class="o">=</span> <span class="p">[],</span> <span class="n">useMultiprocessing</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
             <span class="o">**</span><span class="n">runKwargs</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Represents a job_stream pipeline.  May be passed a list or other</span>
-<span class="sd">        iterable of initial work, as well as any of the following flags:</span>
+        <span class="sd">&quot;&quot;&quot;May be passed a list or other iterable of initial work, as well as</span>
+<span class="sd">        any of the following flags:</span>
 
-<span class="sd">        useMultiprocessing [True] - If True, then all job_stream work will be</span>
-<span class="sd">            handled in child processes spawned via Python&#39;s multiprocessing</span>
-<span class="sd">            module.  This is used to get around the limitations of the GIL,</span>
-<span class="sd">            but if your application&#39;s setup (not the jobs themselves) uses a lot</span>
-<span class="sd">            of memory and your computation is handled by either non-GIL</span>
-<span class="sd">            protected code or in another process anyway, it is appropriate to</span>
-<span class="sd">            turn this off.</span>
+<span class="sd">        Args:</span>
+<span class="sd">            initialWork (list): The token(s) or bits of work that will be</span>
+<span class="sd">                processed.  Each will be processed independently of the others;</span>
+<span class="sd">                results might be joined late in the pipeline depending on its</span>
+<span class="sd">                configuration.</span>
 
-<span class="sd">        checkpointFile [str] - If specified, job_stream will run in checkpoint</span>
-<span class="sd">            mode, periodically dumping progress to this file.  If this file</span>
-<span class="sd">            exists when run() is called, then simulation will be resumed</span>
-<span class="sd">            from the state stored in this file.</span>
+<span class="sd">            useMultiprocessing (bool): If True (the default), then all</span>
+<span class="sd">                job_stream work will be handled in child processes spawned via</span>
+<span class="sd">                Python&#39;s multiprocessing module.  This is used to get around</span>
+<span class="sd">                the limitations of the GIL, but if your application&#39;s setup</span>
+<span class="sd">                (not the jobs themselves) uses a lot of memory and your</span>
+<span class="sd">                computation is handled by either non-GIL protected code or in</span>
+<span class="sd">                another process anyway, it is appropriate to turn this off.</span>
 
-<span class="sd">        checkpointInterval [float] - Time, in seconds, between the completion</span>
-<span class="sd">            of one checkpoint and the beginning of the next.</span>
+<span class="sd">            checkpointFile (str): **Obsolete; use the ``job_stream`` binary.**</span>
+<span class="sd">                If specified, job_stream will run in checkpoint</span>
+<span class="sd">                mode, periodically dumping progress to this file.  If this file</span>
+<span class="sd">                exists when run() is called, then simulation will be resumed</span>
+<span class="sd">                from the state stored in this file.</span>
 
-<span class="sd">        checkpointSyncInterval [float] - Debug / test usage only.  Time, in</span>
-<span class="sd">            seconds, to wait for sync when taking a checkpoint.</span>
+<span class="sd">            checkpointInterval (float): **Obsolete; use the ``job_stream``</span>
+<span class="sd">                binary.** Time, in seconds, between the completion of one</span>
+<span class="sd">                checkpoint and the beginning of the next.</span>
+
+<span class="sd">            checkpointSyncInterval (float): **Debug / test usage only.**</span>
+<span class="sd">                Time, in seconds, to wait for sync when taking a checkpoint.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_initialWork</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">initialWork</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_initialWorkDepth</span> <span class="o">=</span> <span class="mi">0</span>
@@ -315,7 +418,7 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
 
 
-    <span class="k">def</span> <span class="nf">init</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">func</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="Work.init"><a class="viewcode-back" href="../../_autosummary/job_stream.inline.html#job_stream.inline.Work.init">[docs]</a>    <span class="k">def</span> <span class="nf">init</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">func</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Decorates a method that is called only once on the primary host</span>
 <span class="sd">        before any jobs run.  The method is never run when continuing from</span>
 <span class="sd">        a checkpoint.</span>
@@ -329,10 +432,10 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_assertFuncArgs</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">_inits</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">func</span>
+        <span class="k">return</span> <span class="n">func</span></div>
 
 
-    <span class="k">def</span> <span class="nf">finish</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">func</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="Work.finish"><a class="viewcode-back" href="../../_autosummary/job_stream.inline.html#job_stream.inline.Work.finish">[docs]</a>    <span class="k">def</span> <span class="nf">finish</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">func</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Decorates a method that is called only once on the primary host,</span>
 <span class="sd">        after all jobs have finished.</span>
 
@@ -358,31 +461,107 @@
             <span class="k">for</span> <span class="n">o</span> <span class="ow">in</span> <span class="n">others</span><span class="p">:</span>
                 <span class="n">store</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">o</span><span class="p">)</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">_hasFinish</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_hasFinish</span> <span class="o">=</span> <span class="kc">True</span></div>
 
 
-    <span class="k">def</span> <span class="nf">frame</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">func</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<div class="viewcode-block" id="Work.frame"><a class="viewcode-back" href="../../_autosummary/job_stream.inline.html#job_stream.inline.Work.frame">[docs]</a>    <span class="k">def</span> <span class="nf">frame</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">func</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Decorates a function that begins a frame.  A frame is started with</span>
 <span class="sd">        a single piece of work, and then recurses other pieces of work into</span>
-<span class="sd">        itself until some stopping condition.  The decorated function should</span>
-<span class="sd">        accept two arguments:</span>
+<span class="sd">        itself until some stopping condition.</span>
 
-<span class="sd">        store - The storage object used to remember results from the frame</span>
-<span class="sd">        first - The first work that began this frame.</span>
+<span class="sd">        Frames (and their cousins Reducers) are the most complicated feature in</span>
+<span class="sd">        `job_stream`.  A frame is appropriate if:</span>
+
+<span class="sd">        * A while loop would be used in non-parallelizable code</span>
+<span class="sd">        * Individual pieces of work need fan-out and fan-in</span>
+
+<span class="sd">        Frames have three parts - an &quot;all outstanding work is finished&quot;</span>
+<span class="sd">        handler, an aggregator, and everything in between, which is used to</span>
+<span class="sd">        process recurred work.</span>
+
+<span class="sd">        For example, suppose we want to sum all digits between 1 and our work,</span>
+<span class="sd">        and report the result.  The best way to design this type of system is</span>
+<span class="sd">        with a Frame, implemented in `inline` through :meth:`frame` and</span>
+<span class="sd">        :meth:`frameEnd`.  The easiest way to think of these is as the two ends</span>
+<span class="sd">        of a ``while`` loop - :meth:`frame` is evaluated as a termination</span>
+<span class="sd">        condition, and is also evaluated before anything happens.</span>
+<span class="sd">        :meth:`frameEnd` exists to aggregate logic from within the ``while``</span>
+<span class="sd">        loop into something that ``frame`` can look at.</span>
+
+<span class="sd">        .. code-block:: python</span>
+
+<span class="sd">            from job_stream.inline import Work, Multiple</span>
+<span class="sd">            w = Work([ 4, 5, 8 ])</span>
+
+<span class="sd">            @w.frame</span>
+<span class="sd">            def sumThrough(store, first):</span>
+<span class="sd">                # Remember, this is called like the header of a while statement: once at</span>
+<span class="sd">                # the beginning, and each time our recurred work finishes.  Anything</span>
+<span class="sd">                # returned from this function will keep the loop running.</span>
+<span class="sd">                if not hasattr(store, &#39;value&#39;):</span>
+<span class="sd">                    # Store hasn&#39;t been initialized yet, meaning that this is the first</span>
+<span class="sd">                    # evaluation</span>
+<span class="sd">                    store.first = first</span>
+<span class="sd">                    store.value = 0</span>
+<span class="sd">                    return first</span>
+
+<span class="sd">                # If we reach here, we&#39;re done.  By not returning anything, job_stream knows</span>
+<span class="sd">                # to exit the loop (finish the reduction).  The default behavior of frame is</span>
+<span class="sd">                # to emit the store object itself, which is fine.</span>
+
+<span class="sd">            # Anything between an @frame decorated function and @frameEnd will be executed</span>
+<span class="sd">            # for anything returned by the @frame or @frameEnd functions.  We could have</span>
+<span class="sd">            # returned multiple from @frame as well, but this is a little more fun</span>
+
+<span class="sd">            @w.job</span>
+<span class="sd">            def countTo(w):</span>
+<span class="sd">                # Generate and emit as work all integers ranging from 1 to w, inclusive</span>
+<span class="sd">                return Multiple(range(1, w + 1))</span>
+
+<span class="sd">            @w.frameEnd</span>
+<span class="sd">            def handleNext(store, next):</span>
+<span class="sd">                # next is any work that made it through the stream between @frame and</span>
+<span class="sd">                # @frameEnd.  In our case, it is one of the integers between 1 and our</span>
+<span class="sd">                # initial work.</span>
+<span class="sd">                store.value += next</span>
+
+<span class="sd">            @w.result</span>
+<span class="sd">            def printMatchup(w):</span>
+<span class="sd">                print(&quot;{}: {}&quot;.format(w.first, w.value))</span>
+
+<span class="sd">            w.run()</span>
+
+<span class="sd">        Running the above code will print:</span>
+
+<span class="sd">        .. code-block:: sh</span>
+
+<span class="sd">            $ python script.py</span>
+<span class="sd">            4: 10</span>
+<span class="sd">            8: 36</span>
+<span class="sd">            5: 15</span>
+
+<span class="sd">        Note that the original work is out of order, but the sums line up.  This is</span>
+<span class="sd">        because a frame starts a new reduction for each individual piece of work</span>
+<span class="sd">        entering the `@frame` decorated function.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            store: The storage object used to remember results from the frame.</span>
+<span class="sd">            first: The first work that began this frame.</span>
 
 <span class="sd">        Any results returned are recursed into the frame.</span>
 
 <span class="sd">        Decorator kwargs:</span>
-<span class="sd">        store - The constructor for a storage object.  Defaults to inline.Object</span>
-<span class="sd">        emit - A function taking a storage object and returning the work that</span>
-<span class="sd">                should be forwarded to the next member of the stream.  Defaults</span>
-<span class="sd">                to emitting the store itself.&quot;&quot;&quot;</span>
+<span class="sd">            store - The constructor for a storage object.  Defaults to inline.Object</span>
+<span class="sd">            emit - A function taking a storage object and returning the work that</span>
+<span class="sd">                    should be forwarded to the next member of the stream.  Defaults</span>
+<span class="sd">                    to emitting the store itself.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="n">func</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="c1"># Non-decorating form</span>
             <span class="k">return</span> <span class="k">lambda</span> <span class="n">func2</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">frame</span><span class="p">(</span><span class="n">func2</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">_assertNoResult</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_assertFuncArgs</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_assertFuncArgs</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
         <span class="n">fargs</span> <span class="o">=</span> <span class="n">Object</span><span class="p">()</span>
         <span class="n">fargs</span><span class="o">.</span><span class="n">store</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;store&#39;</span><span class="p">,</span> <span class="n">Object</span><span class="p">)</span>
         <span class="n">fargs</span><span class="o">.</span><span class="n">emit</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;emit&#39;</span><span class="p">,</span> <span class="k">lambda</span> <span class="n">store</span><span class="p">:</span> <span class="n">store</span><span class="p">)</span>
@@ -395,17 +574,19 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_stack</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="s1">&#39;config&#39;</span><span class="p">][</span><span class="s1">&#39;jobs&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">fconf</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_stack</span><span class="o">.</span><span class="n">append</span><span class="p">({</span> <span class="s1">&#39;frameFunc&#39;</span><span class="p">:</span> <span class="n">func</span><span class="p">,</span> <span class="s1">&#39;frameArgs&#39;</span><span class="p">:</span> <span class="n">fargs</span><span class="p">,</span> <span class="s1">&#39;config&#39;</span><span class="p">:</span> <span class="n">fconf</span> <span class="p">})</span>
 
-        <span class="k">return</span> <span class="n">func</span>
+        <span class="k">return</span> <span class="n">func</span></div>
 
 
-    <span class="k">def</span> <span class="nf">frameEnd</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">func</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="Work.frameEnd"><a class="viewcode-back" href="../../_autosummary/job_stream.inline.html#job_stream.inline.Work.frameEnd">[docs]</a>    <span class="k">def</span> <span class="nf">frameEnd</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">func</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Ends a frame.  The decorated function should accept two arguments:</span>
 
-<span class="sd">        store - The storage object used to remember results from the frame (same</span>
-<span class="sd">                as in the frame() decorated method).</span>
-<span class="sd">        next - The next result object that ran through the frame.</span>
+<span class="sd">        Args:</span>
+<span class="sd">            store: The storage object used to remember results from the frame</span>
+<span class="sd">                    (same as in the :meth:`frame` decorated method).</span>
+<span class="sd">            next: The next result object that ran through the frame.</span>
 
-<span class="sd">        Any results returned are recursed into the frame.&quot;&quot;&quot;</span>
+<span class="sd">        Any results returned are recursed into the frame.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="n">func</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="c1"># Non-decorating</span>
             <span class="k">return</span> <span class="k">lambda</span> <span class="n">func2</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">frameEnd</span><span class="p">(</span><span class="n">func2</span><span class="p">)</span>
@@ -414,7 +595,7 @@
             <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;frameEnd call does not match up with frame!&quot;</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">_assertNoResult</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_assertFuncArgs</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_assertFuncArgs</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
         <span class="n">fargs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stack</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="s1">&#39;frameArgs&#39;</span><span class="p">]</span>
         <span class="n">funcStart</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stack</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="s1">&#39;frameFunc&#39;</span><span class="p">]</span>
         <span class="c1"># Note that the inline version skips straight from handleFirst to handleDone, then</span>
@@ -423,30 +604,49 @@
             <span class="n">store</span><span class="o">.</span><span class="n">first</span> <span class="o">=</span> <span class="n">first</span>
             <span class="n">store</span><span class="o">.</span><span class="n">obj</span> <span class="o">=</span> <span class="n">fargs</span><span class="o">.</span><span class="n">store</span><span class="p">()</span>
         <span class="k">def</span> <span class="nf">handleNext</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">store</span><span class="p">,</span> <span class="nb">next</span><span class="p">):</span>
-            <span class="n">results</span> <span class="o">=</span> <span class="n">func</span><span class="p">(</span><span class="n">store</span><span class="o">.</span><span class="n">obj</span><span class="p">,</span> <span class="nb">next</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="nb">next</span><span class="p">,</span> <span class="n">Args</span><span class="p">):</span>
+                <span class="n">results</span> <span class="o">=</span> <span class="n">func</span><span class="p">(</span><span class="n">store</span><span class="o">.</span><span class="n">obj</span><span class="p">,</span> <span class="o">*</span><span class="nb">next</span><span class="o">.</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="nb">next</span><span class="o">.</span><span class="n">kwargs</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">results</span> <span class="o">=</span> <span class="n">func</span><span class="p">(</span><span class="n">store</span><span class="o">.</span><span class="n">obj</span><span class="p">,</span> <span class="nb">next</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_listCall</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">recur</span><span class="p">,</span> <span class="n">results</span><span class="p">)</span>
         <span class="k">def</span> <span class="nf">handleDone</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">store</span><span class="p">):</span>
-            <span class="n">results</span> <span class="o">=</span> <span class="n">funcStart</span><span class="p">(</span><span class="n">store</span><span class="o">.</span><span class="n">obj</span><span class="p">,</span> <span class="n">store</span><span class="o">.</span><span class="n">first</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">store</span><span class="o">.</span><span class="n">first</span><span class="p">,</span> <span class="n">Args</span><span class="p">):</span>
+                <span class="n">results</span> <span class="o">=</span> <span class="n">funcStart</span><span class="p">(</span><span class="n">store</span><span class="o">.</span><span class="n">obj</span><span class="p">,</span> <span class="o">*</span><span class="n">store</span><span class="o">.</span><span class="n">first</span><span class="o">.</span><span class="n">args</span><span class="p">,</span>
+                        <span class="o">**</span><span class="n">store</span><span class="o">.</span><span class="n">first</span><span class="o">.</span><span class="n">kwargs</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">results</span> <span class="o">=</span> <span class="n">funcStart</span><span class="p">(</span><span class="n">store</span><span class="o">.</span><span class="n">obj</span><span class="p">,</span> <span class="n">store</span><span class="o">.</span><span class="n">first</span><span class="p">)</span>
             <span class="n">hadRecur</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_listCall</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">recur</span><span class="p">,</span> <span class="n">results</span><span class="p">)</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="n">hadRecur</span><span class="p">:</span>
                 <span class="c1"># Frame is done, so emit our results</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">_listCall</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">emit</span><span class="p">,</span> <span class="n">fargs</span><span class="o">.</span><span class="n">emit</span><span class="p">(</span><span class="n">store</span><span class="o">.</span><span class="n">obj</span><span class="p">))</span>
 
         <span class="n">frame</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_newType</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_stack</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="s1">&#39;frameFunc&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">__name__</span><span class="p">,</span>
-                <span class="n">job_stream</span><span class="o">.</span><span class="n">Frame</span><span class="p">,</span> <span class="n">handleFirst</span> <span class="o">=</span> <span class="n">handleFirst</span><span class="p">,</span> <span class="n">handleNext</span> <span class="o">=</span> <span class="n">handleNext</span><span class="p">,</span>
-                <span class="n">handleDone</span> <span class="o">=</span> <span class="n">handleDone</span><span class="p">,</span> <span class="n">useMultiprocessing</span> <span class="o">=</span> <span class="n">fargs</span><span class="o">.</span><span class="n">useMulti</span><span class="p">)</span>
+                <span class="n">job_stream</span><span class="o">.</span><span class="n">common</span><span class="o">.</span><span class="n">Frame</span><span class="p">,</span> <span class="n">handleFirst</span> <span class="o">=</span> <span class="n">handleFirst</span><span class="p">,</span>
+                <span class="n">handleNext</span> <span class="o">=</span> <span class="n">handleNext</span><span class="p">,</span> <span class="n">handleDone</span> <span class="o">=</span> <span class="n">handleDone</span><span class="p">,</span>
+                <span class="n">useMultiprocessing</span> <span class="o">=</span> <span class="n">fargs</span><span class="o">.</span><span class="n">useMulti</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_stack</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="s1">&#39;config&#39;</span><span class="p">][</span><span class="s1">&#39;frame&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">frame</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_stack</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
         <span class="c1"># Since we always make a stack entry to start a frame, should never be empty here</span>
         <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stack</span>
 
-        <span class="k">return</span> <span class="n">func</span>
+        <span class="k">return</span> <span class="n">func</span></div>
 
 
-    <span class="k">def</span> <span class="nf">job</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">func</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="Work.job"><a class="viewcode-back" href="../../_autosummary/job_stream.inline.html#job_stream.inline.Work.job">[docs]</a>    <span class="k">def</span> <span class="nf">job</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">func</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Decorates a job.  The decorated function must take one argument,</span>
 <span class="sd">        which is the work coming into the job.  Anything returned is passed</span>
-<span class="sd">        along to the next member of the stream.&quot;&quot;&quot;</span>
+<span class="sd">        along to the next member of the stream.</span>
+
+<span class="sd">        .. warning:: I/O Safety</span>
+
+<span class="sd">            It is not safe to write non-unique external i/o (such as a file)</span>
+<span class="sd">            within a job.  This is because jobs have no parallelism guards -</span>
+<span class="sd">            that is, two jobs executing concurrently might open and append to a</span>
+<span class="sd">            file at the same time.  On some filesystems, this results in e.g.</span>
+<span class="sd">            two lines of a csv being combined into a single, invalid line.  To</span>
+<span class="sd">            work around this, see :meth:`result`.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="n">func</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="c1"># Invocation, not decoration</span>
             <span class="k">return</span> <span class="k">lambda</span> <span class="n">func2</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">job</span><span class="p">(</span><span class="n">func2</span><span class="p">)</span>
@@ -454,19 +654,23 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_assertNoResult</span><span class="p">()</span>
         <span class="n">funcCls</span> <span class="o">=</span> <span class="n">func</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">inspect</span><span class="o">.</span><span class="n">isclass</span><span class="p">(</span><span class="n">funcCls</span><span class="p">):</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_assertFuncArgs</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_assertFuncArgs</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
             <span class="k">def</span> <span class="nf">handle</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">work</span><span class="p">):</span>
-                <span class="n">results</span> <span class="o">=</span> <span class="n">func</span><span class="p">(</span><span class="n">work</span><span class="p">)</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">work</span><span class="p">,</span> <span class="n">Args</span><span class="p">):</span>
+                    <span class="n">results</span> <span class="o">=</span> <span class="n">func</span><span class="p">(</span><span class="o">*</span><span class="n">work</span><span class="o">.</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">work</span><span class="o">.</span><span class="n">kwargs</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">results</span> <span class="o">=</span> <span class="n">func</span><span class="p">(</span><span class="n">work</span><span class="p">)</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">_listCall</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">emit</span><span class="p">,</span> <span class="n">results</span><span class="p">)</span>
 
-            <span class="n">funcCls</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_newType</span><span class="p">(</span><span class="n">func</span><span class="o">.</span><span class="n">__name__</span><span class="p">,</span> <span class="n">job_stream</span><span class="o">.</span><span class="n">Job</span><span class="p">,</span> <span class="n">handleWork</span> <span class="o">=</span> <span class="n">handle</span><span class="p">)</span>
+            <span class="n">funcCls</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_newType</span><span class="p">(</span><span class="n">func</span><span class="o">.</span><span class="n">__name__</span><span class="p">,</span> <span class="n">job_stream</span><span class="o">.</span><span class="n">common</span><span class="o">.</span><span class="n">Job</span><span class="p">,</span>
+                    <span class="n">handleWork</span> <span class="o">=</span> <span class="n">handle</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_stack</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="s1">&#39;config&#39;</span><span class="p">][</span><span class="s1">&#39;jobs&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">funcCls</span><span class="p">)</span>
 
         <span class="c1"># Return original function for multiplicity</span>
-        <span class="k">return</span> <span class="n">func</span>
+        <span class="k">return</span> <span class="n">func</span></div>
 
 
-    <span class="k">def</span> <span class="nf">reduce</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">func</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<div class="viewcode-block" id="Work.reduce"><a class="viewcode-back" href="../../_autosummary/job_stream.inline.html#job_stream.inline.Work.reduce">[docs]</a>    <span class="k">def</span> <span class="nf">reduce</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">func</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Decorates a reducer.  Reducers are distributed (function does not</span>
 <span class="sd">        run on only one machine per reduction).  Typically this is used to</span>
 <span class="sd">        gather and aggregate results.  Any set of work coming into a reducer</span>
@@ -509,8 +713,8 @@
             <span class="k">def</span> <span class="nf">done</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">store</span><span class="p">):</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">_listCall</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">emit</span><span class="p">,</span> <span class="n">emitValue</span><span class="p">(</span><span class="n">store</span><span class="o">.</span><span class="n">obj</span><span class="p">))</span>
             <span class="n">reducerCls</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_newType</span><span class="p">(</span><span class="n">func</span><span class="o">.</span><span class="n">__name__</span><span class="p">,</span>
-                    <span class="n">job_stream</span><span class="o">.</span><span class="n">Reducer</span><span class="p">,</span> <span class="n">handleInit</span> <span class="o">=</span> <span class="n">init</span><span class="p">,</span> <span class="n">handleAdd</span> <span class="o">=</span> <span class="n">add</span><span class="p">,</span>
-                    <span class="n">handleJoin</span> <span class="o">=</span> <span class="n">join</span><span class="p">,</span> <span class="n">handleDone</span> <span class="o">=</span> <span class="n">done</span><span class="p">)</span>
+                    <span class="n">job_stream</span><span class="o">.</span><span class="n">common</span><span class="o">.</span><span class="n">Reducer</span><span class="p">,</span> <span class="n">handleInit</span> <span class="o">=</span> <span class="n">init</span><span class="p">,</span>
+                    <span class="n">handleAdd</span> <span class="o">=</span> <span class="n">add</span><span class="p">,</span> <span class="n">handleJoin</span> <span class="o">=</span> <span class="n">join</span><span class="p">,</span> <span class="n">handleDone</span> <span class="o">=</span> <span class="n">done</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_stack</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="s1">&#39;config&#39;</span><span class="p">][</span><span class="s1">&#39;reducer&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">reducerCls</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_stack</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stack</span><span class="p">:</span>
@@ -523,14 +727,16 @@
 
         <span class="c1"># Return the original function so that the user may call it, if</span>
         <span class="c1"># desired</span>
-        <span class="k">return</span> <span class="n">func</span>
+        <span class="k">return</span> <span class="n">func</span></div>
 
 
-    <span class="k">def</span> <span class="nf">result</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">func</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<div class="viewcode-block" id="Work.result"><a class="viewcode-back" href="../../_autosummary/job_stream.inline.html#job_stream.inline.Work.result">[docs]</a>    <span class="k">def</span> <span class="nf">result</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">func</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Decorates a result handler, which is called only on the primary host</span>
-<span class="sd">        exactly once for each piece of work that exits the system.  The handler</span>
-<span class="sd">        receives a single argument, which is the piece of work exiting the</span>
-<span class="sd">        system.</span>
+<span class="sd">        exactly once for each piece of work that exits the system.  **This is</span>
+<span class="sd">        the safest place for I/O!**</span>
+
+<span class="sd">        The handler receives a single argument, which is the piece of work</span>
+<span class="sd">        exiting the system.</span>
 
 <span class="sd">        If no result handlers are decorated, then inline will use a collector</span>
 <span class="sd">        that gathers the results and returns them in a list from the run()</span>
@@ -540,20 +746,25 @@
             <span class="k">return</span> <span class="k">lambda</span> <span class="n">func2</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">result</span><span class="p">(</span><span class="n">func2</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">_assertNoResult</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_assertFuncArgs</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_assertFuncArgs</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">kwargs</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span><span class="s2">&quot;Unknown kwargs: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">kwargs</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">_resultHandler</span> <span class="o">=</span> <span class="n">func</span>
+        <span class="k">def</span> <span class="nf">realFunc</span><span class="p">(</span><span class="n">arg</span><span class="p">):</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">arg</span><span class="p">,</span> <span class="n">Args</span><span class="p">):</span>
+                <span class="k">return</span> <span class="n">func</span><span class="p">(</span><span class="o">*</span><span class="n">arg</span><span class="o">.</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">arg</span><span class="o">.</span><span class="n">kwargs</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">func</span><span class="p">(</span><span class="n">arg</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_resultHandler</span> <span class="o">=</span> <span class="n">realFunc</span>
 
         <span class="c1"># Return original function so it may be referred to as usual</span>
-        <span class="k">return</span> <span class="n">func</span>
+        <span class="k">return</span> <span class="n">func</span></div>
 
 
-    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="Work.run"><a class="viewcode-back" href="../../_autosummary/job_stream.inline.html#job_stream.inline.Work.run">[docs]</a>    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Runs the Work, executing all decorated methods in the order they</span>
 <span class="sd">        were specified.  A few kwargs passed to Work() will be forwarded to</span>
-<span class="sd">        job_stream.run().</span>
+<span class="sd">        job_stream.common.run().</span>
 <span class="sd">        &quot;&quot;&quot;</span>
 
         <span class="n">runKwargs</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_runKwargs</span><span class="p">)</span>
@@ -600,21 +811,29 @@
         <span class="c1"># Bury our initial work appropriately</span>
         <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_initialWorkDepth</span><span class="p">):</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_initialWork</span> <span class="o">=</span> <span class="p">[</span> <span class="bp">self</span><span class="o">.</span><span class="n">_initialWork</span> <span class="p">]</span>
-        <span class="n">job_stream</span><span class="o">.</span><span class="n">work</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_initialWork</span>
-        <span class="n">job_stream</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">,</span> <span class="o">**</span><span class="n">runKwargs</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">result</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">job_stream</span><span class="o">.</span><span class="n">common</span><span class="o">.</span><span class="n">work</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_initialWork</span>
+        <span class="n">job_stream</span><span class="o">.</span><span class="n">common</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">,</span> <span class="o">**</span><span class="n">runKwargs</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">result</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span></div>
 
 
-    <span class="k">def</span> <span class="nf">_assertFuncArgs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">func</span><span class="p">,</span> <span class="n">i</span><span class="p">):</span>
+<div class="viewcode-block" id="Work._assertFuncArgs"><a class="viewcode-back" href="../../_autosummary/job_stream.inline.html#job_stream.inline.Work._assertFuncArgs">[docs]</a>    <span class="k">def</span> <span class="nf">_assertFuncArgs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">func</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">isMin</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Ensures that the function func takes exactly i args.  Makes error</span>
 <span class="sd">        messages more friendly.&quot;&quot;&quot;</span>
-        <span class="n">numArgs</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">inspect</span><span class="o">.</span><span class="n">getargspec</span><span class="p">(</span><span class="n">func</span><span class="p">)</span><span class="o">.</span><span class="n">args</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">numArgs</span> <span class="o">!=</span> <span class="n">i</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Function </span><span class="si">{}</span><span class="s2"> must take exactly </span><span class="si">{}</span><span class="s2"> args; takes </span><span class="si">{}</span><span class="s2">&quot;</span>
-                    <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">numArgs</span><span class="p">))</span>
+        <span class="n">spec</span> <span class="o">=</span> <span class="n">inspect</span><span class="o">.</span><span class="n">getargspec</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
+        <span class="n">numArgs</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">spec</span><span class="o">.</span><span class="n">args</span><span class="p">)</span>
+        <span class="c1"># For job_stream purposes, varargs or kwargs count as only one</span>
+        <span class="c1"># additional argument.  What we want to avoid is &#39;store&#39; getting</span>
+        <span class="c1"># wrapped up in *args or **kwargs.</span>
+        <span class="k">if</span> <span class="n">spec</span><span class="o">.</span><span class="n">varargs</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">spec</span><span class="o">.</span><span class="n">keywords</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">numArgs</span> <span class="o">+=</span> <span class="mi">1</span>
+
+        <span class="k">if</span> <span class="n">numArgs</span> <span class="o">!=</span> <span class="n">i</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">isMin</span> <span class="ow">or</span> <span class="n">isMin</span> <span class="ow">and</span> <span class="n">numArgs</span> <span class="o">&lt;</span> <span class="n">i</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Function </span><span class="si">{}</span><span class="s2"> must take </span><span class="si">{}</span><span class="s2"> </span><span class="si">{}</span><span class="s2"> args; takes </span><span class="si">{}</span><span class="s2">&quot;</span>
+                    <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="s2">&quot;at least&quot;</span> <span class="k">if</span> <span class="n">isMin</span> <span class="k">else</span> <span class="s2">&quot;exactly&quot;</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span>
+                        <span class="n">numArgs</span><span class="p">))</span></div>
 
 
-    <span class="k">def</span> <span class="nf">_assertNoResult</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="Work._assertNoResult"><a class="viewcode-back" href="../../_autosummary/job_stream.inline.html#job_stream.inline.Work._assertNoResult">[docs]</a>    <span class="k">def</span> <span class="nf">_assertNoResult</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Ensures that @w.result hasn&#39;t been used yet, otherwise raises an</span>
 <span class="sd">        error.&quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_hasFinish</span><span class="p">:</span>
@@ -622,10 +841,10 @@
                     <span class="s2">&quot;be added to the job stream.&quot;</span><span class="p">)</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_resultHandler</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;After Work.result is used, no other elements may &quot;</span>
-                    <span class="s2">&quot;be added to the job stream.&quot;</span><span class="p">)</span>
+                    <span class="s2">&quot;be added to the job stream.&quot;</span><span class="p">)</span></div>
 
 
-    <span class="k">def</span> <span class="nf">_listCall</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">boundMethod</span><span class="p">,</span> <span class="n">results</span><span class="p">):</span>
+<div class="viewcode-block" id="Work._listCall"><a class="viewcode-back" href="../../_autosummary/job_stream.inline.html#job_stream.inline.Work._listCall">[docs]</a>    <span class="k">def</span> <span class="nf">_listCall</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">boundMethod</span><span class="p">,</span> <span class="n">results</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Calls boundMethod (which is something like Job.emit) for each member of results,</span>
 <span class="sd">        if results is Multiple.</span>
 
@@ -643,7 +862,7 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="n">boundMethod</span><span class="p">(</span><span class="n">results</span><span class="p">)</span>
             <span class="n">called</span> <span class="o">=</span> <span class="kc">True</span>
-        <span class="k">return</span> <span class="n">called</span>
+        <span class="k">return</span> <span class="n">called</span></div>
 
 
     <span class="k">def</span> <span class="nf">_newType</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">nameBase</span><span class="p">,</span> <span class="n">clsBase</span><span class="p">,</span> <span class="o">**</span><span class="n">funcs</span><span class="p">):</span>
@@ -655,10 +874,10 @@
             <span class="n">clsAttrs</span><span class="p">[</span><span class="s1">&#39;USE_MULTIPROCESSING&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
         <span class="n">cls</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="n">tname</span><span class="p">,</span> <span class="p">(</span><span class="n">clsBase</span><span class="p">,),</span> <span class="n">clsAttrs</span><span class="p">)</span>
         <span class="n">_moduleSelf</span><span class="p">[</span><span class="n">tname</span><span class="p">]</span> <span class="o">=</span> <span class="n">cls</span>
-        <span class="k">return</span> <span class="n">cls</span>
+        <span class="k">return</span> <span class="n">cls</span></div>
 
 
-<div class="viewcode-block" id="map"><a class="viewcode-back" href="../../_autosummary/_autosummary/job_stream.inline.html#job_stream.inline.map">[docs]</a><span class="k">def</span> <span class="nf">map</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="o">*</span><span class="n">sequence</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<div class="viewcode-block" id="map"><a class="viewcode-back" href="../../_autosummary/job_stream.inline.html#job_stream.inline.map">[docs]</a><span class="k">def</span> <span class="nf">map</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="o">*</span><span class="n">sequence</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Returns [ func(*a) for a in sequence ] in a parallel manner.  Identical</span>
 <span class="sd">    to the builtin map(), except parallelized.</span>
 
@@ -713,7 +932,7 @@
     <script type="text/javascript">
         var DOCUMENTATION_OPTIONS = {
             URL_ROOT:'../../',
-            VERSION:'0.1.19',
+            VERSION:'0.1.20',
             COLLAPSE_INDEX:false,
             FILE_SUFFIX:'.html',
             HAS_SOURCE:  true
