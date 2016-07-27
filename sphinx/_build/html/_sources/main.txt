@@ -1,7 +1,7 @@
 job_stream
 ==========
 
-An MPI-based C++ or Python library for easy, distributed pipeline processing, with an emphasis on running scientific simulations.
+An MPI-based C++ or Python library for easy, distributed pipeline processing, with an emphasis on running scientific simulations.  The project is hosted `on Github <https://github.com/wwoods/job_stream>`_.
 
 
 .. contents::
