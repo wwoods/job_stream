@@ -10,7 +10,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>job_stream &mdash; job_stream 0.1.21 documentation</title>
+  <title>job_stream &mdash; job_stream 0.1.22 documentation</title>
   
 
   
@@ -34,7 +34,7 @@
   
 
   
-    <link rel="top" title="job_stream 0.1.21 documentation" href="index.html"/>
+    <link rel="top" title="job_stream 0.1.22 documentation" href="index.html"/>
         <link rel="next" title="Changelog" href="changelog.html"/>
         <link rel="prev" title="job_stream" href="index.html"/> 
 
@@ -64,7 +64,7 @@
             
             
               <div class="version">
-                0.1.21
+                0.1.22
               </div>
             
           
@@ -222,8 +222,8 @@
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
 
 <span class="c1"># Parameters to be tested can be passed as the first argument to sweep;</span>
-<span class="c1"># the second argument would control the maximum number of allowable</span>
-<span class="c1"># trials.</span>
+<span class="c1"># the second argument, if specified, is the number of trials for each</span>
+<span class="c1"># parameter combination (negative to auto-detect with a maximum threshold).</span>
 <span class="k">with</span> <span class="n">sweep</span><span class="p">({</span> <span class="s1">&#39;param&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span> <span class="p">})</span> <span class="k">as</span> <span class="n">w</span><span class="p">:</span>
     <span class="nd">@w.job</span>
     <span class="k">def</span> <span class="nf">handle</span><span class="p">(</span><span class="nb">id</span><span class="p">,</span> <span class="n">trial</span><span class="p">,</span> <span class="n">param</span><span class="p">):</span>
@@ -420,7 +420,7 @@ resumed by re-executing the same command as the original invocation.</p>
     <script type="text/javascript">
         var DOCUMENTATION_OPTIONS = {
             URL_ROOT:'./',
-            VERSION:'0.1.21',
+            VERSION:'0.1.22',
             COLLAPSE_INDEX:false,
             FILE_SUFFIX:'.html',
             HAS_SOURCE:  true
