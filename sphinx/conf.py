@@ -75,8 +75,8 @@ author = u'Walt Woods'
 # |version| and |release|, also used in various other places throughout the
 # built documents.
 
-with open('../setup.py') as f:
-    m = re.search('^\\s*version\\s*=\\s*[\'"]([^\'"]*)[\'"],$', f.read(),
+with open('../python/job_stream/version.py') as f:
+    m = re.search('^\\s*__version__\\s*=\\s*[\'"]([^\'"]*)[\'"]$', f.read(),
             flags=re.M)
 
 if m is None:
