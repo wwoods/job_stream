@@ -12,18 +12,23 @@ An MPI-based C++ or Python library for easy, distributed pipeline processing, wi
 Introduction
 ------------
 
-``job_stream`` is a straightforward and effective way to implement distributed computations.  How straightforward?  Well, if we wanted to find all primes between 0 and 999:
+.. _intro-deterministic:
+
+Deterministic Experiments
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``job_stream`` is a straightforward and effective way to implement distributed computations, geared towards scientific applications.  How straightforward?  If we wanted to find all primes between 0 and 999:
 
 .. code-block:: python
 
-    # Import the main Work object that makes using job_stream dead simple
+    # Import the main Work object that manages the computation's graph.
     from job_stream.inline import Work
 
     # Start by declaring work based on the list of numbers between 0 and 999 as a
     # piece of `Work`.  When the w object goes out of context, the job_stream will
-    # get exectued
+    # be executed.
     with Work(range(1000)) as w:
-        # For each of those numbers, execute this method to see if that number is prime
+        # For each of those numbers, see if that number is prime.
         @w.job
         def isPrime(x):
             for i in range(2, int(x ** 0.5) + 1):
@@ -43,6 +48,52 @@ If your process is long-running, and machines in the cluster sometimes crash or 
 
     $ job_stream -c -- python test.py
 
+
+Stochastic Experiments
+~~~~~~~~~~~~~~~~~~~~~~
+
+Using the :meth:`job_stream.baked.sweep` method, ``job_stream`` can automatically run experiments until a given confidence interval for sampled values is met; the default is a 95% confidence interval of +/- 10% of the value's sampled mean.  For example:
+
+.. code-block:: python
+
+    from job_stream.baked import sweep
+    import numpy as np
+
+    # Parameters to be tested can be passed as the first argument to sweep;
+    # the second argument would control the maximum number of allowable
+    # trials.
+    with sweep({ 'param': np.linspace(1, 10, 3) }) as w:
+        @w.job
+        def handle(id, trial, param):
+            # param is a value from 1 to 10, as partitioned by np.linspace.
+            # Choose noise with zero-mean and standard deviation about 0.5.
+            noise = (np.random.random() - 0.5) * 1.73
+            return { 'value': param + noise }
+
+This code is run the same way as the :ref:`intro-deterministic` experiments:
+
+.. code-block:: sh
+
+    $ job_stream -- python test.py
+        trials  param      value  value_dev  value_err
+    id
+    2        5   10.0  10.095083   0.522214   0.649245
+    1        8    5.5   5.295684   0.519942   0.472436
+    0      102    1.0   1.009054   0.509398   0.098858
+
+The result is a nice table (which can optionally be saved directly to a CSV)
+with which parameters were tried, which values were recorded, and the standard
+deviation and expected error in the reported mean (with 95% confidence) of
+those recorded values.
+
+.. note:: The experiment with ``param == 1.`` required many more trials because
+        10% of 1 is smaller than 10% of 10 or 5.5.  However,
+        :meth:`job_stream.baked.sweep` allows the stopping criteria tolerances
+        to be changed; see the documentation.
+
+
+Features
+~~~~~~~~
 
 ``job_stream`` lets developers write their code in an imperative style, and does all the heavy lifting behind the scenes.  While there are a lot of task processing libraries out there, job_stream bends over backwards to make writing distributed processing tasks easy while maintaining the flexibility required to support complicated parallelization paradigms.  What all is in the box?
 
@@ -75,7 +126,7 @@ It is **strongly** recommended that users use a virtualenv such as `Miniconda <h
     $ conda install boost
     $ pip install job_stream
 
-.. warning::
+.. note::
 
     If not using ``conda``, run the pip install command alone.  You may need to
     specify custom include or library paths:

@@ -95,10 +95,12 @@ def sweep(variables={}, trials=0, output=None, trialsParms={}):
                 The percentage of relative error between the true mean and the
                 reported mean.  For instance, if E is 0.1, then there is a 95%
                 confidence that the true value is on the range of the estimated
-                value * (1. +- 0.1).  Defaults to 0.1.
+                value * (1. +- 0.1).  Setting to 0 will disable this stopping
+                criteria.  Defaults to 0.1.
 
             eps
-                The absolute minimum estimated error.  Defaults to 1e-2.
+                The absolute minimum estimated error.  Setting to 0 will
+                disable this stopping criteria.  Defaults to 1e-2.
 
     Return:
         Nothing is returned.  However, both stdout and, if specified, the csv
@@ -122,6 +124,8 @@ def sweep(variables={}, trials=0, output=None, trialsParms={}):
         if k not in trialsParmsDefaults:
             raise ValueError("Bad trialsParms key: {}".format(k))
     trialsParmsDefaults.update(trialsParms)
+    if trialsParmsDefaults['E'] <= 0. and trialsParmsDefaults['eps'] <= 0.:
+        raise ValueError("Both E and eps cannot be zero in trialsParms")
 
     allParms = set()
     if isinstance(variables, list):
