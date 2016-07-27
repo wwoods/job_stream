@@ -1,0 +1,353 @@
+
+
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Changelog &mdash; job_stream 0.1.20 documentation</title>
+  
+
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  
+
+  
+    <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+
+  
+    <link rel="top" title="job_stream 0.1.20 documentation" href="index.html"/>
+        <link rel="next" title="Roadmap" href="roadmap.html"/>
+        <link rel="prev" title="job_stream" href="main.html"/> 
+
+  
+  <script src="_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="index.html" class="icon icon-home"> job_stream
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.1.20
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+                <ul>
+<li class="toctree-l1"><a class="reference internal" href="main.html">job_stream</a></li>
+</ul>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="roadmap.html">Roadmap</a></li>
+<li class="toctree-l1"><a class="reference internal" href="python.html">Python API</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+        <a href="index.html">job_stream</a>
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+ 
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="index.html">Docs</a> &raquo;</li>
+      
+    <li>Changelog</li>
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="_sources/changelog.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="changelog">
+<h1>Changelog<a class="headerlink" href="#changelog" title="Permalink to this headline">¶</a></h1>
+<ul>
+<li><p class="first">2016-7-13 - Minor fix for bin/job_stream; hosts now remain sorted in their
+original order, fixing the server with rank 0 to a specific host.</p>
+</li>
+<li><p class="first">2016-7-07 - mpirun doesn&#8217;t automatically forward environment variables; this
+has been fixed for the job_stream binary.  Python version bump to 0.1.19.</p>
+</li>
+<li><p class="first">2016-7-05 - Checkpoints now make a .done file to prevent accidental results
+overwriting.  Updated job_stream binary to be able to specify checkpoints
+and to have a slightly improved interface.  Python version to 0.1.18.</p>
+</li>
+<li><p class="first">2016-6-28 - Added job_stream binary to stop users from needing to know how
+to use mpirun, and more importantly, to open the way for uses like maxCpu
+or flagging other resources.</p>
+</li>
+<li><p class="first">2016-6-27 - A fix and additional testing for multiprocessing timing code.
+Streamlined to be more effective to boot.  Version to 0.1.14.</p>
+</li>
+<li><p class="first">2016-6-24 - Fixed python timing code for multiprocessing.  Reported CPU
+efficiencies are now valid for python code.  Version bump to 0.1.13.</p>
+</li>
+<li><p class="first">2016-6-23 - job_stream now processes work in a depth-first fashion rather
+than breadth-first.  The utility of this change is for progress bars; no
+functionality should be altered as an effect of this change.</p>
+<p>Updated multiprocessing in Python driver to work with new code organization,
+multiprocessing was not effective before.  Stats still need to be fixed there.
+Version bump to 0.1.12.</p>
+</li>
+<li><p class="first">2016-6-22 - inline.Multiple() in Python now ignores None results.
+Version 0.1.11.</p>
+</li>
+<li><p class="first">2016-6-14 - Python 3 support and embedded two of the boost libraries that
+are not typically associated with boost-python.  In other words, a
+<cite>conda install boost</cite> preceding a <cite>pip install job_stream</cite> now works with
+both Python 2 and 3.  System boost libraries should still work as before
+(although job_stream might use an outdated version of boost-mpi).</p>
+<p>Version bump to 0.1.8, 0.1.9 and 0.1.10 (build fix).</p>
+</li>
+<li><p class="first">2016-4-14 - Added a <cite>map()</cite> function that is compatible with the builtin
+<cite>map()</cite> function.</p>
+</li>
+<li><p class="first">2015-5-26 - README warning about Frames and Reducers that store a list of
+objects.  Python inline frames can specify useMultiprocessing=False separate
+from the work.  Minor efficiency improvement to copy fewer Python object
+strings.</p>
+</li>
+<li><p class="first">2015-5-21 - Build on Mac OS X is now fixed.</p>
+</li>
+<li><p class="first">2015-3-26 - <cite>job_stream.inline.Work</cite> can now be used in <cite>with</cite> blocks and has
+a <cite>finish()</cite> method.  Args for <cite>Work.run()</cite> were moved to <cite>Work</cite>&#8216;s
+initializer.</p>
+</li>
+<li><p class="first">2015-2-6 - job_stream.inline python module can disable multiprocessing by
+passing useMultiprocessing = False in the <cite>Work</cite> object&#8217;s initializer.</p>
+</li>
+<li><p class="first">2015-1-30 - Updated README to include job_stream.invoke, and exposed
+checkpointInfo function for debugging.</p>
+</li>
+<li><p class="first">2015-1-29 - Added inline.result() function, which lets users write code that
+is executed exactly once per result, and always on the main host.</p>
+</li>
+<li><p class="first">2015-1-28 - Added inline.init() function, which ensures code is only executed
+once regardless of checkpoint or host status.</p>
+</li>
+<li><p class="first">2015-1-7 - Added job_stream.invoke to the python module.  Useful for launching
+an external process, e.g. Xyce.</p>
+</li>
+<li><p class="first">2014-12-26 - Finished up job_stream.inline, the more intuitive way to
+parallelize using job_stream.  Minor bug fixes, working on README.  Need
+to curate everything and fix the final test_pipes.py test that is failing
+before redeploying to PyPI</p>
+</li>
+<li><p class="first">2014-12-23 - Embedded yaml-cpp into job_stream&#8217;s source to ease compilation.
+Bumped PyPI to 0.1.3.</p>
+</li>
+<li><p class="first">2014-12-22 - Finished python support (initial version, anyway).  Supports
+config, multiprocessing, proper error reporting.  Pushed version 0.1.2 to
+PyPI :)</p>
+</li>
+<li><p class="first">2014-12-18 - Python support.  Frame methods renamed for clarity
+(handleWork -&gt; handleNext).  Frames may now be specified as a string for
+type, just like reducers.</p>
+</li>
+<li><p class="first">2014-12-04 - Checkpoints no longer are allowed for interactive mode.  All input must be spooled into the system before a checkpoint will be allowed.</p>
+</li>
+<li><p class="first">2014-11-14 - Fixed job_stream checkpoints to be continuous.  That is, a checkpoint no longer needs current work to finish in order to complete.  This
+cuts the runtime for checkpoints from several hours in some situations down
+to a couple of seconds.  Also, added test-long to cmake, so that tests can
+be run repeatedly for any period of time in order to track down transient
+failures.</p>
+<p>Fixed a bug with job_stream::invoke which would lock up if a program wrote
+too much information to stderr or stdout.</p>
+<p>Re-did steal ring so that it takes available processing power into account.</p>
+</li>
+<li><p class="first">2014-11-06 - Fixed invoke::run up so that it supported retry on user-defined
+transient errors (For me, Xyce was having issues creating a sub directory
+and would crash).</p>
+</li>
+<li><p class="first">2014-11-03 - Added &#8211;checkpoint-info for identifying what makes checkpoint
+files so large sometimes.  Miscellaneous cleanup to &#8211;help functionality.
+Serialization will refuse to serialize a non-pointer version of a polymorphic
+class, since it takes a long time to track down what&#8217;s wrong in that
+situation.</p>
+</li>
+<li><p class="first">2014-10-17 - Apparently yaml-cpp is not thread safe.  Wtf.  Anyway, as a
+&#8220;temporary&#8221; solution, job_stream now uses some custom globally locked classes
+as a gateway to yaml-cpp.  All functionality should still work exactly like
+vanilla yaml-cpp.</p>
+<p>Also, no work happens during a checkpoint now.  That was causing corrupted
+checkpoint files with duplicated ring tests.</p>
+</li>
+<li><p class="first">2014-9-10 - Fixed up duplicated and end-of-job-sequence (output) submodules.
+Host name is now used in addition to MPI rank when reporting results.</p>
+</li>
+<li><p class="first">2014-6-13 - Finalized checkpoint code for initial release.  A slew of new
+tests.</p>
+</li>
+<li><p class="first">2014-4-24 - Fixed up shared_ptr serialization.  Fixed synchronization issue
+in reduction rings.</p>
+</li>
+<li><p class="first">2014-2-19 - Added Frame specialization of Reducer.  Expects a different
+first work than subsequent.  Usage pattern is to do some initialization work
+and then recur() additional work as needed.</p>
+</li>
+<li><p class="first">2014-2-12 - Serialization is now via pointer, and supports polymorphic classes
+completely unambiguously via dynamic_cast and
+job_stream::serialization::registerType.  User cpu % updated to be in terms of
+user time (quality measure) for each processor, and cumulative CPUs for
+cumulative time.</p>
+</li>
+<li><p class="first">2014-2-5 - In terms of user ticks / wall clock ms, less_serialization is on
+par with master (3416 vs 3393 ticks / ms, 5% error), in addition
+to all of the other fixes that branch has.  Merged in.</p>
+</li>
+<li><p class="first">2014-2-4 - Got rid of needed istream specialization; use an if and a
+runtime_exception.</p>
+</li>
+<li><p class="first">2014-2-4 - handleWork, handleAdd, and handleJoin all changed to take a
+unique_ptr rather than references.  This allows preventing more memory
+allocations and copies.  Default implementation with += removed.</p>
+</li>
+</ul>
+</div>
+
+
+           </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="roadmap.html" class="btn btn-neutral float-right" title="Roadmap" accesskey="n">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="main.html" class="btn btn-neutral" title="job_stream" accesskey="p"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2016, Walt Woods.
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'./',
+            VERSION:'0.1.20',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true
+        };
+    </script>
+      <script type="text/javascript" src="_static/jquery.js"></script>
+      <script type="text/javascript" src="_static/underscore.js"></script>
+      <script type="text/javascript" src="_static/doctools.js"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>
