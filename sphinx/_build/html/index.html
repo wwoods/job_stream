@@ -10,7 +10,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>job_stream &mdash; job_stream 0.1.20 documentation</title>
+  <title>job_stream &mdash; job_stream 0.1.21 documentation</title>
   
 
   
@@ -34,7 +34,7 @@
   
 
   
-    <link rel="top" title="job_stream 0.1.20 documentation" href="#"/>
+    <link rel="top" title="job_stream 0.1.21 documentation" href="#"/>
         <link rel="next" title="job_stream" href="main.html"/> 
 
   
@@ -63,7 +63,7 @@
             
             
               <div class="version">
-                0.1.20
+                0.1.21
               </div>
             
           
@@ -144,32 +144,39 @@
 <p>An MPI-based C++ or Python library for easy, distributed pipeline processing, with an emphasis on running scientific simulations.</p>
 <div class="contents local topic" id="contents">
 <ul class="simple">
-<li><a class="reference internal" href="#introduction" id="id1">Introduction</a></li>
-<li><a class="reference internal" href="#installation" id="id2">Installation</a><ul>
-<li><a class="reference internal" href="#requirements" id="id3">Requirements</a></li>
-<li><a class="reference internal" href="#python" id="id4">Python</a></li>
-<li><a class="reference internal" href="#c-library" id="id5">C++ Library</a></li>
+<li><a class="reference internal" href="#introduction" id="id1">Introduction</a><ul>
+<li><a class="reference internal" href="#deterministic-experiments" id="id2">Deterministic Experiments</a></li>
+<li><a class="reference internal" href="#stochastic-experiments" id="id3">Stochastic Experiments</a></li>
+<li><a class="reference internal" href="#features" id="id4">Features</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#distributed-execution" id="id6">Distributed Execution</a><ul>
-<li><a class="reference internal" href="#checkpoints" id="id7">Checkpoints</a></li>
+<li><a class="reference internal" href="#installation" id="id5">Installation</a><ul>
+<li><a class="reference internal" href="#requirements" id="id6">Requirements</a></li>
+<li><a class="reference internal" href="#python" id="id7">Python</a></li>
+<li><a class="reference internal" href="#c-library" id="id8">C++ Library</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#python-api" id="id8">Python API</a></li>
-<li><a class="reference internal" href="#c-api" id="id9">C++ API</a></li>
+<li><a class="reference internal" href="#distributed-execution" id="id9">Distributed Execution</a><ul>
+<li><a class="reference internal" href="#checkpoints" id="id10">Checkpoints</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#python-api" id="id11">Python API</a></li>
+<li><a class="reference internal" href="#c-api" id="id12">C++ API</a></li>
 </ul>
 </div>
 <div class="section" id="introduction">
 <h2><a class="toc-backref" href="#id1">Introduction</a><a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
-<p><code class="docutils literal"><span class="pre">job_stream</span></code> is a straightforward and effective way to implement distributed computations.  How straightforward?  Well, if we wanted to find all primes between 0 and 999:</p>
-<div class="highlight-python"><div class="highlight"><pre><span></span><span class="c1"># Import the main Work object that makes using job_stream dead simple</span>
+<div class="section" id="deterministic-experiments">
+<span id="intro-deterministic"></span><h3><a class="toc-backref" href="#id2">Deterministic Experiments</a><a class="headerlink" href="#deterministic-experiments" title="Permalink to this headline">¶</a></h3>
+<p><code class="docutils literal"><span class="pre">job_stream</span></code> is a straightforward and effective way to implement distributed computations, geared towards scientific applications.  How straightforward?  If we wanted to find all primes between 0 and 999:</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="c1"># Import the main Work object that manages the computation&#39;s graph.</span>
 <span class="kn">from</span> <span class="nn">job_stream.inline</span> <span class="kn">import</span> <span class="n">Work</span>
 
 <span class="c1"># Start by declaring work based on the list of numbers between 0 and 999 as a</span>
 <span class="c1"># piece of `Work`.  When the w object goes out of context, the job_stream will</span>
-<span class="c1"># get exectued</span>
+<span class="c1"># be executed.</span>
 <span class="k">with</span> <span class="n">Work</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">1000</span><span class="p">))</span> <span class="k">as</span> <span class="n">w</span><span class="p">:</span>
-    <span class="c1"># For each of those numbers, execute this method to see if that number is prime</span>
+    <span class="c1"># For each of those numbers, see if that number is prime.</span>
     <span class="nd">@w.job</span>
     <span class="k">def</span> <span class="nf">isPrime</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
         <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">x</span> <span class="o">**</span> <span class="mf">0.5</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
@@ -186,6 +193,48 @@
 <div class="highlight-sh"><div class="highlight"><pre><span></span>$ job_stream -c -- python test.py
 </pre></div>
 </div>
+</div>
+<div class="section" id="stochastic-experiments">
+<h3><a class="toc-backref" href="#id3">Stochastic Experiments</a><a class="headerlink" href="#stochastic-experiments" title="Permalink to this headline">¶</a></h3>
+<p>Using the <a class="reference internal" href="_autosummary/job_stream.baked.html#job_stream.baked.sweep" title="job_stream.baked.sweep"><code class="xref py py-meth docutils literal"><span class="pre">job_stream.baked.sweep()</span></code></a> method, <code class="docutils literal"><span class="pre">job_stream</span></code> can automatically run experiments until a given confidence interval for sampled values is met; the default is a 95% confidence interval of +/- 10% of the value&#8217;s sampled mean.  For example:</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">job_stream.baked</span> <span class="kn">import</span> <span class="n">sweep</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+
+<span class="c1"># Parameters to be tested can be passed as the first argument to sweep;</span>
+<span class="c1"># the second argument would control the maximum number of allowable</span>
+<span class="c1"># trials.</span>
+<span class="k">with</span> <span class="n">sweep</span><span class="p">({</span> <span class="s1">&#39;param&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span> <span class="p">})</span> <span class="k">as</span> <span class="n">w</span><span class="p">:</span>
+    <span class="nd">@w.job</span>
+    <span class="k">def</span> <span class="nf">handle</span><span class="p">(</span><span class="nb">id</span><span class="p">,</span> <span class="n">trial</span><span class="p">,</span> <span class="n">param</span><span class="p">):</span>
+        <span class="c1"># param is a value from 1 to 10, as partitioned by np.linspace.</span>
+        <span class="c1"># Choose noise with zero-mean and standard deviation about 0.5.</span>
+        <span class="n">noise</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">random</span><span class="p">()</span> <span class="o">-</span> <span class="mf">0.5</span><span class="p">)</span> <span class="o">*</span> <span class="mf">1.73</span>
+        <span class="k">return</span> <span class="p">{</span> <span class="s1">&#39;value&#39;</span><span class="p">:</span> <span class="n">param</span> <span class="o">+</span> <span class="n">noise</span> <span class="p">}</span>
+</pre></div>
+</div>
+<p>This code is run the same way as the <a class="reference internal" href="main.html#intro-deterministic"><span class="std std-ref">Deterministic Experiments</span></a> experiments:</p>
+<div class="highlight-sh"><div class="highlight"><pre><span></span>$ job_stream -- python test.py
+    trials  param      value  value_dev  value_err
+id
+<span class="m">2</span>        <span class="m">5</span>   10.0  10.095083   0.522214   0.649245
+<span class="m">1</span>        <span class="m">8</span>    5.5   5.295684   0.519942   0.472436
+<span class="m">0</span>      <span class="m">102</span>    1.0   1.009054   0.509398   0.098858
+</pre></div>
+</div>
+<p>The result is a nice table (which can optionally be saved directly to a CSV)
+with which parameters were tried, which values were recorded, and the standard
+deviation and expected error in the reported mean (with 95% confidence) of
+those recorded values.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">The experiment with <code class="docutils literal"><span class="pre">param</span> <span class="pre">==</span> <span class="pre">1.</span></code> required many more trials because
+10% of 1 is smaller than 10% of 10 or 5.5.  However,
+<a class="reference internal" href="_autosummary/job_stream.baked.html#job_stream.baked.sweep" title="job_stream.baked.sweep"><code class="xref py py-meth docutils literal"><span class="pre">job_stream.baked.sweep()</span></code></a> allows the stopping criteria tolerances
+to be changed; see the documentation.</p>
+</div>
+</div>
+<div class="section" id="features">
+<h3><a class="toc-backref" href="#id4">Features</a><a class="headerlink" href="#features" title="Permalink to this headline">¶</a></h3>
 <p><code class="docutils literal"><span class="pre">job_stream</span></code> lets developers write their code in an imperative style, and does all the heavy lifting behind the scenes.  While there are a lot of task processing libraries out there, job_stream bends over backwards to make writing distributed processing tasks easy while maintaining the flexibility required to support complicated parallelization paradigms.  What all is in the box?</p>
 <ul class="simple">
 <li><strong>Easy python interface</strong> to keep coding in a way that you are comfortable; often, users only need parts of <a class="reference internal" href="_autosummary/job_stream.baked.html#module-job_stream.baked" title="job_stream.baked"><code class="xref py py-mod docutils literal"><span class="pre">job_stream.baked</span></code></a>.</li>
@@ -196,10 +245,11 @@
 <li><strong>Execution Statistics</strong> so that you know exactly how effectively your code parallelizes</li>
 </ul>
 </div>
+</div>
 <div class="section" id="installation">
-<h2><a class="toc-backref" href="#id2">Installation</a><a class="headerlink" href="#installation" title="Permalink to this headline">¶</a></h2>
+<h2><a class="toc-backref" href="#id5">Installation</a><a class="headerlink" href="#installation" title="Permalink to this headline">¶</a></h2>
 <div class="section" id="requirements">
-<h3><a class="toc-backref" href="#id3">Requirements</a><a class="headerlink" href="#requirements" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id6">Requirements</a><a class="headerlink" href="#requirements" title="Permalink to this headline">¶</a></h3>
 <ul class="simple">
 <li><a class="reference external" href="http://www.boost.org">boost</a> (filesystem, mpi, python, regex, serialization, system, thread).</li>
 <li>mpi (perhaps <a class="reference external" href="http://www.open-mpi.org">OpenMPI</a>).</li>
@@ -207,14 +257,14 @@
 <p>Note that <code class="docutils literal"><span class="pre">job_stream</span></code> internally uses <a class="reference external" href="https://github.com/jbeder/yaml-cpp">yaml-cpp</a>, but for convenience it is packaged with <code class="docutils literal"><span class="pre">job_stream</span></code>.</p>
 </div>
 <div class="section" id="python">
-<h3><a class="toc-backref" href="#id4">Python</a><a class="headerlink" href="#python" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id7">Python</a><a class="headerlink" href="#python" title="Permalink to this headline">¶</a></h3>
 <p>It is <strong>strongly</strong> recommended that users use a virtualenv such as <a class="reference external" href="https://www.continuum.io/downloads">Miniconda</a> to install <code class="docutils literal"><span class="pre">job_stream</span></code>.  The primary difficulty that this helps users to avoid is any boost incompatibilities, which can happen in academic environments.  Once Miniconda is installed and the <code class="docutils literal"><span class="pre">conda</span></code> application is on the user&#8217;s <code class="docutils literal"><span class="pre">PATH</span></code>, installing becomes as easy as:</p>
 <div class="highlight-sh"><div class="highlight"><pre><span></span>$ conda install boost
 $ pip install job_stream
 </pre></div>
 </div>
-<div class="admonition warning">
-<p class="first admonition-title">Warning</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
 <p>If not using <code class="docutils literal"><span class="pre">conda</span></code>, run the pip install command alone.  You may need to
 specify custom include or library paths:</p>
 <div class="last highlight-sh"><div class="highlight"><pre><span></span><span class="nv">CPLUS_INCLUDE_PATH</span><span class="o">=</span>~/my/path/to/boost/ <span class="se">\</span>
@@ -229,7 +279,7 @@ specify custom include or library paths:</p>
 </div>
 </div>
 <div class="section" id="c-library">
-<h3><a class="toc-backref" href="#id5">C++ Library</a><a class="headerlink" href="#c-library" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id8">C++ Library</a><a class="headerlink" href="#c-library" title="Permalink to this headline">¶</a></h3>
 <p>Create a build/ folder, cd into it, and run:</p>
 <blockquote>
 <div>cmake .. &amp;&amp; make -j8 test</div></blockquote>
@@ -268,7 +318,7 @@ specify custom include or library paths:</p>
 </div>
 </div>
 <div class="section" id="distributed-execution">
-<h2><a class="toc-backref" href="#id6">Distributed Execution</a><a class="headerlink" href="#distributed-execution" title="Permalink to this headline">¶</a></h2>
+<h2><a class="toc-backref" href="#id9">Distributed Execution</a><a class="headerlink" href="#distributed-execution" title="Permalink to this headline">¶</a></h2>
 <p>job_stream comes bundled with a binary to help running job_stream applications: that executable is installed as <code class="docutils literal"><span class="pre">job_stream</span></code> in your Python distribution&#8217;s <code class="docutils literal"><span class="pre">bin</span></code> folder.  At its simplest, <code class="docutils literal"><span class="pre">job_stream</span></code> is a wrapper for <code class="docutils literal"><span class="pre">mpirun</span></code>.  It needs an MPI-like hostfile that lists machines to be used for distributing work.  For example, if your machine has a file named <code class="docutils literal"><span class="pre">hostfile</span></code> on it with the following contents:</p>
 <div class="highlight-sh"><div class="highlight"><pre><span></span><span class="c1"># This file&#39;s contents are in a file called &#39;hostfile&#39;.</span>
 machine1
@@ -286,7 +336,7 @@ machine2
 </div>
 <p>Will run <code class="docutils literal"><span class="pre">script.py</span></code> and distribute its work across machine1 and machine2.  If you ever want to run a script on something other than the default configured hostfile, <code class="docutils literal"><span class="pre">job_stream</span></code> accepts <code class="docutils literal"><span class="pre">--host</span></code> and <code class="docutils literal"><span class="pre">--hostfile</span></code> arguments (see <code class="docutils literal"><span class="pre">job_stream</span> <span class="pre">--help</span></code> for more information).</p>
 <div class="section" id="checkpoints">
-<h3><a class="toc-backref" href="#id7">Checkpoints</a><a class="headerlink" href="#checkpoints" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id10">Checkpoints</a><a class="headerlink" href="#checkpoints" title="Permalink to this headline">¶</a></h3>
 <p>The <code class="docutils literal"><span class="pre">job_stream</span></code> wrapper also allows specifying checkpoints so that you do not lose progress on a job if your machines go down:</p>
 <div class="highlight-sh"><div class="highlight"><pre><span></span>$ job_stream -c ...
 </pre></div>
@@ -298,11 +348,11 @@ resumed by re-executing the same command as the original invocation.</p>
 </div>
 </div>
 <div class="section" id="python-api">
-<h2><a class="toc-backref" href="#id8">Python API</a><a class="headerlink" href="#python-api" title="Permalink to this headline">¶</a></h2>
+<h2><a class="toc-backref" href="#id11">Python API</a><a class="headerlink" href="#python-api" title="Permalink to this headline">¶</a></h2>
 <p>See the <a class="reference internal" href="python.html"><span class="doc">job_stream</span></a> module documentation.</p>
 </div>
 <div class="section" id="c-api">
-<h2><a class="toc-backref" href="#id9">C++ API</a><a class="headerlink" href="#c-api" title="Permalink to this headline">¶</a></h2>
+<h2><a class="toc-backref" href="#id12">C++ API</a><a class="headerlink" href="#c-api" title="Permalink to this headline">¶</a></h2>
 <p>The most up-to-date C++ API is documented in the old README, which can be found <a class="reference external" href="https://github.com/wwoods/job_stream/#c-basics">here</a>.  Note that the C++ language does not provide many of the features that make it as easy to use as in Python.  However, the C++ interface was also crafted with care so that it would not be too difficult.</p>
 </div>
 </div>
@@ -346,7 +396,7 @@ resumed by re-executing the same command as the original invocation.</p>
     <script type="text/javascript">
         var DOCUMENTATION_OPTIONS = {
             URL_ROOT:'./',
-            VERSION:'0.1.20',
+            VERSION:'0.1.21',
             COLLAPSE_INDEX:false,
             FILE_SUFFIX:'.html',
             HAS_SOURCE:  true
