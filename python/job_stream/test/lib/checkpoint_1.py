@@ -1,17 +1,17 @@
 
-import job_stream
+import job_stream.common as common
 
 import sys
 
-class addOneAndQuit(job_stream.Job):
+class addOneAndQuit(common.Job):
     def handleWork(self, w):
         self._forceCheckpoint(True)
         self.emit(w + 1)
 
 
 if __name__ == '__main__':
-    job_stream.work = [ 1 ]
-    job_stream.run({
+    common.work = [ 1 ]
+    common.run({
             'jobs': [
                 { 'type': addOneAndQuit },
                 { 'type': addOneAndQuit },

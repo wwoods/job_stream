@@ -72,6 +72,7 @@ const int NO_STEALING = 0;
 const int DEFAULT_CHECKPOINT_SYNC_WAIT_MS = 10000;
 int Processor::CHECKPOINT_SYNC_WAIT_MS
         = DEFAULT_CHECKPOINT_SYNC_WAIT_MS;
+int cpuCount = -1;
 std::vector<std::string> initialWork;
 
 
@@ -476,6 +477,7 @@ void Processor::run(const std::string& inputLine) {
     }
     if (!this->_stealEnabled || NO_STEALING) {
         this->workersActive = this->workers.size();
+        ERROR("Unsupported getCpuCount...");
     }
 
     //Begin tallying time spent in system vs user functionality.
@@ -869,6 +871,15 @@ void Processor::maybeAllowSteal(const std::string& messageBuffer) {
             this->workersActive = assignedSlots[rank];
             sr.slots[rank] = this->workersActive;
         }
+    }
+
+    //Do we know how many CPUs are in cluster?
+    if (cpuCount < 0 && ringActive) {
+        int newCount = 0;
+        for (int i = 0; i < wsize; i++) {
+            newCount += sr.capacity[i];
+        }
+        cpuCount = newCount;
     }
 
     //Can we donate work?

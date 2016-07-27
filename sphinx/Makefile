@@ -51,10 +51,11 @@ help:
 
 .PHONY: clean
 clean:
+	rm -rf _autosummary
 	rm -rf $(BUILDDIR)/*
 
 .PHONY: gh-pages
-gh-pages: html
+gh-pages: clean html
 	python gh-pages.py $(BUILDDIR)/html
 
 .PHONY: html

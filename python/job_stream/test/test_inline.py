@@ -1,9 +1,61 @@
 
 from .common import ExecuteError, JobStreamTest
+import re
 import tempfile
 import os
 
 class TestInline(JobStreamTest):
+    def test_args(self):
+        # Ensure that the Args object works
+        src = """
+                import job_stream.inline as inline
+
+                with inline.Work([ inline.Args(1, 2, d=4, c=3) ]) as w:
+                    @w.job
+                    def handle(a, b, c, d):
+                        print("Job {}, {}, {}, {}".format(a, b, c, d))
+                        return inline.Args(1, 2, h=8)
+
+                    @w.frame(emit=lambda s: inline.Args(8, 7, g=6))
+                    def handleS(store, a, b, **kwargs):
+                        if not hasattr(store, 'init'):
+                            store.init = True
+                            return inline.Args(3, 4, z=88)
+                        print("Frame {}, {}, {}".format(a, b, kwargs))
+
+                    @w.frameEnd
+                    def unused(store, *args, **kwargs):
+                        print("Frame end {}, {}".format(args, kwargs))
+
+                    @w.reduce
+                    def reduce(store, next, other):
+                        print("Reducer {}, {}".format(other, next))
+                """
+
+        r = self.executePy(src)
+        r0 = re.sub(r"(<job_stream\.inline\.Args object).*>", r"\1>", r[0])
+        self.assertLinesEqual(
+                """
+                Job 1, 2, 3, 4
+                Frame end (3, 4), {'z': 88}
+                Frame 1, 2, {'h': 8}
+                Reducer [], [<job_stream.inline.Args object>]
+                """,
+                r0)
+
+
+        # Should also work with @w.result...
+        src = """
+                from job_stream.inline import Args, Work
+                with Work([ Args(1, 2, c=8) ]) as w:
+                    @w.result
+                    def handleResult(a, b, c):
+                        print("Got {}, {}, {}".format(a, b, c))
+                """
+        r = self.executePy(src)
+        self.assertLinesEqual("Got 1, 2, 8\n", r[0])
+
+
     def test_checkpoint(self):
         # Ensure that results are saved across checkpoints
         chkpt = os.path.join(tempfile.gettempdir(), "test.chkpt")
@@ -255,10 +307,10 @@ for r in work.run():
 """)
 
         r2 = self.executePy("""
-import job_stream
+import job_stream.common as common
 import os
 
-class AvgLines(job_stream.Job):
+class AvgLines(common.Job):
     def handleWork(self, w):
         avg = 0.0
         cnt = 0
@@ -270,7 +322,7 @@ class AvgLines(job_stream.Job):
         self.emit(( w, cnt, avg / max(1, cnt) ))
 
 
-class FindGlobal(job_stream.Reducer):
+class FindGlobal(common.Reducer):
     def handleInit(self, store):
         store.gavg = 0.0
         store.gcnt = 0
@@ -283,8 +335,8 @@ class FindGlobal(job_stream.Reducer):
     def handleDone(self, store):
         self.emit(( store.gcnt, store.gavg / max(1, store.gcnt) ))
 
-job_stream.work = os.listdir('.')
-job_stream.run({
+common.work = os.listdir('.')
+common.run({
     'reducer': FindGlobal,
     'jobs': [ AvgLines ],
 })
@@ -328,7 +380,7 @@ job_stream.run({
         # Ensure that multiprocessing classes don't get the
         # _MULTIPROCESSING_PATCHED class, while derivatives do
         r = self.executePy("""
-                from job_stream import Job, Frame, Reducer
+                from job_stream.common import Job, Frame, Reducer
                 from job_stream.inline import Work
 
                 with Work([1]) as w:

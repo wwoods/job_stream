@@ -1,9 +1,9 @@
-import job_stream
+import job_stream.common as common
 import os
 
 exDir = os.path.join(os.path.dirname(__file__), '../../../../example')
 
-class addOne(job_stream.Job):
+class addOne(common.Job):
     # Ensure postSetup() is only called once
     USE_MULTIPROCESSING = False
 
@@ -15,7 +15,7 @@ class addOne(job_stream.Job):
         self.emit(w + 1)
 
 
-class runExperiments(job_stream.Frame):
+class runExperiments(common.Frame):
     # Only call postSetup once
     USE_MULTIPROCESSING = False
 
@@ -38,5 +38,5 @@ class runExperiments(job_stream.Frame):
 
 
 if __name__ == '__main__':
-    job_stream.work.append("aec")
-    job_stream.run(os.path.join(exDir, "example5.yaml"))
+    common.work.append("aec")
+    common.run(os.path.join(exDir, "example5.yaml"))

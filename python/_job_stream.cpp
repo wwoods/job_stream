@@ -994,6 +994,11 @@ void _timerHandleResult(job_stream::processor::Processor* p,
 }
 
 
+int getCpuCount() {
+    return job_stream::getCpuCount();
+}
+
+
 int getRank() {
     return job_stream::getRank();
 }
@@ -1170,6 +1175,7 @@ BOOST_PYTHON_MODULE(_job_stream) {
             "returning (clock-time, cpu-time) in MS");
     bp::def("checkpointInfo", job_stream::checkpointInfo, "Returns a human-readable "
             "string with details of a checkpoint's state");
+    bp::def("getCpuCount", getCpuCount, "Returns the number of CPUs in the cluster");
     bp::def("getRank", getRank, "Returns the mpi rank of this host");
     bp::def("invoke", invoke, "Invokes the given application.  See "
             "job_stream.invoke in the python module for more information.");

@@ -3,96 +3,21 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to job_stream's documentation!
-======================================
-
-Contents:
+.. Note that this file is necessary because of a bug in Sphinx where 'self' does not have section links; this file makes the TOC slightly better.
+   The downside to this approach is that the sidebar is not expanded by default.
 
 .. toctree::
-   :maxdepth: 2
+    :hidden:
 
-.. autosummary::
-    :toctree: _autosummary
-
-    job_stream
-
-.. todo::
-
-    The brokePrimes example freezes sometimes.  Fix that.
-
-Presentation Notes
-------------------
-
-Find all primes < 1000?
------------------------
-
-Code
-~~~~
-
-.. literalinclude:: presCode/primes.py
-    :language: python
-    :linenos:
-    :emphasize-lines: 2,3,10
-
-Output
-~~~~~~
-
-.. literalinclude:: presCode/primes.out
-    :linenos:
-    :emphasize-lines: 1-2
+    main.rst
 
 
-Really broken primes < 1000?
-----------------------------
+.. toctree::
+    :hidden:
 
-Code
-~~~~
+    changelog.rst
+    roadmap.rst
+    Python API <python.rst>
 
-.. literalinclude:: presCode/brokePrimes.py
-    :language: python
-    :linenos:
-    :lines: 7-
-    :emphasize-lines: 2,5
-
-Output
-~~~~~~
-
-First run:
-
-.. literalinclude:: presCode/brokePrimes.out
-    :lines: 1-4,141-
-    :linenos:
-
-Second run:
-
-.. literalinclude:: presCode/brokePrimes.out2
-    :lines: 1-2,159-
-    :linenos:
-
-
-Triangle Numbers
-----------------
-
-Code
-~~~~
-
-.. literalinclude:: presCode/triangleNums.py
-    :language: python
-    :linenos:
-    :emphasize-lines: 3-4, 10, 12-13
-
-Output
-~~~~~~
-
-.. literalinclude:: presCode/triangleNums.out
-    :linenos:
-
-
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+.. include:: main.rst
 

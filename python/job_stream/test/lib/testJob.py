@@ -1,9 +1,9 @@
-import job_stream
+import job_stream.common as common
 import os
 
 exDir = os.path.join(os.path.dirname(__file__), '../../../../example')
 
-class addOne(job_stream.Job):
+class addOne(common.Job):
     USE_MULTIPROCESSING = False
 
     def postSetup(self):
@@ -15,5 +15,5 @@ class addOne(job_stream.Job):
 
 
 if __name__ == '__main__':
-    job_stream.work = [ 1, 2, 4, 8 ]
-    job_stream.run(os.path.join(exDir, "adder.yaml"))
+    common.work = [ 1, 2, 4, 8 ]
+    common.run(os.path.join(exDir, "adder.yaml"))

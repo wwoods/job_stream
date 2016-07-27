@@ -1,12 +1,12 @@
 
-import job_stream
+import job_stream.common as common
 
-class addTwo(job_stream.Job):
+class addTwo(common.Job):
     def handleWork(self, w):
         self.emit(w + 2)
 
 
-class multiply(job_stream.Reducer):
+class multiply(common.Reducer):
     def handleInit(self, stash):
         stash.value = 1
 
@@ -21,9 +21,9 @@ class multiply(job_stream.Reducer):
 
 
 if __name__ == '__main__':
-    job_stream.work = [ 1, 5 ]
+    common.work = [ 1, 5 ]
     # Adds 4 and multiplies numbers; so 5 * 9 = 45
-    job_stream.run({
+    common.run({
             'reducer': multiply,
             'jobs': [
                 { 'type': addTwo }, { 'type': 'addTwo' }

@@ -8,8 +8,8 @@ class TestPipes(JobStreamTest):
         # This was failing awhile ago; outer reducer wasn't catching frame's
         # output
         r = self.executePy("""
-            import job_stream
-            class GlobalReducer(job_stream.Reducer):
+            import job_stream.common as common
+            class GlobalReducer(common.Reducer):
                 def handleInit(self, store):
                     print("Global init")
                 def handleAdd(self, store, w):
@@ -18,7 +18,7 @@ class TestPipes(JobStreamTest):
                     print("Global join: {}".format(other))
                 def handleDone(self, store):
                     print("Global done")
-            class InnerFrame(job_stream.Frame):
+            class InnerFrame(common.Frame):
                 def handleFirst(self, store, w):
                     print("Frame first: {}".format(w))
                     self.recur("Recur")
@@ -27,13 +27,13 @@ class TestPipes(JobStreamTest):
                 def handleDone(self, store):
                     print("Frame done")
                     self.emit("(frame end)")
-            class ForwardingJob(job_stream.Job):
+            class ForwardingJob(common.Job):
                 def handleWork(self, w):
                     print("Forwarding: {}".format(w))
                     self.emit(w)
 
-            job_stream.work = [ 'Apple' ]
-            job_stream.run({
+            common.work = [ 'Apple' ]
+            common.run({
                     'reducer': GlobalReducer,
                     'jobs': [
                         {

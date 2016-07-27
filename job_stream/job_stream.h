@@ -666,6 +666,12 @@ namespace job_stream {
     std::string checkpointInfo(const std::string& path);
 
 
+    /** Returns the number of CPUs in this cluster; throws an error if the
+     * steal ring hasn't gone around yet and CPU detection hasn't happened.
+     * */
+    int getCpuCount();
+
+
     /** Returns this machine's MPI rank. */
     int getRank();
 

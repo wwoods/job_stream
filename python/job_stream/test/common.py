@@ -24,8 +24,8 @@ class JobStreamTest(unittest.TestCase):
     def assertLinesEqual(self, a, b):
         """Asserts that strings a and b contain the same lines, albeit perhaps
         in a different order."""
-        al = [ p for p in a.split("\n") if p ]
-        bl = [ p for p in b.split("\n") if p ]
+        al = [ p for p in textwrap.dedent(a).split("\n") if p ]
+        bl = [ p for p in textwrap.dedent(b).split("\n") if p ]
 
         al.sort()
         bl.sort()

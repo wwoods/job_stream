@@ -1,15 +1,15 @@
 
-import job_stream
+import job_stream.common as common
 
 import sys
 
-class addOneAndQuit(job_stream.Job):
+class addOneAndQuit(common.Job):
     def handleWork(self, w):
         self._forceCheckpoint(True)
         self.emit(w + 1)
 
 
-class getToFifty(job_stream.Frame):
+class getToFifty(common.Frame):
     CAP = 50
 
     def handleFirst(self, stash, w):
@@ -38,8 +38,8 @@ if __name__ == '__main__':
     # 5 + 3 = 8 + 5 = 13 + 7 = 20 + 11 = 31 + 16 = 47 + 24 = 71
     # 71 + 1 = 72 + 37 = 109 + 1 = 110
     # So, 3 143s and 1 110 are expected.
-    job_stream.work = [ 1, 2, 3, 4 ]
-    job_stream.run({
+    common.work = [ 1, 2, 3, 4 ]
+    common.run({
             'jobs': [
                 {
                     'frame': getToFifty,

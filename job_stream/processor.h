@@ -36,6 +36,10 @@ namespace processor {
   3 = overly verbose */
 extern const int JOB_STREAM_DEBUG;
 
+/** The number of CPUs in the cluster, or -1 if uninitialized.
+ * */
+extern int cpuCount;
+
 /** A queue of serialized initial work.  If populated (non-zero size), then this
     is used in lieu of either an initial input line or stdin. */
 extern std::vector<std::string> initialWork;

@@ -187,6 +187,15 @@ std::string checkpointInfo(const std::string& path) {
 }
 
 
+int getCpuCount() {
+    if (processor::cpuCount < 0) {
+        ERROR("No Processor started yet; no cpuCount to report")
+    }
+
+    return processor::cpuCount;
+}
+
+
 int getRank() {
     _startMpi();
     mpi::communicator world;

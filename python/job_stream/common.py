@@ -1,14 +1,22 @@
 """The core job_stream adapter in Python.  This file is responsible for
 providing adaptations for all of the needed C++ code.
 
+.. warning::
+
+    New users should look at using the :mod:`job_stream.inline` module instead
+    of the classes in this file.
+
 Example usage:
 
-    class AddOne(job_stream.Job):
+.. code-block:: python
+
+    from job_stream import common
+    class AddOne(common.Job):
         def handleWork(self, work):
             self.emit(work + 1)
 
-    job_stream.work.extend([ 8, 9 ])
-    job_stream.run({
+    common.work.extend([ 8, 9 ])
+    common.run({
             'jobs': [
                 { 'type': AddOne }
             ]
@@ -97,7 +105,7 @@ class _StackAlreadyPrintedError(Exception):
 class _Work(list):
     """List of initial work sent into job_stream.
     If left empty, work comes from stdin."""
-job_stream.work = _Work()
+work = _Work()
 
 
 _localJobs = {}
@@ -229,7 +237,7 @@ class Job(six.with_metaclass(_Job__metaclass__, _j.Job)):
         '''Adds 8 to an integer or floating point number'''
         def handleWork(self, work):
             self.emit(work + 8)
-    job_stream.work = [ 1, 2, 3.0 ]
+    job_stream.common.work = [ 1, 2, 3.0 ]
     # This will print 9, 10, and 11.0
     job_stream.run({ 'jobs': [ MyJob ] })
     """
@@ -316,7 +324,7 @@ class Reducer(six.with_metaclass(_Reducer__metaclass__, _j.Reducer)):
             store.count += other.count
         def handleDone(self, store):
             self.emit(store.count)
-    job_stream.work = [ 'Hello', 'World' ]
+    job_stream.common.work = [ 'Hello', 'World' ]
     # Here the reduction starts at the global scope, so it will print out 12,
     # which is the original 10 letters plus the two new letter A's.
     print("First:")
@@ -432,10 +440,10 @@ class Frame(six.with_metaclass(_Frame__metaclass__, _j.Frame)):
             else:
                 self.emit(store.word)
 
-    job_stream.work = [ 'abracadabra', 'Hey', 'Apples' ]
+    job_stream.common.work = [ 'abracadabra', 'Hey', 'Apples' ]
     # This'll print out the unmodified abracadabra, add two Ab's to Apples, and
     # four Ab's to Hey
-    job_stream.run({
+    job_stream.common.run({
             'jobs': [ {
                 'frame': MakeAtLeastTenLetters,
                 'jobs': [ AddAb ]
@@ -551,6 +559,13 @@ def _cpuThreadTime():
     return _j._cpuThreadTimeMs() * 0.001
 
 
+def getCpuCount():
+    """Retunrs the number of CPUs in the cluster.  Must be called within a
+    job_stream, or will raise an error.
+    """
+    return _j.getCpuCount()
+
+
 def getRank():
     """Returns the rank (integer index) of this processor.  Typically, this
     value is checked against 0 for work that should only happen once, e.g.
@@ -587,9 +602,10 @@ def map(func, *sequence, **kwargs):
     to the builtin map(), except parallelized.
 
     kwargs - Passed to job_stream.run()."""
-    job_stream.work = _Work()
-    job_stream.work.extend([ (i, a) for i, a in enumerate(zip(*sequence)) ])
-    result = [ None for _ in range(len(job_stream.work)) ]
+    job_stream.common.work = _Work()
+    job_stream.common.work.extend([ (i, a)
+            for i, a in enumerate(zip(*sequence)) ])
+    result = [ None for _ in range(len(job_stream.common.work)) ]
 
     def handleWork(s, work):
         s.emit((work[0], func(*work[1])))
@@ -663,7 +679,8 @@ def run(configDictOrPath, **kwargs):
     try:
         _j.registerEncoding(Object, _StackAlreadyPrintedError, _encode,
                 _decode)
-        _j.runProcessor(config, list(job_stream.work), handleResult, **kwargs)
+        _j.runProcessor(config, list(job_stream.common.work), handleResult,
+                **kwargs)
     finally:
         _j.registerEncoding(None, None, None, None)
         # Close our multiprocessing pool; especially in the interpreter, the
