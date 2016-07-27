@@ -10,7 +10,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>job_stream.baked &mdash; job_stream 0.1.20 documentation</title>
+  <title>job_stream.baked &mdash; job_stream 0.1.21 documentation</title>
   
 
   
@@ -34,7 +34,7 @@
   
 
   
-    <link rel="top" title="job_stream 0.1.20 documentation" href="../../index.html"/>
+    <link rel="top" title="job_stream 0.1.21 documentation" href="../../index.html"/>
         <link rel="up" title="Module code" href="../index.html"/> 
 
   
@@ -63,7 +63,7 @@
             
             
               <div class="version">
-                0.1.20
+                0.1.21
               </div>
             
           
@@ -233,10 +233,12 @@
 <span class="sd">                The percentage of relative error between the true mean and the</span>
 <span class="sd">                reported mean.  For instance, if E is 0.1, then there is a 95%</span>
 <span class="sd">                confidence that the true value is on the range of the estimated</span>
-<span class="sd">                value * (1. +- 0.1).  Defaults to 0.1.</span>
+<span class="sd">                value * (1. +- 0.1).  Setting to 0 will disable this stopping</span>
+<span class="sd">                criteria.  Defaults to 0.1.</span>
 
 <span class="sd">            eps</span>
-<span class="sd">                The absolute minimum estimated error.  Defaults to 1e-2.</span>
+<span class="sd">                The absolute minimum estimated error.  Setting to 0 will</span>
+<span class="sd">                disable this stopping criteria.  Defaults to 1e-2.</span>
 
 <span class="sd">    Return:</span>
 <span class="sd">        Nothing is returned.  However, both stdout and, if specified, the csv</span>
@@ -260,6 +262,8 @@
         <span class="k">if</span> <span class="n">k</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">trialsParmsDefaults</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Bad trialsParms key: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">k</span><span class="p">))</span>
     <span class="n">trialsParmsDefaults</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">trialsParms</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">trialsParmsDefaults</span><span class="p">[</span><span class="s1">&#39;E&#39;</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="mf">0.</span> <span class="ow">and</span> <span class="n">trialsParmsDefaults</span><span class="p">[</span><span class="s1">&#39;eps&#39;</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="mf">0.</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Both E and eps cannot be zero in trialsParms&quot;</span><span class="p">)</span>
 
     <span class="n">allParms</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">variables</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
@@ -550,7 +554,7 @@
     <script type="text/javascript">
         var DOCUMENTATION_OPTIONS = {
             URL_ROOT:'../../',
-            VERSION:'0.1.20',
+            VERSION:'0.1.21',
             COLLAPSE_INDEX:false,
             FILE_SUFFIX:'.html',
             HAS_SOURCE:  true
