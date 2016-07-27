@@ -177,7 +177,7 @@ job_stream = Extension('_job_stream',
 
 setup(name = 'job_stream',
         version = '0.1.20',
-        install_requires = [ 'appdirs', 'click', 'six' ],
+        install_requires = [ 'appdirs', 'click', 'pandas', 'six' ],
         description = 'job_stream: easy and sophisticated parallelization',
         long_description = long_desc,
         author = 'Walt Woods',
