@@ -10,7 +10,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>job_stream.baked &mdash; job_stream 0.1.22 documentation</title>
+  <title>job_stream.baked &mdash; job_stream 0.1.23 documentation</title>
   
 
   
@@ -34,7 +34,7 @@
   
 
   
-    <link rel="top" title="job_stream 0.1.22 documentation" href="../index.html"/>
+    <link rel="top" title="job_stream 0.1.23 documentation" href="../index.html"/>
         <link rel="up" title="job_stream" href="../python.html"/>
         <link rel="next" title="job_stream.inline" href="job_stream.inline.html"/>
         <link rel="prev" title="job_stream" href="../python.html"/> 
@@ -65,7 +65,7 @@
             
             
               <div class="version">
-                0.1.22
+                0.1.23
               </div>
             
           
@@ -242,6 +242,14 @@ criteria.  Defaults to 0.1.</dd>
 <dt>eps</dt>
 <dd>The absolute minimum estimated error.  Setting to 0 will
 disable this stopping criteria.  Defaults to 1e-2.</dd>
+<dt>min</dt>
+<dd>The minimum number of trials to run.  Defaults to 3, as this is
+usually enough to get a stable idea of the variable&#8217;s standard
+deviation.</dd>
+<dt>max</dt>
+<dd>The maximum number of trials to run.  Defaults to 10000.  May
+also be specified by setting the argument <code class="docutils literal"><span class="pre">trials</span></code> to a
+negative number.</dd>
 </dl>
 </li>
 </ul>
@@ -302,7 +310,7 @@ the mean value; additionally, the estimated standard deviation and the
     <script type="text/javascript">
         var DOCUMENTATION_OPTIONS = {
             URL_ROOT:'../',
-            VERSION:'0.1.22',
+            VERSION:'0.1.23',
             COLLAPSE_INDEX:false,
             FILE_SUFFIX:'.html',
             HAS_SOURCE:  true
