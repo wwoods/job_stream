@@ -10,7 +10,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>job_stream.common &mdash; job_stream 0.1.22 documentation</title>
+  <title>job_stream.common &mdash; job_stream 0.1.23 documentation</title>
   
 
   
@@ -34,7 +34,7 @@
   
 
   
-    <link rel="top" title="job_stream 0.1.22 documentation" href="../index.html"/>
+    <link rel="top" title="job_stream 0.1.23 documentation" href="../index.html"/>
         <link rel="up" title="job_stream" href="../python.html"/>
         <link rel="prev" title="job_stream.inline" href="job_stream.inline.html"/> 
 
@@ -64,7 +64,7 @@
             
             
               <div class="version">
-                0.1.22
+                0.1.23
               </div>
             
           
@@ -299,11 +299,11 @@ but before any work is accepted.</p>
 </dl>
 </div></blockquote>
 <dl class="docutils">
-<dt>recur( (Frame)arg1, (object)arg2, (object)arg3) -&gt; None :</dt>
+<dt>recur( (Frame)arg1, (object)arg2, (str)arg3) -&gt; None :</dt>
 <dd><p class="first">Recur to specific target</p>
 <dl class="last docutils">
 <dt>C++ signature :</dt>
-<dd>void recur(PyFrame {lvalue},boost::python::api::object,std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt;)</dd>
+<dd>void recur(PyFrame {lvalue},boost::python::api::object,std::string)</dd>
 </dl>
 </dd>
 </dl>
@@ -364,11 +364,11 @@ job_stream.run({ &#8216;jobs&#8217;: [ MyJob ] })</p>
 </dl>
 </div></blockquote>
 <dl class="docutils">
-<dt>emit( (Job)arg1, (object)arg2, (object)arg3) -&gt; None :</dt>
+<dt>emit( (Job)arg1, (object)arg2, (str)arg3) -&gt; None :</dt>
 <dd><p class="first">Emit to specific target out of list</p>
 <dl class="last docutils">
 <dt>C++ signature :</dt>
-<dd>void emit(PyJob {lvalue},boost::python::api::object,std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt;)</dd>
+<dd>void emit(PyJob {lvalue},boost::python::api::object,std::string)</dd>
 </dl>
 </dd>
 </dl>
@@ -535,11 +535,11 @@ but before any work is accepted.</p>
 </dl>
 </div></blockquote>
 <dl class="docutils">
-<dt>recur( (Reducer)arg1, (object)arg2, (object)arg3) -&gt; None :</dt>
+<dt>recur( (Reducer)arg1, (object)arg2, (str)arg3) -&gt; None :</dt>
 <dd><p class="first">Recur to specific target</p>
 <dl class="last docutils">
 <dt>C++ signature :</dt>
-<dd>void recur(PyReducer {lvalue},boost::python::api::object,std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt;)</dd>
+<dd>void recur(PyReducer {lvalue},boost::python::api::object,std::string)</dd>
 </dl>
 </dd>
 </dl>
@@ -767,7 +767,7 @@ checkpoint-safe, this method MUST save what it needs to file.</dd>
     <script type="text/javascript">
         var DOCUMENTATION_OPTIONS = {
             URL_ROOT:'../',
-            VERSION:'0.1.22',
+            VERSION:'0.1.23',
             COLLAPSE_INDEX:false,
             FILE_SUFFIX:'.html',
             HAS_SOURCE:  true

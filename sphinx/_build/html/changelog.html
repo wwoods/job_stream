@@ -10,7 +10,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Changelog &mdash; job_stream 0.1.22 documentation</title>
+  <title>Changelog &mdash; job_stream 0.1.23 documentation</title>
   
 
   
@@ -34,7 +34,7 @@
   
 
   
-    <link rel="top" title="job_stream 0.1.22 documentation" href="index.html"/>
+    <link rel="top" title="job_stream 0.1.23 documentation" href="index.html"/>
         <link rel="next" title="Roadmap" href="roadmap.html"/>
         <link rel="prev" title="job_stream" href="main.html"/> 
 
@@ -64,7 +64,7 @@
             
             
               <div class="version">
-                0.1.22
+                0.1.23
               </div>
             
           
@@ -139,6 +139,12 @@
   <div class="section" id="changelog">
 <h1>Changelog<a class="headerlink" href="#changelog" title="Permalink to this headline">¶</a></h1>
 <ul>
+<li><p class="first">2016-7-28 - Minor change to <a class="reference internal" href="_autosummary/job_stream.baked.html#job_stream.baked.sweep" title="job_stream.baked.sweep"><code class="xref py py-meth docutils literal"><span class="pre">job_stream.baked.sweep()</span></code></a>; now allows
+specifying minimum and maximum number of trials in trialsParms.  Should not
+be needed for most use cases, but for e.g. calculating pi naively, it is good
+to be able to raise the minimum number of trials above 3.</p>
+<p>Python version bumped to 0.1.23.</p>
+</li>
 <li><p class="first">2016-7-27 - <a class="reference internal" href="_autosummary/job_stream.baked.html#module-job_stream.baked" title="job_stream.baked"><code class="xref py py-mod docutils literal"><span class="pre">job_stream.baked</span></code></a> module.  Vastly improved documentation.
 Python bump to 0.1.22.  job_stream.__version__ added in Python.</p>
 </li>
@@ -326,7 +332,7 @@ allocations and copies.  Default implementation with += removed.</p>
     <script type="text/javascript">
         var DOCUMENTATION_OPTIONS = {
             URL_ROOT:'./',
-            VERSION:'0.1.22',
+            VERSION:'0.1.23',
             COLLAPSE_INDEX:false,
             FILE_SUFFIX:'.html',
             HAS_SOURCE:  true

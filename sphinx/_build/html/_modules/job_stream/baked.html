@@ -10,7 +10,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>job_stream.baked &mdash; job_stream 0.1.22 documentation</title>
+  <title>job_stream.baked &mdash; job_stream 0.1.23 documentation</title>
   
 
   
@@ -34,7 +34,7 @@
   
 
   
-    <link rel="top" title="job_stream 0.1.22 documentation" href="../../index.html"/>
+    <link rel="top" title="job_stream 0.1.23 documentation" href="../../index.html"/>
         <link rel="up" title="Module code" href="../index.html"/> 
 
   
@@ -63,7 +63,7 @@
             
             
               <div class="version">
-                0.1.22
+                0.1.23
               </div>
             
           
@@ -240,6 +240,16 @@
 <span class="sd">                The absolute minimum estimated error.  Setting to 0 will</span>
 <span class="sd">                disable this stopping criteria.  Defaults to 1e-2.</span>
 
+<span class="sd">            min</span>
+<span class="sd">                The minimum number of trials to run.  Defaults to 3, as this is</span>
+<span class="sd">                usually enough to get a stable idea of the variable&#39;s standard</span>
+<span class="sd">                deviation.</span>
+
+<span class="sd">            max</span>
+<span class="sd">                The maximum number of trials to run.  Defaults to 10000.  May</span>
+<span class="sd">                also be specified by setting the argument ``trials`` to a</span>
+<span class="sd">                negative number.</span>
+
 <span class="sd">    Return:</span>
 <span class="sd">        Nothing is returned.  However, both stdout and, if specified, the csv</span>
 <span class="sd">        indicated by ``output`` will have a grid with all trial ids,</span>
@@ -257,13 +267,24 @@
     <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">trialsParms</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;trialsParms must be a dict&quot;</span><span class="p">)</span>
 
-    <span class="n">trialsParmsDefaults</span> <span class="o">=</span> <span class="p">{</span> <span class="s1">&#39;E&#39;</span><span class="p">:</span> <span class="mf">0.1</span><span class="p">,</span> <span class="s1">&#39;eps&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="n">e</span><span class="o">-</span><span class="mi">2</span> <span class="p">}</span>
-    <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">trialsParms</span><span class="p">:</span>
+    <span class="n">trialsParmsDefaults</span> <span class="o">=</span> <span class="p">{</span> <span class="s1">&#39;E&#39;</span><span class="p">:</span> <span class="mf">0.1</span><span class="p">,</span> <span class="s1">&#39;eps&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="n">e</span><span class="o">-</span><span class="mi">2</span><span class="p">,</span> <span class="s1">&#39;min&#39;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span> <span class="s1">&#39;max&#39;</span><span class="p">:</span> <span class="mi">10000</span> <span class="p">}</span>
+    <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">trialsParms</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
         <span class="k">if</span> <span class="n">k</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">trialsParmsDefaults</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Bad trialsParms key: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">k</span><span class="p">))</span>
+
+        <span class="n">trialsParmsDefaults</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span>
+        <span class="k">if</span> <span class="n">k</span> <span class="o">==</span> <span class="s1">&#39;min&#39;</span> <span class="ow">and</span> <span class="n">trials</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;trialsParms[&#39;min&#39;] cannot be specified with &quot;</span>
+                    <span class="s2">&quot;trials &gt; 0, as that disables trial count detection.&quot;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">k</span> <span class="o">==</span> <span class="s1">&#39;max&#39;</span> <span class="ow">and</span> <span class="n">trials</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;trialsParms[&#39;max&#39;] cannot be specified with &quot;</span>
+                    <span class="s2">&quot;trials != 0.  Use a negative trials number instead.&quot;</span><span class="p">)</span>
     <span class="n">trialsParmsDefaults</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">trialsParms</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">trialsParmsDefaults</span><span class="p">[</span><span class="s1">&#39;E&#39;</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="mf">0.</span> <span class="ow">and</span> <span class="n">trialsParmsDefaults</span><span class="p">[</span><span class="s1">&#39;eps&#39;</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="mf">0.</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Both E and eps cannot be zero in trialsParms&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">trialsParmsDefaults</span><span class="p">[</span><span class="s1">&#39;min&#39;</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">trialsParmsDefaults</span><span class="p">[</span><span class="s1">&#39;max&#39;</span><span class="p">]:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;min cannot be greater than max: </span><span class="si">{}</span><span class="s2"> / </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">trialsParmsDefaults</span><span class="p">[</span><span class="s1">&#39;min&#39;</span><span class="p">],</span> <span class="n">trialsParmsDefaults</span><span class="p">[</span><span class="s1">&#39;max&#39;</span><span class="p">]))</span>
 
     <span class="n">allParms</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
     <span class="n">nExperiments</span> <span class="o">=</span> <span class="mi">0</span>
@@ -289,8 +310,8 @@
     <span class="k">else</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="n">variables</span><span class="p">)</span>
 
-    <span class="n">nTrialsMin</span> <span class="o">=</span> <span class="mi">3</span>
-    <span class="n">nTrialsMax</span> <span class="o">=</span> <span class="mi">10000</span>
+    <span class="n">nTrialsMin</span> <span class="o">=</span> <span class="n">trialsParmsDefaults</span><span class="p">[</span><span class="s1">&#39;min&#39;</span><span class="p">]</span>
+    <span class="n">nTrialsMax</span> <span class="o">=</span> <span class="n">trialsParmsDefaults</span><span class="p">[</span><span class="s1">&#39;max&#39;</span><span class="p">]</span>
     <span class="k">if</span> <span class="n">trials</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
         <span class="n">nTrialsMax</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">trials</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">trials</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
@@ -575,7 +596,7 @@
     <script type="text/javascript">
         var DOCUMENTATION_OPTIONS = {
             URL_ROOT:'../../',
-            VERSION:'0.1.22',
+            VERSION:'0.1.23',
             COLLAPSE_INDEX:false,
             FILE_SUFFIX:'.html',
             HAS_SOURCE:  true
