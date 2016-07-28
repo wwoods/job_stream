@@ -1,5 +1,5 @@
 
-from .common import JobStreamTest
+from .common import ExecuteError, JobStreamTest
 
 import pandas as pd
 
@@ -145,4 +145,49 @@ class TestBaked(JobStreamTest):
         self.assertEqual(3, getTrials(0, 1, 2, 2))
         self.assertEqual(8, getTrials(0, 32, 2, 2))
         self.assertEqual(2, getTrials(-2, 32, 2, 2))
+
+
+    def test_sweep_trialsCount(self):
+        # Ensure min/max work
+        src = """
+                from job_stream.baked import sweep
+                from job_stream import inline
+                inline.getCpuCount = lambda: 1
+                trialsParms = {{}}
+                if {min} > 0:
+                    trialsParms['min'] = {min}
+                if {max} > 0:
+                    trialsParms['max'] = {max}
+                with sweep(trials={trials}, trialsParms=trialsParms,
+                        output='{out}') as s:
+                    @s.job
+                    def handle(id, trial):
+                        return {{ 'v': trial if {dev} else 1. }}
+                """
+        def getTrials(min, max, testMax, trials=0):
+            self.executePy(src.format(min=min, max=max, dev=testMax,
+                    trials=trials, out=self.OUT_PATH))
+            df = pd.read_csv(self.OUT_PATH).set_index('id')
+            return df.loc[0]['trials']
+
+        self.assertEqual(3, getTrials(3, 8, False))
+        self.assertEqual(8, getTrials(3, 8, True))
+        self.assertEqual(8, getTrials(8, 8, False))
+        # One more to make sure a negative trials specification also is max
+        self.assertEqual(8, getTrials(-1, -1, True, -8))
+
+        # min cannot be > max
+        with self.assertRaises(ExecuteError):
+            getTrials(9, 8, False)
+        # if min specified, trials cannot be positive
+        with self.assertRaises(ExecuteError):
+            getTrials(1, -1, True, 3)
+        # but can be negative
+        self.assertEqual(2, getTrials(2, -1, False, -8))
+
+        # max cannot be specified with trials != 0
+        with self.assertRaises(ExecuteError):
+            getTrials(-1, 1, True, 3)
+        with self.assertRaises(ExecuteError):
+            getTrials(-1, 1, True, -3)
 

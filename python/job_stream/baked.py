@@ -102,6 +102,16 @@ def sweep(variables={}, trials=0, output=None, trialsParms={}):
                 The absolute minimum estimated error.  Setting to 0 will
                 disable this stopping criteria.  Defaults to 1e-2.
 
+            min
+                The minimum number of trials to run.  Defaults to 3, as this is
+                usually enough to get a stable idea of the variable's standard
+                deviation.
+
+            max
+                The maximum number of trials to run.  Defaults to 10000.  May
+                also be specified by setting the argument ``trials`` to a
+                negative number.
+
     Return:
         Nothing is returned.  However, both stdout and, if specified, the csv
         indicated by ``output`` will have a grid with all trial ids,
@@ -119,13 +129,24 @@ def sweep(variables={}, trials=0, output=None, trialsParms={}):
     if not isinstance(trialsParms, dict):
         raise ValueError("trialsParms must be a dict")
 
-    trialsParmsDefaults = { 'E': 0.1, 'eps': 1e-2 }
-    for k in trialsParms:
+    trialsParmsDefaults = { 'E': 0.1, 'eps': 1e-2, 'min': 3, 'max': 10000 }
+    for k, v in trialsParms.items():
         if k not in trialsParmsDefaults:
             raise ValueError("Bad trialsParms key: {}".format(k))
+
+        trialsParmsDefaults[k] = v
+        if k == 'min' and trials > 0:
+            raise ValueError("trialsParms['min'] cannot be specified with "
+                    "trials > 0, as that disables trial count detection.")
+        elif k == 'max' and trials != 0:
+            raise ValueError("trialsParms['max'] cannot be specified with "
+                    "trials != 0.  Use a negative trials number instead.")
     trialsParmsDefaults.update(trialsParms)
     if trialsParmsDefaults['E'] <= 0. and trialsParmsDefaults['eps'] <= 0.:
         raise ValueError("Both E and eps cannot be zero in trialsParms")
+    if trialsParmsDefaults['min'] > trialsParmsDefaults['max']:
+        raise ValueError("min cannot be greater than max: {} / {}".format(
+                trialsParmsDefaults['min'], trialsParmsDefaults['max']))
 
     allParms = set()
     nExperiments = 0
@@ -151,8 +172,8 @@ def sweep(variables={}, trials=0, output=None, trialsParms={}):
     else:
         raise NotImplementedError(variables)
 
-    nTrialsMin = 3
-    nTrialsMax = 10000
+    nTrialsMin = trialsParmsDefaults['min']
+    nTrialsMax = trialsParmsDefaults['max']
     if trials != 0:
         nTrialsMax = abs(trials)
         if trials > 0:
