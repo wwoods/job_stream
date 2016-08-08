@@ -10,7 +10,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>job_stream.baked &mdash; job_stream 0.1.23 documentation</title>
+  <title>job_stream.baked &mdash; job_stream 0.1.24 documentation</title>
   
 
   
@@ -34,7 +34,7 @@
   
 
   
-    <link rel="top" title="job_stream 0.1.23 documentation" href="../../index.html"/>
+    <link rel="top" title="job_stream 0.1.24 documentation" href="../../index.html"/>
         <link rel="up" title="Module code" href="../index.html"/> 
 
   
@@ -63,7 +63,7 @@
             
             
               <div class="version">
-                0.1.23
+                0.1.24
               </div>
             
           
@@ -145,10 +145,13 @@
 <span class="kn">import</span> <span class="nn">collections</span>
 <span class="kn">import</span> <span class="nn">contextlib</span>
 <span class="kn">import</span> <span class="nn">math</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">import</span> <span class="nn">sys</span>
 
 <span class="nd">@contextlib</span><span class="o">.</span><span class="n">contextmanager</span>
-<div class="viewcode-block" id="sweep"><a class="viewcode-back" href="../../_autosummary/job_stream.baked.html#job_stream.baked.sweep">[docs]</a><span class="k">def</span> <span class="nf">sweep</span><span class="p">(</span><span class="n">variables</span><span class="o">=</span><span class="p">{},</span> <span class="n">trials</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">output</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">trialsParms</span><span class="o">=</span><span class="p">{}):</span>
+<div class="viewcode-block" id="sweep"><a class="viewcode-back" href="../../_autosummary/job_stream.baked.html#job_stream.baked.sweep">[docs]</a><span class="k">def</span> <span class="nf">sweep</span><span class="p">(</span><span class="n">variables</span><span class="o">=</span><span class="p">{},</span> <span class="n">trials</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">output</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">trialsParms</span><span class="o">=</span><span class="p">{},</span>
+        <span class="n">showProgress</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Generic experiment framework; wraps a user&#39;s job_stream (realized via</span>
 <span class="sd">    :mod:`job_stream.inline.Work`.  The wrapped job_stream should take a</span>
 <span class="sd">    parameter dictionary and return a dictionary of results to track.  The</span>
@@ -249,6 +252,9 @@
 <span class="sd">                The maximum number of trials to run.  Defaults to 10000.  May</span>
 <span class="sd">                also be specified by setting the argument ``trials`` to a</span>
 <span class="sd">                negative number.</span>
+
+<span class="sd">        showProgress (bool): If True (default), then print out progress</span>
+<span class="sd">                indicators to stderr as work is completed.</span>
 
 <span class="sd">    Return:</span>
 <span class="sd">        Nothing is returned.  However, both stdout and, if specified, the csv</span>
@@ -360,6 +366,11 @@
                         <span class="n">store</span><span class="o">.</span><span class="n">carry</span> <span class="o">=</span> <span class="mi">0</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="n">variables</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">showProgress</span><span class="p">:</span>
+                <span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;job_stream.baked: Starting </span><span class="si">{}</span><span class="s2"> of </span><span class="si">{}</span><span class="s2"> with </span><span class="si">{}</span><span class="s2"> &quot;</span>
+                        <span class="s2">&quot;trials</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">store</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">nExperiments</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span>
+                            <span class="n">store</span><span class="o">.</span><span class="n">actualMin</span><span class="p">))</span>
 
             <span class="c1"># v is dict with parameters at the moment; give it an ID</span>
             <span class="n">v</span> <span class="o">=</span> <span class="n">v</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
@@ -505,22 +516,23 @@
 
                 <span class="c1"># Valid for n == 1</span>
                 <span class="n">oldAvg</span> <span class="o">=</span> <span class="n">avgs</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
-                <span class="n">oldDev</span> <span class="o">=</span> <span class="n">devs</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+                <span class="n">oldDev</span> <span class="o">=</span> <span class="n">devs</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">devs</span><span class="p">[</span><span class="n">k</span><span class="p">])</span> <span class="k">else</span> <span class="mf">0.</span>
                 <span class="n">newAvg</span> <span class="o">=</span> <span class="n">oldAvg</span> <span class="o">+</span> <span class="p">(</span><span class="n">v</span> <span class="o">-</span> <span class="n">oldAvg</span><span class="p">)</span> <span class="o">/</span> <span class="n">n</span>
                 <span class="n">avgs</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">newAvg</span>
-                <span class="n">devs</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">oldDev</span> <span class="o">+</span> <span class="n">oldAvg</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">-</span> <span class="n">newAvg</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">+</span> <span class="p">(</span>
-                        <span class="n">v</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">-</span> <span class="n">oldDev</span> <span class="o">-</span> <span class="n">oldAvg</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span> <span class="o">/</span> <span class="n">n</span>
-
-            <span class="k">if</span> <span class="n">store</span><span class="o">.</span><span class="n">trialNext</span> <span class="o">&gt;=</span> <span class="n">nTrialsMax</span><span class="p">:</span>
-                <span class="c1"># Nothing more to run</span>
-                <span class="k">return</span>
+                <span class="n">devs</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mf">0.</span><span class="p">,</span> <span class="n">oldDev</span> <span class="o">+</span> <span class="n">oldAvg</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">-</span> <span class="n">newAvg</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">+</span> <span class="p">(</span>
+                        <span class="n">v</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">-</span> <span class="n">oldDev</span> <span class="o">-</span> <span class="n">oldAvg</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span> <span class="o">/</span> <span class="n">n</span><span class="p">)</span>
 
             <span class="n">numToSpawn</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="k">if</span> <span class="n">store</span><span class="o">.</span><span class="n">trialNext</span> <span class="o">&gt;=</span> <span class="n">nTrialsMax</span><span class="p">:</span>
+                <span class="c1"># Nothing more to run</span>
+                <span class="k">pass</span>
+
+            <span class="n">totalNeeded</span> <span class="o">=</span> <span class="n">nTrialsMin</span>
             <span class="k">if</span> <span class="n">n</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
                 <span class="c1"># Not enough information to predict the number of trials, so</span>
                 <span class="c1"># do not propagate more unless only one was propagated in the</span>
                 <span class="c1"># first place.</span>
-                <span class="k">if</span> <span class="n">store</span><span class="o">.</span><span class="n">trialNext</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">store</span><span class="o">.</span><span class="n">trialNext</span> <span class="o">!=</span> <span class="mi">1</span> <span class="ow">or</span> <span class="n">nTrialsMax</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
                     <span class="c1"># More than one propagated</span>
                     <span class="n">numToSpawn</span> <span class="o">=</span> <span class="mi">0</span>
                 <span class="k">else</span><span class="p">:</span>
@@ -544,16 +556,33 @@
                     <span class="n">numNeeded</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">numNeeded</span><span class="p">,</span>
                             <span class="nb">int</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="n">need</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">+</span> <span class="n">extra</span><span class="p">)))</span>
 
+                <span class="n">totalNeeded</span> <span class="o">=</span> <span class="n">numNeeded</span>
                 <span class="c1"># Spawn a number equal to num needed minus num already spawned</span>
                 <span class="n">numNeeded</span> <span class="o">=</span> <span class="n">numNeeded</span> <span class="o">-</span> <span class="n">store</span><span class="o">.</span><span class="n">trialNext</span>
                 <span class="c1"># Spawn at most two more per completed... this is quite quick</span>
                 <span class="c1"># growth but will be bounded by the absolute number needed.</span>
                 <span class="n">numToSpawn</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="nb">max</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">numNeeded</span><span class="p">))</span>
-                <span class="n">numToSpawn</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">store</span><span class="o">.</span><span class="n">trialDone</span> <span class="o">-</span> <span class="n">store</span><span class="o">.</span><span class="n">trialNext</span>
-                        <span class="o">+</span> <span class="n">inline</span><span class="o">.</span><span class="n">getCpuCount</span><span class="p">(),</span> <span class="n">numToSpawn</span><span class="p">)</span>
-                <span class="n">numToSpawn</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">nTrialsMax</span> <span class="o">-</span> <span class="n">store</span><span class="o">.</span><span class="n">trialNext</span><span class="p">,</span> <span class="n">numToSpawn</span><span class="p">)</span>
+                <span class="n">numToSpawn</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">min</span><span class="p">(</span>
+                        <span class="n">store</span><span class="o">.</span><span class="n">trialDone</span> <span class="o">-</span> <span class="n">store</span><span class="o">.</span><span class="n">trialNext</span>
+                            <span class="o">+</span> <span class="n">inline</span><span class="o">.</span><span class="n">getCpuCount</span><span class="p">(),</span>
+                        <span class="n">nTrialsMax</span> <span class="o">-</span> <span class="n">store</span><span class="o">.</span><span class="n">trialNext</span><span class="p">,</span>
+                        <span class="n">numToSpawn</span><span class="p">))</span>
 
+            <span class="n">trialOld</span> <span class="o">=</span> <span class="n">store</span><span class="o">.</span><span class="n">trialNext</span>
             <span class="n">store</span><span class="o">.</span><span class="n">trialNext</span> <span class="o">+=</span> <span class="n">numToSpawn</span>
+            <span class="k">if</span> <span class="n">showProgress</span><span class="p">:</span>
+                <span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;job_stream.baked: </span><span class="si">{}</span><span class="s2"> done with trial &quot;</span>
+                        <span class="s2">&quot;</span><span class="si">{}{}{}</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                            <span class="n">store</span><span class="o">.</span><span class="n">parms</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">],</span> <span class="n">n</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span>
+                            <span class="c1"># Information on new trials started</span>
+                            <span class="s2">&quot;; starting </span><span class="si">{}</span><span class="s2">:</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">trialOld</span><span class="p">,</span>
+                                <span class="n">store</span><span class="o">.</span><span class="n">trialNext</span><span class="p">)</span> <span class="k">if</span> <span class="n">numToSpawn</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+                            <span class="c1"># Information on needed trials</span>
+                            <span class="s2">&quot;; estimated </span><span class="si">{}</span><span class="s2"> needed&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                                <span class="n">totalNeeded</span><span class="p">)</span>
+                                <span class="k">if</span> <span class="n">numToSpawn</span> <span class="ow">or</span> <span class="n">n</span> <span class="o">==</span> <span class="n">store</span><span class="o">.</span><span class="n">trialNext</span>
+                                <span class="k">else</span> <span class="s2">&quot;&quot;</span><span class="p">))</span>
+
             <span class="k">return</span> <span class="n">Multiple</span><span class="p">([</span>
                     <span class="n">Args</span><span class="p">(</span><span class="n">trial</span><span class="o">=</span><span class="n">store</span><span class="o">.</span><span class="n">trialNext</span> <span class="o">-</span> <span class="mi">1</span> <span class="o">-</span> <span class="n">i</span><span class="p">,</span> <span class="o">**</span><span class="n">store</span><span class="o">.</span><span class="n">parms</span><span class="p">)</span>
                     <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">numToSpawn</span><span class="p">)</span> <span class="p">])</span>
@@ -596,7 +625,7 @@
     <script type="text/javascript">
         var DOCUMENTATION_OPTIONS = {
             URL_ROOT:'../../',
-            VERSION:'0.1.23',
+            VERSION:'0.1.24',
             COLLAPSE_INDEX:false,
             FILE_SUFFIX:'.html',
             HAS_SOURCE:  true

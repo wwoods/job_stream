@@ -10,7 +10,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>job_stream.common &mdash; job_stream 0.1.23 documentation</title>
+  <title>job_stream.common &mdash; job_stream 0.1.24 documentation</title>
   
 
   
@@ -34,7 +34,7 @@
   
 
   
-    <link rel="top" title="job_stream 0.1.23 documentation" href="../../index.html"/>
+    <link rel="top" title="job_stream 0.1.24 documentation" href="../../index.html"/>
         <link rel="up" title="Module code" href="../index.html"/> 
 
   
@@ -63,7 +63,7 @@
             
             
               <div class="version">
-                0.1.23
+                0.1.24
               </div>
             
           
@@ -175,6 +175,7 @@
 <span class="kn">import</span> <span class="nn">pickle</span>
 <span class="kn">import</span> <span class="nn">six</span>
 <span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">threading</span>
 <span class="kn">import</span> <span class="nn">traceback</span>
 
 <span class="c1"># Allow self-referencing</span>
@@ -188,18 +189,17 @@
 <span class="c1"># updated between class definition and job_stream.run()</span>
 <span class="n">_classesToPatch</span> <span class="o">=</span> <span class="p">[]</span>
 <span class="n">_pool</span> <span class="o">=</span> <span class="p">[</span> <span class="kc">None</span> <span class="p">]</span>
+<span class="n">_poolLock</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">Lock</span><span class="p">()</span>
 <div class="viewcode-block" id="_initMultiprocessingPool"><a class="viewcode-back" href="../../_autosummary/job_stream.common.html#job_stream.common._initMultiprocessingPool">[docs]</a><span class="k">def</span> <span class="nf">_initMultiprocessingPool</span><span class="p">():</span>
     <span class="sd">&quot;&quot;&quot;The multiprocessing pool is initialized lazily by default, to avoid</span>
 <span class="sd">    overhead if no jobs are using multiprocessing&quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="n">_pool</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="k">class</span> <span class="nc">NoDoubleInit</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
-            <span class="k">def</span> <span class="nf">__getattribute__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
-                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Cannot use _pool in a worker process&quot;</span><span class="p">)</span>
-        <span class="n">_pool</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">NoDoubleInit</span><span class="p">()</span>
-        <span class="k">def</span> <span class="nf">initProcess</span><span class="p">():</span>
-            <span class="k">if</span> <span class="s1">&#39;numpy.random&#39;</span> <span class="ow">in</span> <span class="n">sys</span><span class="o">.</span><span class="n">modules</span><span class="p">:</span>
-                <span class="n">sys</span><span class="o">.</span><span class="n">modules</span><span class="p">[</span><span class="s1">&#39;numpy.random&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">seed</span><span class="p">()</span>
-        <span class="n">_pool</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">multiprocessing</span><span class="o">.</span><span class="n">Pool</span><span class="p">(</span><span class="n">initializer</span> <span class="o">=</span> <span class="n">initProcess</span><span class="p">)</span></div>
+        <span class="k">with</span> <span class="n">_poolLock</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">_pool</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">def</span> <span class="nf">initProcess</span><span class="p">():</span>
+                    <span class="k">if</span> <span class="s1">&#39;numpy.random&#39;</span> <span class="ow">in</span> <span class="n">sys</span><span class="o">.</span><span class="n">modules</span><span class="p">:</span>
+                        <span class="n">sys</span><span class="o">.</span><span class="n">modules</span><span class="p">[</span><span class="s1">&#39;numpy.random&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">seed</span><span class="p">()</span>
+                <span class="n">_pool</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">multiprocessing</span><span class="o">.</span><span class="n">Pool</span><span class="p">(</span><span class="n">initializer</span> <span class="o">=</span> <span class="n">initProcess</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="_decode"><a class="viewcode-back" href="../../_autosummary/job_stream.common.html#job_stream.common._decode">[docs]</a><span class="k">def</span> <span class="nf">_decode</span><span class="p">(</span><span class="n">s</span><span class="p">):</span>
@@ -301,6 +301,7 @@
 
 
 <span class="k">def</span> <span class="nf">_callNoStore</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">method</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
+    <span class="n">_initMultiprocessingPool</span><span class="p">()</span>
     <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
         <span class="n">r</span> <span class="o">=</span> <span class="n">_pool</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">_localCallNoStore</span><span class="p">,</span> <span class="n">args</span> <span class="o">=</span> <span class="p">(</span><span class="n">obj</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">method</span><span class="p">)</span> <span class="o">+</span> <span class="n">args</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">r</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
@@ -319,6 +320,7 @@
 
 
 <span class="k">def</span> <span class="nf">_callStoreFirst</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">method</span><span class="p">,</span> <span class="n">first</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
+    <span class="n">_initMultiprocessingPool</span><span class="p">()</span>
     <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
         <span class="n">r</span> <span class="o">=</span> <span class="n">_pool</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">_localCallStoreFirst</span><span class="p">,</span>
                 <span class="n">args</span> <span class="o">=</span> <span class="p">(</span><span class="n">obj</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">method</span><span class="p">,</span> <span class="n">first</span><span class="p">)</span> <span class="o">+</span> <span class="n">args</span><span class="p">)</span>
@@ -396,7 +398,6 @@
         <span class="n">cls</span><span class="o">.</span><span class="n">_MULTIPROCESSING_PATCHED</span> <span class="o">=</span> <span class="kc">True</span>
         <span class="k">def</span> <span class="nf">newInit</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
             <span class="nb">super</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">()</span>
-            <span class="n">_initMultiprocessingPool</span><span class="p">()</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">id</span> <span class="o">=</span> <span class="n">_localJobId</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
             <span class="n">_localJobId</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
         <span class="n">cls</span><span class="o">.</span><span class="n">__init__</span> <span class="o">=</span> <span class="n">newInit</span>
@@ -496,7 +497,6 @@
         <span class="n">cls</span><span class="o">.</span><span class="n">_MULTIPROCESSING_PATCHED</span> <span class="o">=</span> <span class="kc">True</span>
         <span class="k">def</span> <span class="nf">newInit</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
             <span class="nb">super</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">()</span>
-            <span class="n">_initMultiprocessingPool</span><span class="p">()</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">id</span> <span class="o">=</span> <span class="n">_localJobId</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
             <span class="n">_localJobId</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
         <span class="n">cls</span><span class="o">.</span><span class="n">__init__</span> <span class="o">=</span> <span class="n">newInit</span>
@@ -601,7 +601,6 @@
         <span class="n">cls</span><span class="o">.</span><span class="n">_MULTIPROCESSING_PATCHED</span> <span class="o">=</span> <span class="kc">True</span>
         <span class="k">def</span> <span class="nf">newInit</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
             <span class="nb">super</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">()</span>
-            <span class="n">_initMultiprocessingPool</span><span class="p">()</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">id</span> <span class="o">=</span> <span class="n">_localJobId</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
             <span class="n">_localJobId</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
         <span class="n">cls</span><span class="o">.</span><span class="n">__init__</span> <span class="o">=</span> <span class="n">newInit</span>
@@ -863,7 +862,7 @@
     <script type="text/javascript">
         var DOCUMENTATION_OPTIONS = {
             URL_ROOT:'../../',
-            VERSION:'0.1.23',
+            VERSION:'0.1.24',
             COLLAPSE_INDEX:false,
             FILE_SUFFIX:'.html',
             HAS_SOURCE:  true
