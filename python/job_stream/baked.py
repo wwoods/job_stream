@@ -7,10 +7,13 @@ from job_stream.inline import Args, Multiple, Work
 import collections
 import contextlib
 import math
+import numpy as np
 import pandas as pd
+import sys
 
 @contextlib.contextmanager
-def sweep(variables={}, trials=0, output=None, trialsParms={}):
+def sweep(variables={}, trials=0, output=None, trialsParms={},
+        showProgress=True):
     """Generic experiment framework; wraps a user's job_stream (realized via
     :mod:`job_stream.inline.Work`.  The wrapped job_stream should take a
     parameter dictionary and return a dictionary of results to track.  The
@@ -111,6 +114,9 @@ def sweep(variables={}, trials=0, output=None, trialsParms={}):
                 The maximum number of trials to run.  Defaults to 10000.  May
                 also be specified by setting the argument ``trials`` to a
                 negative number.
+
+        showProgress (bool): If True (default), then print out progress
+                indicators to stderr as work is completed.
 
     Return:
         Nothing is returned.  However, both stdout and, if specified, the csv
@@ -222,6 +228,11 @@ def sweep(variables={}, trials=0, output=None, trialsParms={}):
                         store.carry = 0
             else:
                 raise NotImplementedError(variables)
+
+            if showProgress:
+                sys.stderr.write("job_stream.baked: Starting {} of {} with {} "
+                        "trials\n".format(store.id, nExperiments-1,
+                            store.actualMin))
 
             # v is dict with parameters at the moment; give it an ID
             v = v.copy()
@@ -367,22 +378,23 @@ def sweep(variables={}, trials=0, output=None, trialsParms={}):
 
                 # Valid for n == 1
                 oldAvg = avgs[k]
-                oldDev = devs[k]
+                oldDev = devs[k] if not np.isnan(devs[k]) else 0.
                 newAvg = oldAvg + (v - oldAvg) / n
                 avgs[k] = newAvg
-                devs[k] = oldDev + oldAvg ** 2 - newAvg ** 2 + (
-                        v ** 2 - oldDev - oldAvg ** 2) / n
-
-            if store.trialNext >= nTrialsMax:
-                # Nothing more to run
-                return
+                devs[k] = max(0., oldDev + oldAvg ** 2 - newAvg ** 2 + (
+                        v ** 2 - oldDev - oldAvg ** 2) / n)
 
             numToSpawn = 0
+            if store.trialNext >= nTrialsMax:
+                # Nothing more to run
+                pass
+
+            totalNeeded = nTrialsMin
             if n == 1:
                 # Not enough information to predict the number of trials, so
                 # do not propagate more unless only one was propagated in the
                 # first place.
-                if store.trialNext != 1:
+                if store.trialNext != 1 or nTrialsMax == 1:
                     # More than one propagated
                     numToSpawn = 0
                 else:
@@ -406,16 +418,33 @@ def sweep(variables={}, trials=0, output=None, trialsParms={}):
                     numNeeded = max(numNeeded,
                             int(math.ceil(need ** 2 + extra)))
 
+                totalNeeded = numNeeded
                 # Spawn a number equal to num needed minus num already spawned
                 numNeeded = numNeeded - store.trialNext
                 # Spawn at most two more per completed... this is quite quick
                 # growth but will be bounded by the absolute number needed.
                 numToSpawn = min(2, max(0, numNeeded))
-                numToSpawn = min(store.trialDone - store.trialNext
-                        + inline.getCpuCount(), numToSpawn)
-                numToSpawn = min(nTrialsMax - store.trialNext, numToSpawn)
+                numToSpawn = max(0, min(
+                        store.trialDone - store.trialNext
+                            + inline.getCpuCount(),
+                        nTrialsMax - store.trialNext,
+                        numToSpawn))
 
+            trialOld = store.trialNext
             store.trialNext += numToSpawn
+            if showProgress:
+                sys.stderr.write("job_stream.baked: {} done with trial "
+                        "{}{}{}\n".format(
+                            store.parms['id'], n-1,
+                            # Information on new trials started
+                            "; starting {}:{}".format(trialOld,
+                                store.trialNext) if numToSpawn else "",
+                            # Information on needed trials
+                            "; estimated {} needed".format(
+                                totalNeeded)
+                                if numToSpawn or n == store.trialNext
+                                else ""))
+
             return Multiple([
                     Args(trial=store.trialNext - 1 - i, **store.parms)
                     for i in range(numToSpawn) ])

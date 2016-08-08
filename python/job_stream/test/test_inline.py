@@ -1,5 +1,6 @@
 
 from .common import ExecuteError, JobStreamTest
+import multiprocessing
 import re
 import tempfile
 import os
@@ -57,7 +58,9 @@ class TestInline(JobStreamTest):
 
 
     def test_checkpoint(self):
-        # Ensure that results are saved across checkpoints
+        # Ensure that results are saved across checkpoints, AND that
+        # getCpuCount(), a function requiring proper multiprocessing
+        # initialization, works.
         chkpt = os.path.join(tempfile.gettempdir(), "test.chkpt")
         self.safeRemove([chkpt, chkpt+".done"])
         src = """
@@ -69,20 +72,31 @@ class TestInline(JobStreamTest):
         w = inline.Work([ 1, 2, 3 ] * 10, checkpointFile = chkpt,
                 checkpointSyncInterval = 0)
         w.job(inline._ForceCheckpointJob)
+        @w.job
+        def getCpus(i):
+            return inline.Multiple([ i, inline.getCpuCount() ])
 
-        # w.run() isn't a generator.  It blocks until EVERYTHING is done.  So, this is
-        # only executed on success
-        for r in w.run():
-            print(repr(r))
+        # w.run() isn't a generator.  It blocks until EVERYTHING is done.  So,
+        # this is only executed on success
+        results = w.run()
+        if results is not None:
+            # results will be None on second process
+            for r in results:
+                print(repr(r))
 """
         # Run it often; each time should output nothing, and final should have all
         for _ in range(30):
             try:
-                r = self.executePy(src)
+                r = self.executePy(src, np=2)
                 break
             except ExecuteError as e:
                 self.assertEqual("", e.stdout)
-        self.assertLinesEqual("1\n2\n3\n" * 10, r[0])
+
+        # Find number of cpus
+        nCpus = 2 * multiprocessing.cpu_count()
+
+        self.assertLinesEqual("1\n2\n3\n" * 10 + "{}\n".format(nCpus) * 30, 
+                r[0])
 
 
     def test_checkpointDouble(self):

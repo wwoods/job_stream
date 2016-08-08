@@ -1,6 +1,20 @@
 Changelog
 =========
 
+* 2016-8-8 - Fixes for :meth:`job_stream.baked.sweep` as well as checkpoint
+  continuations.
+
+  :meth:`sweep` no longer erroneously produces negative standard deviations.
+  Additionally, :meth:`sweep` logs to stderr to show that progress is
+  occurring.
+
+  Checkpoint continuations now correctly handle cpuCount.  Python bindings do
+  not eagerly fork for multiprocessing tasks, leading to correct handling of
+  cpuCount on continuation (vital for :meth:`sweep`).
+
+  Minor C++ compilation errors fixed.
+
+  Python version bumped to 0.1.24.
 * 2016-7-28 - Minor change to :meth:`job_stream.baked.sweep`; now allows
   specifying minimum and maximum number of trials in trialsParms.  Should not
   be needed for most use cases, but for e.g. calculating pi naively, it is good

@@ -208,8 +208,8 @@ TEST_CASE("example/job_stream_example/checkpoint.yaml", "[checkpoint]") {
                 REQUIRE("" == processStdoutMpiNonzero(std::get<1>(r)));
                 string stderr = std::regex_replace(std::get<2>(r), ms,
                         string("$1 Xms"));
-                stderr = std::regex_replace(stderr, mpiFooter, "");
-                stderr = std::regex_replace(stderr, jobLogHeader, "$1");
+                stderr = std::regex_replace(stderr, mpiFooter, string(""));
+                stderr = std::regex_replace(stderr, jobLogHeader, string("$1"));
                 REQUIRE_CONTAINS_LINES("0 Using test.chkpt as checkpoint file\n\
 0 Checkpoint starting\n\
 0 Checkpoint activity synced after Xms, including mandatory 10ms quiet period\n\
@@ -235,8 +235,8 @@ TEST_CASE("example/job_stream_example/checkpoint.yaml", "[checkpoint]") {
 
                 string stderr = std::regex_replace(std::get<2>(r), ms,
                         string("$1 Xms"));
-                stderr = std::regex_replace(stderr, mpiFooter, "");
-                stderr = std::regex_replace(stderr, jobLogHeader, "$1");
+                stderr = std::regex_replace(stderr, mpiFooter, string(""));
+                stderr = std::regex_replace(stderr, jobLogHeader, string("$1"));
                 int p = _countAndFixPending(stderr);
                 if (!sawResult) {
                     //Our action, and ring 0
@@ -340,9 +340,10 @@ TEST_CASE("example/job_stream_example/exampleRecurBug.yaml", "[checkpoint]") {
                 REQUIRE("" == processStdoutMpiNonzero(std::get<1>(r)));
                 string sstderr = std::regex_replace(std::get<2>(r), ms,
                         string("$1 Xms"));
-                sstderr = std::regex_replace(sstderr, jobLogHeader, "$1");
+                sstderr = std::regex_replace(sstderr, jobLogHeader,
+                        string("$1"));
                 INFO("PROCESSED TO:\n" << sstderr);
-                sstderr = std::regex_replace(sstderr, mpiFooter, "");
+                sstderr = std::regex_replace(sstderr, mpiFooter, string(""));
                 REQUIRE_CONTAINS_LINES("0 Using test.chkpt as checkpoint file\n\
 0 Checkpoint starting\n\
 0 Checkpoint activity synced after Xms, including mandatory 100ms quiet period\n\
@@ -367,8 +368,9 @@ TEST_CASE("example/job_stream_example/exampleRecurBug.yaml", "[checkpoint]") {
 
                 string sstderr = std::regex_replace(std::get<2>(r), ms,
                         string("$1 Xms"));
-                sstderr = std::regex_replace(sstderr, jobLogHeader, "$1");
-                sstderr = std::regex_replace(sstderr, mpiFooter, "");
+                sstderr = std::regex_replace(sstderr, jobLogHeader,
+                        string("$1"));
+                sstderr = std::regex_replace(sstderr, mpiFooter, string(""));
                 int p = _countAndFixPending(sstderr);
                 REQUIRE(0 != p);
                 std::ostringstream expected;
@@ -472,8 +474,9 @@ TEST_CASE("example/job_stream_example/exampleRecurCheckpoint.yaml", "[checkpoint
                 REQUIRE("" == processStdoutMpiNonzero(std::get<1>(r)));
                 string sstderr = std::regex_replace(std::get<2>(r), ms,
                         string("$1 Xms"));
-                sstderr = std::regex_replace(sstderr, jobLogHeader, "$1");
-                sstderr = std::regex_replace(sstderr, mpiFooter, "");
+                sstderr = std::regex_replace(sstderr, jobLogHeader,
+                        string("$1"));
+                sstderr = std::regex_replace(sstderr, mpiFooter, string(""));
                 REQUIRE_CONTAINS_LINES("0 Using test.chkpt as checkpoint file\n\
 0 Checkpoint starting\n\
 0 Checkpoint activity synced after Xms, including mandatory 100ms quiet period\n\
@@ -497,8 +500,9 @@ TEST_CASE("example/job_stream_example/exampleRecurCheckpoint.yaml", "[checkpoint
 
                 string sstderr = std::regex_replace(std::get<2>(r), ms,
                         string("$1 Xms"));
-                sstderr = std::regex_replace(sstderr, jobLogHeader, "$1");
-                sstderr = std::regex_replace(sstderr, mpiFooter, "");
+                sstderr = std::regex_replace(sstderr, jobLogHeader,
+                        string("$1"));
+                sstderr = std::regex_replace(sstderr, mpiFooter, string(""));
                 int p = _countAndFixPending(sstderr);
                 REQUIRE(0 != p);
                 std::ostringstream expected;

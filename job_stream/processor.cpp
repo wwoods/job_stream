@@ -180,7 +180,7 @@ Processor::Processor(std::shared_ptr<mpi::environment> env,
             : checkpointFileName(checkpointFile), checkpointQuit(false),
               depthFirst(true), reduceTagCount(0), env(env),
               sentEndRing0(false), wasRestored(0), world(world),
-              _configStr(configStr) {
+              _configStr(configStr), _stealEnabled(true) {
     //Step 1 - steal queued initialWork, so that if we throw an error, it
     //does not get repeated without being requeued.
     this->initialWork = job_stream::processor::initialWork;
@@ -275,6 +275,12 @@ Processor::Processor(std::shared_ptr<mpi::environment> env,
                 this->workInQueue.emplace_front(std::move(ptr));
             }
             this->workerWork.clear();
+
+            //Reset steal ring to re-sense environment
+            if (this->_stealMessage) {
+                this->_stealMessage.reset(new MpiMessage(Processor::TAG_STEAL,
+                        message::StealRing(this->world.size()).serialized()));
+            }
 
             this->wasRestored = true;
             JobLog() << "resumed from checkpoint (" << this->workInQueue.size()
@@ -477,7 +483,10 @@ void Processor::run(const std::string& inputLine) {
     }
     if (!this->_stealEnabled || NO_STEALING) {
         this->workersActive = this->workers.size();
-        ERROR("Unsupported getCpuCount...");
+
+        //No stealing; therefore, we have as many CPUs as we have.  Use
+        //compute.
+        cpuCount = compute;
     }
 
     //Begin tallying time spent in system vs user functionality.
@@ -1649,9 +1658,12 @@ MpiMessagePtr Processor::_getWork(int workerId) {
     }
     else if (this->workersActive <= workerId) {
         auto mtag = this->workInQueue.front()->tag;
-        if (mtag == Processor::TAG_WORK) {
+        if (mtag == Processor::TAG_WORK || cpuCount < 0) {
             //If we're disabled, we can't take on work that could be stolen
-            //by someone else.
+            //by someone else or requires an active slot.
+            //
+            //Also applies to cpuCount < 0, indicating that the ring is not yet
+            //initialized.
             return ptr;
         }
     }

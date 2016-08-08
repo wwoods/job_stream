@@ -37,6 +37,7 @@ import os
 import pickle
 import six
 import sys
+import threading
 import traceback
 
 # Allow self-referencing
@@ -50,18 +51,17 @@ import job_stream
 # updated between class definition and job_stream.run()
 _classesToPatch = []
 _pool = [ None ]
+_poolLock = threading.Lock()
 def _initMultiprocessingPool():
     """The multiprocessing pool is initialized lazily by default, to avoid
     overhead if no jobs are using multiprocessing"""
     if _pool[0] is None:
-        class NoDoubleInit(object):
-            def __getattribute__(self, name):
-                raise ValueError("Cannot use _pool in a worker process")
-        _pool[0] = NoDoubleInit()
-        def initProcess():
-            if 'numpy.random' in sys.modules:
-                sys.modules['numpy.random'].seed()
-        _pool[0] = multiprocessing.Pool(initializer = initProcess)
+        with _poolLock:
+            if _pool[0] is None:
+                def initProcess():
+                    if 'numpy.random' in sys.modules:
+                        sys.modules['numpy.random'].seed()
+                _pool[0] = multiprocessing.Pool(initializer = initProcess)
 
 
 def _decode(s):
@@ -163,6 +163,7 @@ def _localCallStoreFirst(obj, method, first, *args):
 
 
 def _callNoStore(obj, method, *args):
+    _initMultiprocessingPool()
     while True:
         r = _pool[0].apply(_localCallNoStore, args = (obj.id, method) + args)
         if r[0] == 0:
@@ -181,6 +182,7 @@ def _callNoStore(obj, method, *args):
 
 
 def _callStoreFirst(obj, method, first, *args):
+    _initMultiprocessingPool()
     while True:
         r = _pool[0].apply(_localCallStoreFirst,
                 args = (obj.id, method, first) + args)
@@ -258,7 +260,6 @@ class Job(six.with_metaclass(_Job__metaclass__, _j.Job)):
         cls._MULTIPROCESSING_PATCHED = True
         def newInit(self):
             super(cls, self).__init__()
-            _initMultiprocessingPool()
             self.id = _localJobId[0]
             _localJobId[0] += 1
         cls.__init__ = newInit
@@ -358,7 +359,6 @@ class Reducer(six.with_metaclass(_Reducer__metaclass__, _j.Reducer)):
         cls._MULTIPROCESSING_PATCHED = True
         def newInit(self):
             super(cls, self).__init__()
-            _initMultiprocessingPool()
             self.id = _localJobId[0]
             _localJobId[0] += 1
         cls.__init__ = newInit
@@ -463,7 +463,6 @@ class Frame(six.with_metaclass(_Frame__metaclass__, _j.Frame)):
         cls._MULTIPROCESSING_PATCHED = True
         def newInit(self):
             super(cls, self).__init__()
-            _initMultiprocessingPool()
             self.id = _localJobId[0]
             _localJobId[0] += 1
         cls.__init__ = newInit

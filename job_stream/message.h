@@ -265,7 +265,12 @@ namespace message {
 
     /** A special message that gets passed around.  Each processor will update
         its state in the ring, and possibly send some of its work to nodes that
-        have no work. */
+        have no work.
+
+        Note that on checkpoint resume, StealRing() will be re-initialized with
+        the new world size.  Thus, none of this data should be important.  Loss
+        must be tolerated.
+        */
     class StealRing {
     public:
         /** For each rank, the max concurrency, current work quantity, and

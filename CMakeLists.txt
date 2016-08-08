@@ -1,4 +1,5 @@
 cmake_minimum_required (VERSION 2.8)
+cmake_policy(SET CMP0037 OLD)
 project(job_stream)
 
 # Note - run "cmake .." from the build/ directory.
