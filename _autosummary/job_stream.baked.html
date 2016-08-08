@@ -10,7 +10,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>job_stream.baked &mdash; job_stream 0.1.23 documentation</title>
+  <title>job_stream.baked &mdash; job_stream 0.1.24 documentation</title>
   
 
   
@@ -34,7 +34,7 @@
   
 
   
-    <link rel="top" title="job_stream 0.1.23 documentation" href="../index.html"/>
+    <link rel="top" title="job_stream 0.1.24 documentation" href="../index.html"/>
         <link rel="up" title="job_stream" href="../python.html"/>
         <link rel="next" title="job_stream.inline" href="job_stream.inline.html"/>
         <link rel="prev" title="job_stream" href="../python.html"/> 
@@ -65,7 +65,7 @@
             
             
               <div class="version">
-                0.1.23
+                0.1.24
               </div>
             
           
@@ -158,7 +158,7 @@
 <h2>Members<a class="headerlink" href="#members" title="Permalink to this headline">¶</a></h2>
 <dl class="function">
 <dt id="job_stream.baked.sweep">
-<code class="descclassname">job_stream.baked.</code><code class="descname">sweep</code><span class="sig-paren">(</span><em>variables={}</em>, <em>trials=0</em>, <em>output=None</em>, <em>trialsParms={}</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/job_stream/baked.html#sweep"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#job_stream.baked.sweep" title="Permalink to this definition">¶</a></dt>
+<code class="descclassname">job_stream.baked.</code><code class="descname">sweep</code><span class="sig-paren">(</span><em>variables={}</em>, <em>trials=0</em>, <em>output=None</em>, <em>trialsParms={}</em>, <em>showProgress=True</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/job_stream/baked.html#sweep"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#job_stream.baked.sweep" title="Permalink to this definition">¶</a></dt>
 <dd><p>Generic experiment framework; wraps a user&#8217;s job_stream (realized via
 <a class="reference internal" href="job_stream.inline.html#job_stream.inline.Work" title="job_stream.inline.Work"><code class="xref py py-mod docutils literal"><span class="pre">job_stream.inline.Work</span></code></a>.  The wrapped job_stream should take a
 parameter dictionary and return a dictionary of results to track.  The
@@ -252,6 +252,8 @@ also be specified by setting the argument <code class="docutils literal"><span c
 negative number.</dd>
 </dl>
 </li>
+<li><strong>showProgress</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#bool" title="(in Python v2.7)"><em>bool</em></a>) &#8211; If True (default), then print out progress
+indicators to stderr as work is completed.</li>
 </ul>
 </td>
 </tr>
@@ -310,7 +312,7 @@ the mean value; additionally, the estimated standard deviation and the
     <script type="text/javascript">
         var DOCUMENTATION_OPTIONS = {
             URL_ROOT:'../',
-            VERSION:'0.1.23',
+            VERSION:'0.1.24',
             COLLAPSE_INDEX:false,
             FILE_SUFFIX:'.html',
             HAS_SOURCE:  true
