@@ -62,8 +62,13 @@ for r in re.finditer(r'-Wl([^\s]+)', mpiFlagsLink):
 # executable.
 exeIncludes = os.path.abspath(os.path.join(
         os.path.dirname(sys.executable), "../include"))
+exeLibs = os.path.abspath(os.path.join(
+        os.path.dirname(sys.executable), "../lib"))
 if os.path.lexists(exeIncludes):
+    # Everything before is job_stream specific
     incdirs.append(exeIncludes)
+if os.path.lexists(exeLibs):
+    libdirs.append(exeLibs)
 
 boostPy = "boost_python{}".format("" if sys.version_info.major <= 2 else "3")
 job_stream = Extension('_job_stream',
