@@ -381,8 +381,11 @@ def sweep(variables={}, trials=0, output=None, trialsParms={},
                 oldDev = devs[k] if not np.isnan(devs[k]) else 0.
                 newAvg = oldAvg + (v - oldAvg) / n
                 avgs[k] = newAvg
-                devs[k] = max(0., oldDev + oldAvg ** 2 - newAvg ** 2 + (
-                        v ** 2 - oldDev - oldAvg ** 2) / n)
+                if np.isnan(newAvg):
+                    devs[k] = newAvg
+                else:
+                    devs[k] = max(0., oldDev + oldAvg ** 2 - newAvg ** 2 + (
+                            v ** 2 - oldDev - oldAvg ** 2) / n)
 
             numToSpawn = 0
             if store.trialNext >= nTrialsMax:
@@ -411,6 +414,8 @@ def sweep(variables={}, trials=0, output=None, trialsParms={},
                 # Find the most needed
                 for k in avgs.keys():
                     avg = avgs[k]
+                    if np.isnan(avg):
+                        continue
                     dev = devs[k] ** 0.5
                     err = trialsParmsDefaults['E'] * abs(avg)
                     err = max(err, trialsParmsDefaults['eps'])

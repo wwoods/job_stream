@@ -1,4 +1,5 @@
 
+#include "debug_internals.h"
 #include "invoke.h"
 
 #include "job_stream.h"
@@ -14,6 +15,10 @@
 #include <functional>
 #include <memory>
 #include <sstream>
+
+#if defined(OS_LINUX) || defined(OS_APPLE)
+    #include <sys/stat.h>
+#endif
 
 namespace ba = boost::asio;
 namespace bp = boost::process;
@@ -68,6 +73,30 @@ std::tuple<std::string, std::string> run(
             ctx.environment.erase(k.first);
         }
     }
+
+    //Now that the environment is configured properly, ensure that the
+    //executable exists.
+    {
+        std::ifstream fileExists(progAndArgs[0]);
+        if (!fileExists) {
+            ERROR("Program not found (replace with absolute path?): '"
+                    << progAndArgs[0] << "'");
+        }
+
+        #if defined(OS_LINUX) || defined(OS_APPLE)
+        //Also need to check for executable permissions
+        struct stat st;
+        if (stat(progAndArgs[0].c_str(), &st) < 0) {
+            ERROR("POSIX stat() failed on: '" << progAndArgs[0] << "'");
+        }
+
+        if ((st.st_mode & S_IEXEC) == 0) {
+            ERROR("Program specified not executable: '" << progAndArgs[0]
+                    << "'");
+        }
+        #endif
+    }
+
     int timeToNext = 1;
     for (int trial = 0, trialm = maxRetries; trial < trialm; trial++) {
         if (trial > 0) {

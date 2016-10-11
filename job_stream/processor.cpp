@@ -10,7 +10,6 @@
 
 #include <boost/algorithm/string.hpp>
 #include <boost/asio.hpp>
-#include <boost/filesystem.hpp>
 #include <boost/lexical_cast.hpp>
 #include <chrono>
 #include <ctime>
@@ -26,7 +25,6 @@
     #include <mach/mach_port.h>
 #endif
 
-namespace fs = boost::filesystem;
 namespace mpi = boost::mpi;
 
 namespace std {
@@ -1989,8 +1987,11 @@ void Processor::_updateCheckpoints(int msDiff) {
             this->checkpointFile.reset();
 
             //File rename now that we have a completed checkpoint
-            fs::rename((this->checkpointFileName + ".new").c_str(),
-                    this->checkpointFileName.c_str());
+            if (std::rename((this->checkpointFileName + ".new").c_str(),
+                    this->checkpointFileName.c_str())) {
+                ERROR("Failed to rename " << this->checkpointFileName
+                        << ".new");
+            }
 
             JobLog() << "Checkpoint took "
                     << message::Location::getCurrentTimeMs()

@@ -29,9 +29,6 @@ SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x -ftemplate-backtrace-limit=0"
 include_directories(job_stream/boost_process/ yaml-cpp-0.5.1/include/
         boost-mpi-1.61/include/ boost-serialization-1.61/include/
         boost-serialization-1.61/src/)
-find_library(BOOST_FILESYSTEM_LIBRARY
-        NAMES boost_filesystem
-        HINTS ENV LD_LIBRARY_PATH ENV LIBRARY_PATH)
 find_library(BOOST_SYSTEM_LIBRARY
         NAMES boost_system
         HINTS ENV LD_LIBRARY_PATH ENV LIBRARY_PATH)
@@ -42,9 +39,6 @@ find_library(BOOST_THREAD_LIBRARY
 # CMake bug?  If we reference libraries in target_link_libraries as in their
 # resolved variable form above (${BOOST_MPI_LIBRARY}), then this doesn't
 # build.
-add_library(boost_filesystem UNKNOWN IMPORTED)
-set_property(TARGET boost_filesystem PROPERTY IMPORTED_LOCATION 
-        "${BOOST_FILESYSTEM_LIBRARY}")
 add_library(boost_system UNKNOWN IMPORTED)
 set_property(TARGET boost_system PROPERTY IMPORTED_LOCATION 
         "${BOOST_SYSTEM_LIBRARY}")
@@ -53,7 +47,6 @@ set_property(TARGET boost_thread PROPERTY IMPORTED_LOCATION
         "${BOOST_THREAD_LIBRARY}")
 
 SET(REQ_LIB
-        boost_filesystem
         boost_system
         boost_thread
         dl)

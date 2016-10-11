@@ -14,6 +14,7 @@ Submodules
 
     job_stream.baked
     job_stream.inline
+    job_stream.invoke
     job_stream.common
 
 """
