@@ -10,7 +10,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>job_stream.baked &mdash; job_stream 0.1.24 documentation</title>
+  <title>job_stream.baked &mdash; job_stream 0.1.25 documentation</title>
   
 
   
@@ -34,7 +34,7 @@
   
 
   
-    <link rel="top" title="job_stream 0.1.24 documentation" href="../../index.html"/>
+    <link rel="top" title="job_stream 0.1.25 documentation" href="../../index.html"/>
         <link rel="up" title="Module code" href="../index.html"/> 
 
   
@@ -63,7 +63,7 @@
             
             
               <div class="version">
-                0.1.24
+                0.1.25
               </div>
             
           
@@ -519,8 +519,11 @@
                 <span class="n">oldDev</span> <span class="o">=</span> <span class="n">devs</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">devs</span><span class="p">[</span><span class="n">k</span><span class="p">])</span> <span class="k">else</span> <span class="mf">0.</span>
                 <span class="n">newAvg</span> <span class="o">=</span> <span class="n">oldAvg</span> <span class="o">+</span> <span class="p">(</span><span class="n">v</span> <span class="o">-</span> <span class="n">oldAvg</span><span class="p">)</span> <span class="o">/</span> <span class="n">n</span>
                 <span class="n">avgs</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">newAvg</span>
-                <span class="n">devs</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mf">0.</span><span class="p">,</span> <span class="n">oldDev</span> <span class="o">+</span> <span class="n">oldAvg</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">-</span> <span class="n">newAvg</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">+</span> <span class="p">(</span>
-                        <span class="n">v</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">-</span> <span class="n">oldDev</span> <span class="o">-</span> <span class="n">oldAvg</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span> <span class="o">/</span> <span class="n">n</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">newAvg</span><span class="p">):</span>
+                    <span class="n">devs</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">newAvg</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">devs</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mf">0.</span><span class="p">,</span> <span class="n">oldDev</span> <span class="o">+</span> <span class="n">oldAvg</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">-</span> <span class="n">newAvg</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">+</span> <span class="p">(</span>
+                            <span class="n">v</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">-</span> <span class="n">oldDev</span> <span class="o">-</span> <span class="n">oldAvg</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span> <span class="o">/</span> <span class="n">n</span><span class="p">)</span>
 
             <span class="n">numToSpawn</span> <span class="o">=</span> <span class="mi">0</span>
             <span class="k">if</span> <span class="n">store</span><span class="o">.</span><span class="n">trialNext</span> <span class="o">&gt;=</span> <span class="n">nTrialsMax</span><span class="p">:</span>
@@ -549,6 +552,8 @@
                 <span class="c1"># Find the most needed</span>
                 <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">avgs</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
                     <span class="n">avg</span> <span class="o">=</span> <span class="n">avgs</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+                    <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">avg</span><span class="p">):</span>
+                        <span class="k">continue</span>
                     <span class="n">dev</span> <span class="o">=</span> <span class="n">devs</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">**</span> <span class="mf">0.5</span>
                     <span class="n">err</span> <span class="o">=</span> <span class="n">trialsParmsDefaults</span><span class="p">[</span><span class="s1">&#39;E&#39;</span><span class="p">]</span> <span class="o">*</span> <span class="nb">abs</span><span class="p">(</span><span class="n">avg</span><span class="p">)</span>
                     <span class="n">err</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">err</span><span class="p">,</span> <span class="n">trialsParmsDefaults</span><span class="p">[</span><span class="s1">&#39;eps&#39;</span><span class="p">])</span>
@@ -625,7 +630,7 @@
     <script type="text/javascript">
         var DOCUMENTATION_OPTIONS = {
             URL_ROOT:'../../',
-            VERSION:'0.1.24',
+            VERSION:'0.1.25',
             COLLAPSE_INDEX:false,
             FILE_SUFFIX:'.html',
             HAS_SOURCE:  true

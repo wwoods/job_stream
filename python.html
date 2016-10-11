@@ -10,7 +10,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>job_stream &mdash; job_stream 0.1.24 documentation</title>
+  <title>job_stream &mdash; job_stream 0.1.25 documentation</title>
   
 
   
@@ -34,7 +34,7 @@
   
 
   
-    <link rel="top" title="job_stream 0.1.24 documentation" href="index.html"/>
+    <link rel="top" title="job_stream 0.1.25 documentation" href="index.html"/>
         <link rel="next" title="job_stream.baked" href="_autosummary/job_stream.baked.html"/>
         <link rel="prev" title="Roadmap" href="roadmap.html"/> 
 
@@ -64,7 +64,7 @@
             
             
               <div class="version">
-                0.1.24
+                0.1.25
               </div>
             
           
@@ -95,6 +95,7 @@
 <li class="toctree-l2"><a class="reference internal" href="#submodules">Submodules</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="_autosummary/job_stream.baked.html">job_stream.baked</a></li>
 <li class="toctree-l3"><a class="reference internal" href="_autosummary/job_stream.inline.html">job_stream.inline</a></li>
+<li class="toctree-l3"><a class="reference internal" href="_autosummary/job_stream.invoke.html">job_stream.invoke</a></li>
 <li class="toctree-l3"><a class="reference internal" href="_autosummary/job_stream.common.html">job_stream.common</a></li>
 </ul>
 </li>
@@ -172,7 +173,10 @@ high-level paradigms.</p>
 <tr class="row-even"><td><a class="reference internal" href="_autosummary/job_stream.inline.html#module-job_stream.inline" title="job_stream.inline"><code class="xref py py-obj docutils literal"><span class="pre">job_stream.inline</span></code></a></td>
 <td>An intuitive way of specifying data flow using imperative programming techniques.</td>
 </tr>
-<tr class="row-odd"><td><a class="reference internal" href="_autosummary/job_stream.common.html#module-job_stream.common" title="job_stream.common"><code class="xref py py-obj docutils literal"><span class="pre">job_stream.common</span></code></a></td>
+<tr class="row-odd"><td><a class="reference internal" href="_autosummary/job_stream.invoke.html#job_stream.invoke" title="job_stream.invoke"><code class="xref py py-obj docutils literal"><span class="pre">job_stream.invoke</span></code></a>(progAndArgs[,&nbsp;...])</td>
+<td>Since it can be difficult to launch some programs from an MPI distributed application, job_stream provides invoke functionality to safely launch an external program (launching an application such as Xyce, for instance, can cause problems if the environment variables are not doctored appropriately).</td>
+</tr>
+<tr class="row-even"><td><a class="reference internal" href="_autosummary/job_stream.common.html#module-job_stream.common" title="job_stream.common"><code class="xref py py-obj docutils literal"><span class="pre">job_stream.common</span></code></a></td>
 <td>The core job_stream adapter in Python.</td>
 </tr>
 </tbody>
@@ -224,7 +228,7 @@ high-level paradigms.</p>
     <script type="text/javascript">
         var DOCUMENTATION_OPTIONS = {
             URL_ROOT:'./',
-            VERSION:'0.1.24',
+            VERSION:'0.1.25',
             COLLAPSE_INDEX:false,
             FILE_SUFFIX:'.html',
             HAS_SOURCE:  true

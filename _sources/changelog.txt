@@ -1,6 +1,8 @@
 Changelog
 =========
 
+* 2016-10-11 - :any:`job_stream.invoke` is now more intelligent about raising
+  errors for non-existent executables.
 * 2016-8-8 - Fixes for :meth:`job_stream.baked.sweep` as well as checkpoint
   continuations.
 
