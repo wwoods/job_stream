@@ -1,10 +1,10 @@
 Changelog
 =========
 
-* 2016-10-12 - Added --map-by to `job_stream` binary.  Apparently, newer
-  versions of MPI restrict spawned processes to a single core.  Since
-  job_stream does its own parallelization, this prevented any parallelization
-  at all on a single machine, which was disastrous.
+* 2016-10-12 - Added `--map-by node` to `job_stream` binary's flags for `mpirun`.
+  Apparently, newer versions of MPI restrict spawned processes to a single core.
+  Since job_stream does its own parallelization, this prevented any
+  parallelization at all on a single machine, which was disastrous.
 * 2016-10-11 - :any:`job_stream.invoke` is now more intelligent about raising
   errors for non-existent executables.
 * 2016-8-8 - Fixes for :meth:`job_stream.baked.sweep` as well as checkpoint
