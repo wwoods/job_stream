@@ -1,6 +1,8 @@
 Changelog
 =========
 
+* 2016-10-18 - Hostfile lines may now specify e.g. `cpus=8` after a hostname to
+  manually set the number of cores to be used by job_stream on a given machine.
 * 2016-10-12 - Added `--map-by node` to `job_stream` binary's flags for `mpirun`.
   Apparently, newer versions of MPI restrict spawned processes to a single core.
   Since job_stream does its own parallelization, this prevented any

@@ -200,6 +200,7 @@ job_stream comes bundled with a binary to help running job_stream applications: 
     machine1
     machine2
     #machine3  Commented lines will not be used
+    machine4 cpus=3  # Specify number of worker threads / processes on machine4
 
 Then ``job_stream`` may be configured to automatically run experiments on all un-commented machines in this hostfile by running:
 
@@ -213,7 +214,9 @@ Afterwards, if any script is run via ``job_stream``, it will run on the machines
 
     $ job_stream -- python script.py
 
-Will run ``script.py`` and distribute its work across machine1 and machine2.  If you ever want to run a script on something other than the default configured hostfile, ``job_stream`` accepts ``--host`` and ``--hostfile`` arguments (see ``job_stream --help`` for more information).
+Will run ``script.py`` and distribute its work across machine1, machine2, and machine4.  If you ever want to run a script on something other than the default configured hostfile, ``job_stream`` accepts ``--host`` and ``--hostfile`` arguments (see ``job_stream --help`` for more information).
+
+.. note:: Parameters, such as `cpus=`, must be specified on the same line as the host!  Hosts attempt to match themselves to these lines by either shared name or shared IP address.
 
 Checkpoints
 ~~~~~~~~~~~

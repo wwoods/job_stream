@@ -16,6 +16,7 @@
 #include <exception>
 #include <iostream>
 #include <map>
+#include <regex>
 #include <string>
 #include <sys/resource.h>
 
@@ -25,6 +26,7 @@
     #include <mach/mach_port.h>
 #endif
 
+namespace asio = boost::asio;
 namespace mpi = boost::mpi;
 
 namespace std {
@@ -71,6 +73,7 @@ const int DEFAULT_CHECKPOINT_SYNC_WAIT_MS = 10000;
 int Processor::CHECKPOINT_SYNC_WAIT_MS
         = DEFAULT_CHECKPOINT_SYNC_WAIT_MS;
 int cpuCount = -1;
+int hostCpuCount = -1;
 std::vector<std::string> initialWork;
 
 
@@ -80,6 +83,116 @@ double getCurrentLoad() {
     int r = getloadavg(&load, 1);
     ASSERT(r >= 1, "Failed to get load average?");
     return load;
+}
+
+
+bool isThisHost(const std::string&);
+
+/** Consults with JOBS_CONFIG environment variable to read the config file for
+ * this machine.
+ * */
+unsigned int getConcurrency() {
+    unsigned int ncpus = std::max(1u, std::thread::hardware_concurrency());
+
+    const char* cfg = std::getenv("JOBS_CONFIG");
+    if (cfg) {
+        std::ifstream f(cfg);
+        if (!f) {
+            ERROR("Bad config file: " << cfg);
+        }
+
+        std::string sCfg;
+        f.seekg(0, std::ios::end);
+        sCfg.reserve(f.tellg());
+        f.seekg(0, std::ios::beg);
+
+        sCfg.assign((std::istreambuf_iterator<char>(f)),
+                std::istreambuf_iterator<char>());
+
+        std::regex hostline("(?:^|\n)([a-zA-Z][a-zA-Z0-9\\.]*)[ \t]*([^#\n]*)");
+        std::regex prop("(^|[ \t])([^=]+)+=([^ \t]*)",
+                std::regex_constants::ECMAScript);
+        auto mBegin = std::sregex_iterator(sCfg.begin(), sCfg.end(), hostline),
+                mEnd = std::sregex_iterator();
+        bool foundSelf = false;
+        for (std::sregex_iterator i = mBegin; i != mEnd; ++i) {
+            std::smatch match = *i;
+
+            std::string name = match[1].str();
+            //Is name this machine?
+            if (!isThisHost(name)) {
+                continue;
+            }
+
+            foundSelf = true;
+
+            std::string p(match[2].str());
+            //Ensure that everything will be caught
+            std::string p2 = std::regex_replace(p, prop, "");
+            p2 = std::regex_replace(p2, std::regex("[ \t]"), "");
+            if (p2.size() != 0) {
+                ERROR("Unparseable properties: " << p2 << "\nFrom: "
+                        << match[0].str());
+            }
+            auto pBegin = std::sregex_iterator(p.begin(), p.end(), prop),
+                    pEnd = std::sregex_iterator();
+            for (std::sregex_iterator j = pBegin; j != pEnd; ++j) {
+                std::smatch pmatch = *j;
+
+                std::string key = pmatch[2].str();
+                std::string val = pmatch[3].str();
+
+                if (key == "cpus") {
+                    ncpus = boost::lexical_cast<unsigned int>(val);
+                }
+                else {
+                    ERROR("Unparseable property: " << key << "\nFrom: "
+                            << match[0].str());
+                }
+            }
+        }
+
+        if (!foundSelf) {
+            ERROR("Did not find entry for this machine in config file: "
+                    << cfg);
+        }
+    }
+
+    return ncpus;
+}
+
+
+std::vector<std::string> _getHostIps(const std::string& name);
+/** Returns true if name is this host, false otherwise. */
+bool isThisHost(const std::string& name) {
+    const std::string& myName = boost::asio::ip::host_name();
+    if (name == myName) {
+        return true;
+    }
+
+    auto myIps = _getHostIps(myName);
+    auto oIps = _getHostIps(name);
+    for (int i = 0, m = myIps.size(); i < m; i++) {
+        for (int j = 0, n = oIps.size(); j < n; j++) {
+            if (myIps[i] == oIps[j]) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+std::vector<std::string> _getHostIps(const std::string& name) {
+    asio::io_service io_service;
+    asio::ip::tcp::resolver resolver(io_service);
+    asio::ip::tcp::resolver::query query(name, "");
+    std::vector<std::string> res;
+    for (asio::ip::tcp::resolver::iterator i = resolver.resolve(query);
+            i != asio::ip::tcp::resolver::iterator();
+            i++) {
+        asio::ip::tcp::endpoint end = *i;
+        res.push_back(end.address().to_string());
+    }
+    return res;
 }
 
 
@@ -471,20 +584,28 @@ void Processor::run(const std::string& inputLine) {
         this->sentEndRing0 = true;
     }
 
-    //Start up our workers
-    unsigned int compute = std::max(1u, std::thread::hardware_concurrency());
-    //All processors start with 0 workers active, which is changed when the
-    //steal ring passes by
-    this->workersActive = 0;
-    for (unsigned int i = 0; i < compute; i++) {
-        this->workers.emplace_back(new WorkerThread(this, i));
-    }
-    if (!this->_stealEnabled || NO_STEALING) {
-        this->workersActive = this->workers.size();
+    try {
+        //Start up our workers
+        unsigned int compute = getConcurrency();
+        hostCpuCount = compute;  //Notify clients of how many CPUs are allocated
 
-        //No stealing; therefore, we have as many CPUs as we have.  Use
-        //compute.
-        cpuCount = compute;
+        //All processors start with 0 workers active, which is changed when the
+        //steal ring passes by
+        this->workersActive = 0;
+        for (unsigned int i = 0; i < compute; i++) {
+            this->workers.emplace_back(new WorkerThread(this, i));
+        }
+        if (!this->_stealEnabled || NO_STEALING) {
+            this->workersActive = this->workers.size();
+
+            //No stealing; therefore, we have as many CPUs as we have.  Use
+            //compute.
+            cpuCount = compute;
+        }
+    }
+    catch (...) {
+        this->joinThreads();
+        throw;
     }
 
     //Begin tallying time spent in system vs user functionality.

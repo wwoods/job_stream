@@ -999,6 +999,11 @@ int getCpuCount() {
 }
 
 
+int getHostCpuCount() {
+    return job_stream::getHostCpuCount();
+}
+
+
 int getRank() {
     return job_stream::getRank();
 }
@@ -1176,6 +1181,8 @@ BOOST_PYTHON_MODULE(_job_stream) {
     bp::def("checkpointInfo", job_stream::checkpointInfo, "Returns a human-readable "
             "string with details of a checkpoint's state");
     bp::def("getCpuCount", getCpuCount, "Returns the number of CPUs in the cluster");
+    bp::def("getHostCpuCount", getHostCpuCount, "Returns the number of CPUs "
+            "desired on this machine.");
     bp::def("getRank", getRank, "Returns the mpi rank of this host");
     bp::def("invoke", invoke, "Invokes the given application.  See "
             "job_stream.invoke in the python module for more information.");

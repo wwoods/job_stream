@@ -672,6 +672,12 @@ namespace job_stream {
     int getCpuCount();
 
 
+    /** Returns the number of CPUs on this host; throws an error if a
+     * job_stream has not yet been entered.
+     * */
+    int getHostCpuCount();
+
+
     /** Returns this machine's MPI rank. */
     int getRank();
 

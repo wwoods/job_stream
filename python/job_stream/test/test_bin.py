@@ -5,6 +5,7 @@ import contextlib
 import distutils.spawn
 import os
 import re
+import socket
 import subprocess
 import tempfile
 import textwrap
@@ -52,7 +53,7 @@ class TestBin(JobStreamTest):
 
 
     def _hostname(self):
-        return subprocess.check_output([ 'hostname' ]).decode('utf-8').strip()
+        return socket.gethostname()
 
 
     def _readConfig(self, key):
@@ -186,6 +187,35 @@ class TestBin(JobStreamTest):
         self.assertEqual(0, r)
         self.assertTrue('Usage: job_stream [OPTIONS] PROG [ARGS]...'
                 in stdout)
+
+
+    def test_hostfile_cpus(self):
+        # Check that limiting / specifying cpus via the hostfile works.
+        print_cpus = ['--', 'python', '-c',
+                'import job_stream as j, _job_stream as _j; '
+                    'print(j.map(lambda x: _j.getHostCpuCount(), [0]))']
+
+        for nCpu in range(1, 4):
+            r, stdout, stderr = self._run([ '--host', '{} cpus={}'.format(
+                self._hostname(), nCpu)] + print_cpus)
+            self.assertEqual("[{}]\n".format(nCpu), stdout)
+
+        # Check that a bad parameter raises an error
+        _, _, stderr = self._run([ '--host',
+                '{} cpu=1'.format(self._hostname())] + print_cpus)
+        self.assertTrue('Unparseable property:' in stderr)
+        self.assertTrue('cpu' in stderr)
+
+        # Check that something that's not a parameter raises
+        _, _, stderr = self._run([ '--host',
+                '{} cpus'.format(self._hostname())] + print_cpus)
+        self.assertTrue('Unparseable properties:' in stderr)
+        self.assertTrue('cpus' in stderr)
+
+        # Check that a comment inline is OK
+        r, stdout, stderr = self._run([ '--host', '{} cpus={} #Yup'.format(
+            self._hostname(), 22)] + print_cpus)
+        self.assertEqual("[{}]\n".format(22), stdout)
 
 
     def test_runDuplicateHost(self):

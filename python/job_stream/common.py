@@ -61,7 +61,8 @@ def _initMultiprocessingPool():
                 def initProcess():
                     if 'numpy.random' in sys.modules:
                         sys.modules['numpy.random'].seed()
-                _pool[0] = multiprocessing.Pool(initializer = initProcess)
+                _pool[0] = multiprocessing.Pool(processes=_j.getHostCpuCount(),
+                        initializer=initProcess)
 
 
 def _decode(s):
@@ -563,6 +564,13 @@ def getCpuCount():
     job_stream, or will raise an error.
     """
     return _j.getCpuCount()
+
+
+def getHostCpuCount():
+    """Returns the number of CPUs on this host.  Must be called within a
+    job_stream, or will raise an error.
+    """
+    return _j.getHostCpuCount()
 
 
 def getRank():

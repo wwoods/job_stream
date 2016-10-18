@@ -196,6 +196,15 @@ int getCpuCount() {
 }
 
 
+int getHostCpuCount() {
+    if (processor::hostCpuCount < 0) {
+        ERROR("No Processor started yet; no cpuCount to report")
+    }
+
+    return processor::hostCpuCount;
+}
+
+
 int getRank() {
     _startMpi();
     mpi::communicator world;

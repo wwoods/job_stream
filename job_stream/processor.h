@@ -40,6 +40,10 @@ extern const int JOB_STREAM_DEBUG;
  * */
 extern int cpuCount;
 
+/** The number of CPUs on this host, or -1 if uninitialized.
+ * */
+extern int hostCpuCount;
+
 /** A queue of serialized initial work.  If populated (non-zero size), then this
     is used in lieu of either an initial input line or stdin. */
 extern std::vector<std::string> initialWork;
