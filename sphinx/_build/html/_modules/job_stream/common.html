@@ -10,7 +10,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>job_stream.common &mdash; job_stream 0.1.26 documentation</title>
+  <title>job_stream.common &mdash; job_stream 0.1.27 documentation</title>
   
 
   
@@ -34,7 +34,7 @@
   
 
   
-    <link rel="top" title="job_stream 0.1.26 documentation" href="../../index.html"/>
+    <link rel="top" title="job_stream 0.1.27 documentation" href="../../index.html"/>
         <link rel="up" title="Module code" href="../index.html"/> 
 
   
@@ -63,7 +63,7 @@
             
             
               <div class="version">
-                0.1.26
+                0.1.27
               </div>
             
           
@@ -199,7 +199,8 @@
                 <span class="k">def</span> <span class="nf">initProcess</span><span class="p">():</span>
                     <span class="k">if</span> <span class="s1">&#39;numpy.random&#39;</span> <span class="ow">in</span> <span class="n">sys</span><span class="o">.</span><span class="n">modules</span><span class="p">:</span>
                         <span class="n">sys</span><span class="o">.</span><span class="n">modules</span><span class="p">[</span><span class="s1">&#39;numpy.random&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">seed</span><span class="p">()</span>
-                <span class="n">_pool</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">multiprocessing</span><span class="o">.</span><span class="n">Pool</span><span class="p">(</span><span class="n">initializer</span> <span class="o">=</span> <span class="n">initProcess</span><span class="p">)</span></div>
+                <span class="n">_pool</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">multiprocessing</span><span class="o">.</span><span class="n">Pool</span><span class="p">(</span><span class="n">processes</span><span class="o">=</span><span class="n">_j</span><span class="o">.</span><span class="n">getHostCpuCount</span><span class="p">(),</span>
+                        <span class="n">initializer</span><span class="o">=</span><span class="n">initProcess</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="_decode"><a class="viewcode-back" href="../../_autosummary/job_stream.common.html#job_stream.common._decode">[docs]</a><span class="k">def</span> <span class="nf">_decode</span><span class="p">(</span><span class="n">s</span><span class="p">):</span>
@@ -703,6 +704,13 @@
     <span class="k">return</span> <span class="n">_j</span><span class="o">.</span><span class="n">getCpuCount</span><span class="p">()</span></div>
 
 
+<div class="viewcode-block" id="getHostCpuCount"><a class="viewcode-back" href="../../_autosummary/job_stream.common.html#job_stream.common.getHostCpuCount">[docs]</a><span class="k">def</span> <span class="nf">getHostCpuCount</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot;Returns the number of CPUs on this host.  Must be called within a</span>
+<span class="sd">    job_stream, or will raise an error.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">_j</span><span class="o">.</span><span class="n">getHostCpuCount</span><span class="p">()</span></div>
+
+
 <div class="viewcode-block" id="getRank"><a class="viewcode-back" href="../../_autosummary/job_stream.common.html#job_stream.common.getRank">[docs]</a><span class="k">def</span> <span class="nf">getRank</span><span class="p">():</span>
     <span class="sd">&quot;&quot;&quot;Returns the rank (integer index) of this processor.  Typically, this</span>
 <span class="sd">    value is checked against 0 for work that should only happen once, e.g.</span>
@@ -862,7 +870,7 @@
     <script type="text/javascript">
         var DOCUMENTATION_OPTIONS = {
             URL_ROOT:'../../',
-            VERSION:'0.1.26',
+            VERSION:'0.1.27',
             COLLAPSE_INDEX:false,
             FILE_SUFFIX:'.html',
             HAS_SOURCE:  true

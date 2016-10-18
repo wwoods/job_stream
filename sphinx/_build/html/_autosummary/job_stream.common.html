@@ -10,7 +10,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>job_stream.common &mdash; job_stream 0.1.26 documentation</title>
+  <title>job_stream.common &mdash; job_stream 0.1.27 documentation</title>
   
 
   
@@ -34,7 +34,7 @@
   
 
   
-    <link rel="top" title="job_stream 0.1.26 documentation" href="../index.html"/>
+    <link rel="top" title="job_stream 0.1.27 documentation" href="../index.html"/>
         <link rel="up" title="job_stream" href="../python.html"/>
         <link rel="prev" title="job_stream.invoke" href="job_stream.invoke.html"/> 
 
@@ -64,7 +64,7 @@
             
             
               <div class="version">
-                0.1.26
+                0.1.27
               </div>
             
           
@@ -666,6 +666,13 @@ job_stream, or will raise an error.</p>
 </dd></dl>
 
 <dl class="function">
+<dt id="job_stream.common.getHostCpuCount">
+<code class="descclassname">job_stream.common.</code><code class="descname">getHostCpuCount</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/job_stream/common.html#getHostCpuCount"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#job_stream.common.getHostCpuCount" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the number of CPUs on this host.  Must be called within a
+job_stream, or will raise an error.</p>
+</dd></dl>
+
+<dl class="function">
 <dt id="job_stream.common.getRank">
 <code class="descclassname">job_stream.common.</code><code class="descname">getRank</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/job_stream/common.html#getRank"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#job_stream.common.getRank" title="Permalink to this definition">¶</a></dt>
 <dd><p>Returns the rank (integer index) of this processor.  Typically, this
@@ -768,7 +775,7 @@ checkpoint-safe, this method MUST save what it needs to file.</dd>
     <script type="text/javascript">
         var DOCUMENTATION_OPTIONS = {
             URL_ROOT:'../',
-            VERSION:'0.1.26',
+            VERSION:'0.1.27',
             COLLAPSE_INDEX:false,
             FILE_SUFFIX:'.html',
             HAS_SOURCE:  true
