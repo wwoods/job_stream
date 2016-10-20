@@ -216,7 +216,9 @@ Afterwards, if any script is run via ``job_stream``, it will run on the machines
 
 Will run ``script.py`` and distribute its work across machine1, machine2, and machine4.  If you ever want to run a script on something other than the default configured hostfile, ``job_stream`` accepts ``--host`` and ``--hostfile`` arguments (see ``job_stream --help`` for more information).
 
-.. note:: Parameters, such as `cpus=`, must be specified on the same line as the host!  Hosts attempt to match themselves to these lines by either shared name or shared IP address.
+.. note:: You *must* separate any arguments to your program and ``job_stream``'s arguments with a ``--``, as seen above.
+
+.. note:: Parameters, such as ``cpus=``, must be specified on the same line as the host!  Hosts attempt to match themselves to these lines by either shared name or shared IP address.
 
 Checkpoints
 ~~~~~~~~~~~

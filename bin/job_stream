@@ -80,8 +80,11 @@ def doRun(hostfile, checkpoint, argv):
     # execute the program locally to test, or with `job_stream` for
     # parallelization.
     mpiEnvVars = [ ('-x', key) for key in env ]
-    mpiArgs = (mpirun, '-host', hosts, '--map-by', 'node') + tuple(
-            b for a in mpiEnvVars for b in a)
+    mpiArgs = (
+            (mpirun, '-host', hosts)
+            + ('--map-by', 'node', '--bind-to', 'none')
+            + ('--mca', 'orte_abort_on_non_zero_status', '1')
+            + tuple(b for a in mpiEnvVars for b in a))
     if not useMpi:
         mpiArgs = ()
 

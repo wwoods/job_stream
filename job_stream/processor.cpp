@@ -98,7 +98,7 @@ unsigned int getConcurrency() {
     if (cfg) {
         std::ifstream f(cfg);
         if (!f) {
-            ERROR("Bad config file: " << cfg);
+            ERROR("Non-existent config file: " << cfg);
         }
 
         std::string sCfg;
@@ -658,12 +658,25 @@ void Processor::run(const std::string& inputLine) {
         //If an exception happens in the main thread, then we will catch it and
         //join our threads before re-raising.  Otherwise, for whatever reason,
         //e.g. the python interpreter does not properly exit.
-        this->joinThreads();
-        throw;
+        this->workerErrors.push_back(std::current_exception());
     }
 
     //Stop all threads
     this->joinThreads();
+
+    //Did we stop because of an error?  Log to console, and then abort via MPI.
+    if (this->workerErrors.size() != 0) {
+        try {
+            std::rethrow_exception(this->workerErrors[0]);
+        }
+        catch (const std::exception& e) {
+            JobLog() << "Caught C++ exception: " << e.what();
+        }
+        catch (...) {
+            JobLog() << "Caught C++ exception of non-std::exception type";
+        }
+        job_stream::mpiAbort();
+    }
 
     //Stop timer, report on user vs not
     outerTimer.reset();
@@ -745,11 +758,6 @@ void Processor::run(const std::string& inputLine) {
                 "quality %.2f cpus, ran %.3fs\n",
                 totalTime / 10, totalCpuTime / 10000,
                 (double)totalCpu / timesTotal, timesTotal * 0.001);
-    }
-
-    //Did we stop because of an error?  Rethrow it!
-    if (this->workerErrors.size() != 0) {
-        std::rethrow_exception(this->workerErrors[0]);
     }
 }
 

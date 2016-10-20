@@ -1,9 +1,12 @@
 Changelog
 =========
 
-* 2016-10-18 - Hostfile lines may now specify e.g. `cpus=8` after a hostname to
+* 2016-10-20 - Modified Processor behavior to automatically call MPI_Abort when an exception is thrown by a job.  This fixes some hangs when errors were raised in Python code, and should make job_stream behave more robustly in general.
+
+  The job_stream binary was also modified to pass the ``mca`` flag ``orte_abort_on_non_zero_status``, to make sure that an arbitrary death of a process also causes MPI_Abort to be called.
+* 2016-10-18 - Hostfile lines may now specify e.g. ``cpus=8`` after a hostname to
   manually set the number of cores to be used by job_stream on a given machine.
-* 2016-10-12 - Added `--map-by node` to `job_stream` binary's flags for `mpirun`.
+* 2016-10-12 - Added ``--map-by node`` to ``job_stream`` binary's flags for ``mpirun``.
   Apparently, newer versions of MPI restrict spawned processes to a single core.
   Since job_stream does its own parallelization, this prevented any
   parallelization at all on a single machine, which was disastrous.

@@ -682,6 +682,10 @@ namespace job_stream {
     int getRank();
 
 
+    /** Calls mpi abort() */
+    void mpiAbort();
+
+
     /** Add work to the initialWork queue, which overrides stdin or the
         argc, argv combination. */
     template<typename T>

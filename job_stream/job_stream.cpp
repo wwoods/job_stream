@@ -233,6 +233,14 @@ Flags:\n\
 }
 
 
+void mpiAbort() {
+    if (!mpiEnvHolder) {
+        ERROR("MPI not initialized, cannot abort");
+    }
+    mpiEnvHolder->abort(1);
+}
+
+
 void runProcessor(int argc, char** argv) {
     Debug::DeathHandler dh;
     dh.set_color_output(false);
