@@ -120,7 +120,7 @@ Note that ``job_stream`` internally uses `yaml-cpp <https://github.com/jbeder/ya
 Python
 ~~~~~~
 
-It is **strongly** recommended that users use a virtualenv such as `Miniconda <https://www.continuum.io/downloads>`_ to install ``job_stream``.  The primary difficulty that this helps users to avoid is any boost incompatibilities, which can happen in academic environments.  Once Miniconda is installed and the ``conda`` application is on the user's ``PATH``, installing becomes as easy as:
+It is **strongly** recommended that users use a virtualenv such as `Miniconda <http://conda.pydata.org/miniconda.html>`_ to install ``job_stream``.  The primary difficulty that this helps users to avoid is any boost incompatibilities, which can happen in academic environments.  Once Miniconda is installed and the ``conda`` application is on the user's ``PATH``, installing becomes as easy as:
 
 .. code-block:: sh
 
