@@ -51,3 +51,25 @@ class TestCheckpoints(JobStreamTest):
         allOut, allErr, trials = self.runTilDone(args, np = 2)
         self.assertTrue(10 <= trials)
         self.assertLinesEqual("110\n143\n143\n143\n", allOut)
+
+
+    def test_checkpoint_nonexistent_parent(self):
+        # Checkpoints, if the parent folder did not exist, used to lock up
+        # job_stream permanently.
+        cp = os.path.join(tempfile.gettempdir(), "a", "b", "c", "test.chkpt")
+        args = [os.path.join(libPath, "checkpoint_1.py"), cp]
+
+        # Initial check
+        try:
+            self.execute(args, np=1)
+        except ExecuteError as e:
+            self.assertIn('folder containing the requested checkpoint file '
+                    'does not exist', e.stderr)
+
+        # Check on writing checkpoint
+        try:
+            self.execute(args, np=1, env=dict(
+                    JOBS_DEBUG_SKIP_INITIAL_CHECKPOINT_CHECK="true"))
+        except ExecuteError as e:
+            self.assertIn('Could not write checkpoint', e.stderr)
+

@@ -1,4 +1,5 @@
-To release:
+Release
+=======
 
 1. Edit sphinx/changelog.rst
 2. Edit python/job_stream/version.py
@@ -14,4 +15,10 @@ To release:
 8. Commit changes to git except sphinx/_build, reset those
 9. Run python setup.py sdist upload -r pypi
 10. cd sphinx/ and make gh-pages
+
+
+Tests in Weird Locations
+========================
+
+Tests are easier to write in Python.  Therefore, some of the core C++ library functionality is actually tested in the Python test suite.
 

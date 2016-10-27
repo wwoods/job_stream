@@ -19,6 +19,7 @@
 #include <regex>
 #include <string>
 #include <sys/resource.h>
+#include <sys/stat.h>
 
 #if defined(__APPLE__)
     #include <mach/mach_init.h>
@@ -320,6 +321,31 @@ Processor::Processor(std::shared_ptr<mpi::environment> env,
     this->globalConfig.set(config);
 
     if (!this->checkpointFileName.empty()) {
+        const char* debugSkip = std::getenv(
+                "JOBS_DEBUG_SKIP_INITIAL_CHECKPOINT_CHECK");
+        if (debugSkip == 0) {
+            //Make sure that the containing folder exists first; if it doesn't,
+            //then regardless of if the checkpoint exists or not, when we try
+            //to write it we will fail.
+            std::string folder = this->checkpointFileName;
+            size_t slashPos = folder.find_last_of('/');
+            if (slashPos == std::string::npos) {
+                slashPos = folder.find_last_of('\\');
+            }
+
+            if (slashPos != std::string::npos) {
+                //There is path information, check that we can access the
+                //folder
+                folder = folder.substr(0, slashPos);
+                struct stat info;
+                if (stat(folder.c_str(), &info) != 0) {
+                    ERROR("It looks like the folder containing the requested "
+                            "checkpoint file does not exist: "
+                            << this->checkpointFileName);
+                }
+            }
+        }
+
         std::ifstream cf(this->checkpointFileName);
         if (cf) {
             //File exists, we should resume from last checkpoint!
@@ -655,17 +681,21 @@ void Processor::run(const std::string& inputLine) {
         }
     }
     catch (...) {
-        //If an exception happens in the main thread, then we will catch it and
-        //join our threads before re-raising.  Otherwise, for whatever reason,
-        //e.g. the python interpreter does not properly exit.
         this->workerErrors.push_back(std::current_exception());
     }
 
-    //Stop all threads
-    this->joinThreads();
-
     //Did we stop because of an error?  Log to console, and then abort via MPI.
     if (this->workerErrors.size() != 0) {
+        //Change 2016-10-27.  This code used to call joinThreads() before
+        //throwing the exception up the stack.  However, sometimes this caused
+        //lockups where MPI would never exit.  So, this code was changed to use
+        //MPI_Abort, which forces MPI and all processes to exit.
+        //
+        //At first, this->joinThreads() was still called.  However, it has
+        //become apparent that since MPI_Abort() terminates everything in other
+        //processes without waiting for them to garbage collect, coupled with a
+        //job_stream bug that prevented threads from aborting when in a
+        //checkpoint, it makes sense to just log the exception and then abort.
         try {
             std::rethrow_exception(this->workerErrors[0]);
         }
@@ -677,6 +707,9 @@ void Processor::run(const std::string& inputLine) {
         }
         job_stream::mpiAbort();
     }
+
+    //Stop all threads
+    this->joinThreads();
 
     //Stop timer, report on user vs not
     outerTimer.reset();
@@ -2080,6 +2113,10 @@ void Processor::_updateCheckpoints(int msDiff) {
                 this->checkpointWaiting = this->world.size() - 1;
                 this->checkpointFile.reset(new std::ofstream(
                         (this->checkpointFileName + ".new").c_str()));
+                if (!this->checkpointFile->good()) {
+                    ERROR("Could not write checkpoint file: "
+                            << this->checkpointFileName + ".new");
+                }
                 this->checkpointAr.reset(new serialization::OArchive(
                         *this->checkpointFile));
                 serialization::encode(*this->checkpointAr,

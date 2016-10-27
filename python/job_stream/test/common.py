@@ -33,7 +33,7 @@ class JobStreamTest(unittest.TestCase):
         self.assertEqual(al, bl)
 
 
-    def execute(self, args, np = 1):
+    def execute(self, args, np=1, env=None):
         if not isinstance(args, list):
             args = [ args ]
         nargs = [ 'mpirun', '-q', '-np', str(np), sys.executable, '-u' ] + args
@@ -55,8 +55,11 @@ class JobStreamTest(unittest.TestCase):
             t.daemon = True
             t.start()
             return t
+        wholeEnv = os.environ.copy()
+        if env is not None:
+            wholeEnv.update(env)
         p = subprocess.Popen(nargs, stdout = subprocess.PIPE,
-                stderr = subprocess.PIPE)
+                stderr = subprocess.PIPE, env=wholeEnv)
         out = []
         err = []
         tees = [ tee(p.stdout, out), tee(p.stderr, err) ]
