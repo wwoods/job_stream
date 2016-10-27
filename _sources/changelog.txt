@@ -1,6 +1,7 @@
 Changelog
 =========
 
+* 2016-10-27 - Fixed bug where requested a checkpoint file whose parent does not exist would cause the whole job_stream to hang.  Python version bump to 0.1.29.
 * 2016-10-20 - Modified Processor behavior to automatically call MPI_Abort when an exception is thrown by a job.  This fixes some hangs when errors were raised in Python code, and should make job_stream behave more robustly in general.
 
   The job_stream binary was also modified to pass the ``mca`` flag ``orte_abort_on_non_zero_status``, to make sure that an arbitrary death of a process also causes MPI_Abort to be called.
