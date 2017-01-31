@@ -1,6 +1,7 @@
 Changelog
 =========
 
+* 2017-01-31 - Fixed checkpointInfo from python.
 * 2016-10-27 - Fixed bug where requested a checkpoint file whose parent does not exist would cause the whole job_stream to hang.  Python version bump to 0.1.29.
 * 2016-10-20 - Modified Processor behavior to automatically call MPI_Abort when an exception is thrown by a job.  This fixes some hangs when errors were raised in Python code, and should make job_stream behave more robustly in general.
 

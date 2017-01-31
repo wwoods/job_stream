@@ -994,6 +994,12 @@ void _timerHandleResult(job_stream::processor::Processor* p,
 }
 
 
+std::string checkpointInfo(bp::object o) {
+    std::string fname = getStrFromPy(o);
+    return job_stream::checkpointInfo(fname);
+}
+
+
 int getCpuCount() {
     return job_stream::getCpuCount();
 }
@@ -1178,7 +1184,7 @@ BOOST_PYTHON_MODULE(_job_stream) {
     bp::def("_timerStart", _timerStart, "Starts a new clock- and cpu- timer");
     bp::def("_timerPop", _timerPop, "Pops a previously started timer, "
             "returning (clock-time, cpu-time) in MS");
-    bp::def("checkpointInfo", job_stream::checkpointInfo, "Returns a human-readable "
+    bp::def("checkpointInfo", checkpointInfo, "Returns a human-readable "
             "string with details of a checkpoint's state");
     bp::def("getCpuCount", getCpuCount, "Returns the number of CPUs in the cluster");
     bp::def("getHostCpuCount", getHostCpuCount, "Returns the number of CPUs "
