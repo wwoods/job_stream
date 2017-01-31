@@ -22,15 +22,14 @@ void WorkerThread::main() {
     this->processor->localTimersInit();
     std::unique_ptr<Processor::WorkTimer> outerTimer(new Processor::WorkTimer(
             this->processor, Processor::TIME_IDLE));
-    try {
-        while (this->shouldRun) {
-            if (!this->processor->processInThread(this->workerIndex)) {
-                std::this_thread::sleep_for(std::chrono::milliseconds(10));
-            }
+
+    while (this->shouldRun && this->processor->shouldRun) {
+        //Actually do the job processing
+        bool gotWork = this->processor->processInThread(this->workerIndex);
+        if (!gotWork) {
+            //Don't busy wait and pointlessly burn cycles
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
-    }
-    catch (...) {
-        this->processor->workerErrors.emplace_back(std::current_exception());
     }
     outerTimer.reset();
     this->processor->localTimersMerge();

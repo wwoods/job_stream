@@ -1537,12 +1537,6 @@ bool Processor::processInThread(int workerId) {
     }
     catch (...) {
         error = std::current_exception();
-        //We set shouldRun to false here to accomplish the following:
-        //1. Abort other threads as soon as possible
-        //2. Since our cleanup takes our lock, we guarantee that no
-        //   checkpoints will occur between cleanup and the rethrowing
-        //   of an error.
-        this->shouldRun = false;
     }
 
     {
@@ -1550,7 +1544,8 @@ bool Processor::processInThread(int workerId) {
         //we ensure that no checkpoint is happening (and as a bonus, wait for
         //any pending checkpoint to finish).
         //Note - We _MUST_ do this step even if an error occurred!  Otherwise,
-        //reduction locks that were acquired will not be released.
+        //reduction locks that were acquired will not be released, and the
+        //application may never exit.
         Lock lock(this->_mutex);
         for (auto& m : this->workerWorkThisThread->outboundRings) {
             this->_startRingTest(m.reduceTag, m.parentTag, m.reducer);
@@ -1573,17 +1568,25 @@ bool Processor::processInThread(int workerId) {
             JobLog() << "Done with work in this thread, " << tag;
         }
 
-        //All done, was it locked for work?
+        //All done, was it locked for work?  Lock is re-entrant, so this unlock
+        //will not release the lock, but rather will remove a single hold on
+        //the lock.
         if (this->workerWorkThisThread->isLocked) {
             this->_mutex.unlock();
         }
 
         this->workerWork.erase(this->workerWorkThisThread);
         this->workerWorkThisThread = Processor::_WorkerInfoList::iterator();
-    }
 
-    if (error) {
-        std::rethrow_exception(error);
+        //Within the processor lock, log our error if we had one.
+        if (error) {
+            //We set shouldRun to false here to accomplish the following:
+            //1. Abort all threads as soon as possible.
+            //2. Do not allow a checkpoint, even after the lock is released.
+            this->shouldRun = false;
+
+            this->workerErrors.emplace_back(error);
+        }
     }
 
     return true;
@@ -1721,6 +1724,12 @@ bool Processor::tryReceive() {
 
             if (JOB_STREAM_DEBUG >= 1) {
                 JobLog() << "got checkpoint data from " << recv.source();
+            }
+            //Time has passed, make sure ofstream is still good (otherwise will
+            //hang indefinitely).
+            if (!this->checkpointFile->good() || this->checkpointFile->tellp() == -1) {
+                ERROR("Could not write checkpoint file: "
+                        << this->checkpointFileName + ".new");
             }
             serialization::encode(*this->checkpointAr, (int)recv.source());
             serialization::encode(*this->checkpointAr, msg.buffer);
@@ -2047,6 +2056,12 @@ void Processor::_updateCheckpoints(int msDiff) {
     //NOTE - While a checkpoint is in progress, the processor's mutex STAYS
     //LOCKED IN THE MAIN THREAD!  This makes other operations that would change
     //our state (such as finishing of jobs) wait until the checkpoint is over.
+    //
+    //If we're going to quit anyway, don't do any of this
+    if (!this->shouldRun) {
+        return;
+    }
+
     if (this->checkpointState == Processor::CHECKPOINT_NONE) {
         if (this->checkpointNext >= 0) {
             this->checkpointNext -= msDiff;
