@@ -669,11 +669,6 @@ void Processor::run(const std::string& inputLine) {
             //Wait a bit
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
 
-            //Check for errors; we don't re-raise until the end of this function
-            if (this->workerErrors.size() != 0) {
-                this->shouldRun = false;
-            }
-
             //Check external control signals
             if (this->checkExternalSignals && this->checkExternalSignals()) {
                 this->shouldRun = false;
@@ -1580,12 +1575,18 @@ bool Processor::processInThread(int workerId) {
 
         //Within the processor lock, log our error if we had one.
         if (error) {
+            this->workerErrors.emplace_back(error);
+
             //We set shouldRun to false here to accomplish the following:
             //1. Abort all threads as soon as possible.
             //2. Do not allow a checkpoint, even after the lock is released.
+            //Note that this must happen AFTER we've logged an error, as the
+            //Processor loop might not take the mutex.
             this->shouldRun = false;
 
-            this->workerErrors.emplace_back(error);
+            if (JOB_STREAM_DEBUG >= 1) {
+                JobLog() << "Got error, put on worker queue";
+            }
         }
     }
 

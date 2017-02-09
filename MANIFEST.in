@@ -5,3 +5,5 @@ graft yaml-cpp-0.5.1
 graft boost-mpi-1.61
 graft boost-serialization-1.61
 
+global-exclude *.swp
+
