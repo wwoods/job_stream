@@ -1,8 +1,9 @@
 Changelog
 =========
 
-* 2017-02-9 - Added stability for checkpoints and errors.  There was an issue with the Jan. 31st commit.  Version bump to 0.1.30.
-* 2017-01-31 - Fixed checkpointInfo from python.  Slightly more rigorous preservation of data with checkpoints in the face of exceptions.
+* 2017-3-4 - Allowed :meth:`job_stream.inline.Work.job` to be passed keyword argument ``useMultiprocessing`` to disable multiprocessing on a single-job basis.
+* 2017-2-9 - Added stability for checkpoints and errors.  There was an issue with the Jan. 31st commit.  Version bump to 0.1.30.
+* 2017-1-31 - Fixed checkpointInfo from python.  Slightly more rigorous preservation of data with checkpoints in the face of exceptions.
 * 2016-10-27 - Fixed bug where requested a checkpoint file whose parent does not exist would cause the whole job_stream to hang.  Python version bump to 0.1.29.
 * 2016-10-20 - Modified Processor behavior to automatically call MPI_Abort when an exception is thrown by a job.  This fixes some hangs when errors were raised in Python code, and should make job_stream behave more robustly in general.
 

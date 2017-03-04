@@ -211,6 +211,14 @@ class Work(object):
 
             Work([ 1, 2 ], useMultiprocessing=False)
 
+        This may also be done to individual jobs / frames / reducers:
+
+        .. code-block:: python
+
+            @w.job(useMultiprocessing=False)
+            def doSomething(work):
+                pass
+
     """
 
     def __init__(self, initialWork = [], useMultiprocessing = True,
@@ -494,10 +502,13 @@ class Work(object):
         return func
 
 
-    def job(self, func = None):
+    def job(self, func = None, **kwargs):
         """Decorates a job.  The decorated function must take one argument,
         which is the work coming into the job.  Anything returned is passed
         along to the next member of the stream.
+
+        You may also call :meth:`job` as ``w.job(useMultiprocessing=False)`` to
+        disable multiprocessing for this job.
 
         .. warning:: I/O Safety
 
@@ -513,6 +524,11 @@ class Work(object):
             # Invocation, not decoration
             return lambda func2: self.job(func2)
 
+        kw = kwargs.copy()
+        useMulti = kw.pop('useMultiprocessing', self._useMultiprocessing)
+        if kw:
+            raise ValueError("Unrecognized args: {}".format(kw))
+
         self._assertNoResult()
         funcCls = func
         if not inspect.isclass(funcCls):
@@ -525,7 +541,7 @@ class Work(object):
                 self._listCall(s.emit, results)
 
             funcCls = self._newType(func.__name__, job_stream.common.Job,
-                    handleWork = handle)
+                    handleWork = handle, useMultiprocessing=useMulti)
         self._stack[-1]['config']['jobs'].append(funcCls)
 
         # Return original function for multiplicity
