@@ -10,7 +10,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>job_stream.inline &mdash; job_stream 0.1.30 documentation</title>
+  <title>job_stream.inline &mdash; job_stream 0.1.31 documentation</title>
   
 
   
@@ -34,7 +34,7 @@
   
 
   
-    <link rel="top" title="job_stream 0.1.30 documentation" href="../../index.html"/>
+    <link rel="top" title="job_stream 0.1.31 documentation" href="../../index.html"/>
         <link rel="up" title="Module code" href="../index.html"/> 
 
   
@@ -63,7 +63,7 @@
             
             
               <div class="version">
-                0.1.30
+                0.1.31
               </div>
             
           
@@ -349,6 +349,14 @@
 
 <span class="sd">            Work([ 1, 2 ], useMultiprocessing=False)</span>
 
+<span class="sd">        This may also be done to individual jobs / frames / reducers:</span>
+
+<span class="sd">        .. code-block:: python</span>
+
+<span class="sd">            @w.job(useMultiprocessing=False)</span>
+<span class="sd">            def doSomething(work):</span>
+<span class="sd">                pass</span>
+
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">initialWork</span> <span class="o">=</span> <span class="p">[],</span> <span class="n">useMultiprocessing</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
@@ -632,10 +640,13 @@
         <span class="k">return</span> <span class="n">func</span></div>
 
 
-<div class="viewcode-block" id="Work.job"><a class="viewcode-back" href="../../_autosummary/job_stream.inline.html#job_stream.inline.Work.job">[docs]</a>    <span class="k">def</span> <span class="nf">job</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">func</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="Work.job"><a class="viewcode-back" href="../../_autosummary/job_stream.inline.html#job_stream.inline.Work.job">[docs]</a>    <span class="k">def</span> <span class="nf">job</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">func</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Decorates a job.  The decorated function must take one argument,</span>
 <span class="sd">        which is the work coming into the job.  Anything returned is passed</span>
 <span class="sd">        along to the next member of the stream.</span>
+
+<span class="sd">        You may also call :meth:`job` as ``w.job(useMultiprocessing=False)`` to</span>
+<span class="sd">        disable multiprocessing for this job.</span>
 
 <span class="sd">        .. warning:: I/O Safety</span>
 
@@ -651,6 +662,11 @@
             <span class="c1"># Invocation, not decoration</span>
             <span class="k">return</span> <span class="k">lambda</span> <span class="n">func2</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">job</span><span class="p">(</span><span class="n">func2</span><span class="p">)</span>
 
+        <span class="n">kw</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">useMulti</span> <span class="o">=</span> <span class="n">kw</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;useMultiprocessing&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_useMultiprocessing</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">kw</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Unrecognized args: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">kw</span><span class="p">))</span>
+
         <span class="bp">self</span><span class="o">.</span><span class="n">_assertNoResult</span><span class="p">()</span>
         <span class="n">funcCls</span> <span class="o">=</span> <span class="n">func</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">inspect</span><span class="o">.</span><span class="n">isclass</span><span class="p">(</span><span class="n">funcCls</span><span class="p">):</span>
@@ -663,7 +679,7 @@
                 <span class="bp">self</span><span class="o">.</span><span class="n">_listCall</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">emit</span><span class="p">,</span> <span class="n">results</span><span class="p">)</span>
 
             <span class="n">funcCls</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_newType</span><span class="p">(</span><span class="n">func</span><span class="o">.</span><span class="n">__name__</span><span class="p">,</span> <span class="n">job_stream</span><span class="o">.</span><span class="n">common</span><span class="o">.</span><span class="n">Job</span><span class="p">,</span>
-                    <span class="n">handleWork</span> <span class="o">=</span> <span class="n">handle</span><span class="p">)</span>
+                    <span class="n">handleWork</span> <span class="o">=</span> <span class="n">handle</span><span class="p">,</span> <span class="n">useMultiprocessing</span><span class="o">=</span><span class="n">useMulti</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_stack</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="s1">&#39;config&#39;</span><span class="p">][</span><span class="s1">&#39;jobs&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">funcCls</span><span class="p">)</span>
 
         <span class="c1"># Return original function for multiplicity</span>
@@ -932,7 +948,7 @@
     <script type="text/javascript">
         var DOCUMENTATION_OPTIONS = {
             URL_ROOT:'../../',
-            VERSION:'0.1.30',
+            VERSION:'0.1.31',
             COLLAPSE_INDEX:false,
             FILE_SUFFIX:'.html',
             HAS_SOURCE:  true
