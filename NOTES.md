@@ -12,9 +12,10 @@ Release
 5. cd sphinx/ and make html, check documentation
 6. Run python setup.py sdist
 7. Run tar -ztvf dist/job_stream-latest.tar.gz, make sure only desired files were included
-8. Commit changes to git except sphinx/_build, reset those
+8. Commit changes to git except sphinx/\_build, reset those
 9. Run python setup.py sdist upload -r pypi
 10. cd sphinx/ and make gh-pages
+11. Tag the python release (e.g., git tag python-v0.1.30)
 
 
 Tests in Weird Locations
