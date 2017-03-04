@@ -10,7 +10,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Changelog &mdash; job_stream 0.1.30 documentation</title>
+  <title>Changelog &mdash; job_stream 0.1.31 documentation</title>
   
 
   
@@ -34,7 +34,7 @@
   
 
   
-    <link rel="top" title="job_stream 0.1.30 documentation" href="index.html"/>
+    <link rel="top" title="job_stream 0.1.31 documentation" href="index.html"/>
         <link rel="next" title="Roadmap" href="roadmap.html"/>
         <link rel="prev" title="job_stream" href="main.html"/> 
 
@@ -64,7 +64,7 @@
             
             
               <div class="version">
-                0.1.30
+                0.1.31
               </div>
             
           
@@ -139,9 +139,11 @@
   <div class="section" id="changelog">
 <h1>Changelog<a class="headerlink" href="#changelog" title="Permalink to this headline">¶</a></h1>
 <ul>
-<li><p class="first">2017-02-9 - Added stability for checkpoints and errors.  There was an issue with the Jan. 31st commit.  Version bump to 0.1.30.</p>
+<li><p class="first">2017-3-4 - Allowed <a class="reference internal" href="_autosummary/job_stream.inline.html#job_stream.inline.Work.job" title="job_stream.inline.Work.job"><code class="xref py py-meth docutils literal"><span class="pre">job_stream.inline.Work.job()</span></code></a> to be passed keyword argument <code class="docutils literal"><span class="pre">useMultiprocessing</span></code> to disable multiprocessing on a single-job basis.</p>
 </li>
-<li><p class="first">2017-01-31 - Fixed checkpointInfo from python.  Slightly more rigorous preservation of data with checkpoints in the face of exceptions.</p>
+<li><p class="first">2017-2-9 - Added stability for checkpoints and errors.  There was an issue with the Jan. 31st commit.  Version bump to 0.1.30.</p>
+</li>
+<li><p class="first">2017-1-31 - Fixed checkpointInfo from python.  Slightly more rigorous preservation of data with checkpoints in the face of exceptions.</p>
 </li>
 <li><p class="first">2016-10-27 - Fixed bug where requested a checkpoint file whose parent does not exist would cause the whole job_stream to hang.  Python version bump to 0.1.29.</p>
 </li>
@@ -363,7 +365,7 @@ allocations and copies.  Default implementation with += removed.</p>
     <script type="text/javascript">
         var DOCUMENTATION_OPTIONS = {
             URL_ROOT:'./',
-            VERSION:'0.1.30',
+            VERSION:'0.1.31',
             COLLAPSE_INDEX:false,
             FILE_SUFFIX:'.html',
             HAS_SOURCE:  true

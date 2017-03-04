@@ -10,7 +10,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>job_stream.inline &mdash; job_stream 0.1.30 documentation</title>
+  <title>job_stream.inline &mdash; job_stream 0.1.31 documentation</title>
   
 
   
@@ -34,7 +34,7 @@
   
 
   
-    <link rel="top" title="job_stream 0.1.30 documentation" href="../index.html"/>
+    <link rel="top" title="job_stream 0.1.31 documentation" href="../index.html"/>
         <link rel="up" title="job_stream" href="../python.html"/>
         <link rel="next" title="job_stream.invoke" href="job_stream.invoke.html"/>
         <link rel="prev" title="job_stream.baked" href="job_stream.baked.html"/> 
@@ -65,7 +65,7 @@
             
             
               <div class="version">
-                0.1.30
+                0.1.31
               </div>
             
           
@@ -305,7 +305,13 @@ a lot of data in memory that you would rather not duplicate, passing
 <code class="docutils literal"><span class="pre">useMultiprocessing=False</span></code> to the <a class="reference internal" href="#job_stream.inline.Work" title="job_stream.inline.Work"><code class="xref py py-class docutils literal"><span class="pre">Work</span></code></a> object&#8217;s initializer
 will force all job_stream activity to happen within the original
 process:</p>
-<div class="last highlight-python"><div class="highlight"><pre><span></span><span class="n">Work</span><span class="p">([</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span> <span class="p">],</span> <span class="n">useMultiprocessing</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="n">Work</span><span class="p">([</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span> <span class="p">],</span> <span class="n">useMultiprocessing</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>This may also be done to individual jobs / frames / reducers:</p>
+<div class="last highlight-python"><div class="highlight"><pre><span></span><span class="nd">@w.job</span><span class="p">(</span><span class="n">useMultiprocessing</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">doSomething</span><span class="p">(</span><span class="n">work</span><span class="p">):</span>
+    <span class="k">pass</span>
 </pre></div>
 </div>
 </div>
@@ -511,10 +517,12 @@ runs, etc.</p>
 
 <dl class="method">
 <dt id="job_stream.inline.Work.job">
-<code class="descname">job</code><span class="sig-paren">(</span><em>func=None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/job_stream/inline.html#Work.job"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#job_stream.inline.Work.job" title="Permalink to this definition">¶</a></dt>
+<code class="descname">job</code><span class="sig-paren">(</span><em>func=None</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/job_stream/inline.html#Work.job"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#job_stream.inline.Work.job" title="Permalink to this definition">¶</a></dt>
 <dd><p>Decorates a job.  The decorated function must take one argument,
 which is the work coming into the job.  Anything returned is passed
 along to the next member of the stream.</p>
+<p>You may also call <a class="reference internal" href="#job_stream.inline.Work.job" title="job_stream.inline.Work.job"><code class="xref py py-meth docutils literal"><span class="pre">job()</span></code></a> as <code class="docutils literal"><span class="pre">w.job(useMultiprocessing=False)</span></code> to
+disable multiprocessing for this job.</p>
 <div class="admonition warning">
 <p class="first admonition-title">Warning</p>
 <p>I/O Safety</p>
@@ -801,7 +809,7 @@ identical.</p>
     <script type="text/javascript">
         var DOCUMENTATION_OPTIONS = {
             URL_ROOT:'../',
-            VERSION:'0.1.30',
+            VERSION:'0.1.31',
             COLLAPSE_INDEX:false,
             FILE_SUFFIX:'.html',
             HAS_SOURCE:  true
