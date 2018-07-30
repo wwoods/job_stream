@@ -9,7 +9,6 @@
 #include <boost/asio/ip/host_name.hpp>
 #include <boost/bind.hpp>
 #include <boost/lexical_cast.hpp>
-#define BOOST_PROCESS_WINDOWS_USE_NAMED_PIPE
 #include <boost/process.hpp>
 
 #include <functional>
@@ -22,14 +21,6 @@
 
 namespace ba = boost::asio;
 namespace bp = boost::process;
-
-#if defined(BOOST_POSIX_API)
-typedef ba::posix::stream_descriptor bpAsio;
-#elif defined(BOOST_WINDOWS_API)
-typedef ba::windows::stream_handle bpAsio;
-#else
-#  error "Unsupported platform."
-#endif
 
 namespace job_stream {
 namespace invoke {
@@ -48,9 +39,29 @@ FakeInvokeWait::~FakeInvokeWait() {
 }
 
 
+std::tuple<std::string, std::string> _statusToResultOrException(
+        const std::vector<std::string>& progAndArgs,
+        const std::tuple<int, std::string, std::string>& r) {
+    if (std::get<0>(r) != 0) {
+        std::ostringstream ss;
+        ss << "Bad exit on from";
+        for (const std::string& arg : progAndArgs) {
+            ss << " " << arg;
+        }
+        ss << ": ****\n*STDERR*\n" << std::get<2>(r);
+        ss << "\n\n*STDOUT*\n" << std::get<1>(r);
+        ss << "\n**** Bad Exit";
+        throw std::runtime_error(ss.str());
+    }
+
+    return std::make_tuple(std::get<1>(r), std::get<2>(r));
+}
+
+
 std::tuple<std::string, std::string> run(
         const std::vector<std::string>& progAndArgs) {
-    return run(progAndArgs, std::vector<std::string>());
+    const auto r = runWithStdin(progAndArgs, "");
+    return _statusToResultOrException(progAndArgs, r);
 }
 
 
@@ -58,19 +69,74 @@ std::tuple<std::string, std::string> run(
         const std::vector<std::string>& progAndArgs,
         const std::vector<std::string>& transientErrors,
         int maxRetries) {
+    int timeToNext = 1;
+    for (int trial = 0, trialm = maxRetries; trial < trialm; trial++) {
+        if (trial > 0) {
+            JobLog() << "TRYING AGAIN (" << trial+1 << ") IN "
+                    << timeToNext << " SEC";
+            if (isTestCondition == 0) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(
+                        timeToNext * 1000));
+            }
+            timeToNext += 1;
+        }
+
+        const auto r = runWithStdin(progAndArgs, "");
+        if (std::get<0>(r) != 0) {
+            //Can we retry?
+            if (trial == trialm - 1) {
+                JobLog() << "RAISING FAILURE CONDITIONALLY ON FINAL TRIAL "
+                        << trial+1;
+                return _statusToResultOrException(progAndArgs, r);
+            }
+
+            //Check if it's transient.
+            //We only retry if "No child processes" is the error.  This
+            //is an OS thing that is transient.
+
+            std::string emsg(std::get<2>(r));
+            auto nf = std::string::npos;
+            bool isTransient = false;
+            if (emsg.find("No child processes") != nf) {
+                isTransient = true;
+            }
+            else {
+                for (int tranI = 0, tranIm = transientErrors.size();
+                        tranI < tranIm; tranI++) {
+                    if (emsg.find(transientErrors[tranI]) != nf) {
+                        isTransient = true;
+                        break;
+                    }
+                }
+            }
+
+            if (isTransient) continue;
+
+            //If we reach here, we know it will fail, and is non-transient.
+            JobLog() << "RAISING NON-TRANSIENT FAILURE AFTER TRIAL "
+                    << trial+1;
+        }
+        return _statusToResultOrException(progAndArgs, r);
+    }
+
+    throw std::runtime_error("Shouldn't happen - must exit before this.");
+}
+
+
+std::tuple<int, std::string, std::string> runWithStdin(
+        const std::vector<std::string>& progAndArgs,
+        const std::string& stdin) {
     //Forking is REALLY slow, even though it avoids the "No child processes"
     //issue we see when forking under mpi.  We'll try a NO_FORK version, which
     //simply re-launches the process if we get a "No child processes"
     //message, which seems to happen regularly here for whatever reason.
-    bp::context ctx;
-    ctx.stdout_behavior = bp::capture_stream();
-    ctx.stderr_behavior = bp::capture_stream();
-    ctx.stdin_behavior = bp::close_stream();
-    ctx.environment = bp::self::get_environment();
-    for (auto& k : ctx.environment) {
-        if (k.first.find("OMPI_") != std::string::npos
-                || k.first.find("OPAL_") != std::string::npos) {
-            ctx.environment.erase(k.first);
+    auto env_self = boost::this_process::environment();
+    bp::environment env = env_self;
+    for (bp::environment::iterator it = env.begin(); it != env.end(); ++it) {
+        const std::string name = (*it).get_name();
+        if (name.find("OMPI_") != std::string::npos
+                || name.find("OPAL_") != std::string::npos) {
+            env.erase(name);
         }
     }
 
@@ -97,105 +163,28 @@ std::tuple<std::string, std::string> run(
         #endif
     }
 
-    int timeToNext = 1;
-    for (int trial = 0, trialm = maxRetries; trial < trialm; trial++) {
-        if (trial > 0) {
-            JobLog() << "TRYING AGAIN (" << trial+1 << ") IN "
-                    << timeToNext << " SEC";
-            if (isTestCondition == 0) {
-                std::this_thread::sleep_for(std::chrono::milliseconds(
-                        timeToNext * 1000));
-            }
-            timeToNext += 1;
-        }
-        std::ostringstream out, err;
-        try {
-            bp::child es = bp::launch(progAndArgs[0], progAndArgs, ctx);
+    //Buffer stdout and stderr, so that we won't lock up if the program
+    //pushes a lot of bytes
+    ba::io_service io_service;
+    std::future<std::string> out, err;
 
-            //Buffer stdout and stderr, so that we won't lock up if the program
-            //pushes a lot of bytes
-            boost::array<char, 4096> outBuffer, errBuffer;
-            ba::io_service io_service;
-            bpAsio outReader(io_service);
-            bpAsio errReader(io_service);
+    //Format stdin in a way boost::process understands
+    bp::opstream input;
 
-            outReader.assign(es.get_stdout().handle().release());
-            errReader.assign(es.get_stderr().handle().release());
+    std::vector<std::string> progArgs(progAndArgs);
+    progArgs.erase(progArgs.begin());
+    bp::child es(progAndArgs[0], progArgs,
+            bp::std_out > out, bp::std_err > err,
+            bp::std_in < input, io_service, env);
 
-            std::function<void(const boost::system::error_code&, std::size_t)>
-                    outEnd, errEnd;
-            auto outBegin = [&] {
-                outReader.async_read_some(boost::asio::buffer(outBuffer),
-                        boost::bind(outEnd, ba::placeholders::error,
-                            ba::placeholders::bytes_transferred));
-            };
-            outEnd = [&](const boost::system::error_code& ec,
-                    std::size_t bytesTransferred) {
-                if (!ec) {
-                    out << std::string(outBuffer.data(), bytesTransferred);
-                    outBegin();
-                }
-            };
-            auto errBegin = [&]() {
-                errReader.async_read_some(boost::asio::buffer(errBuffer),
-                        boost::bind(errEnd, ba::placeholders::error,
-                            ba::placeholders::bytes_transferred));
-            };
-            errEnd = [&](const boost::system::error_code& ec,
-                    std::size_t bytesTransferred) {
-                if (!ec) {
-                    err << std::string(errBuffer.data(), bytesTransferred);
-                    errBegin();
-                }
-            };
+    input << stdin;
+    input.flush();
+    input.pipe().close();
 
-            outBegin();
-            errBegin();
-
-            io_service.run();
-            auto status = es.wait();
-            if (!status.exited() || status.exit_status() != 0) {
-                std::ostringstream ss;
-                ss << "Bad exit on attempt " << trial+1 << " from";
-                for (const std::string& arg : progAndArgs) {
-                    ss << " " << arg;
-                }
-                ss << ": ****\n*STDERR*\n" << err.str();
-                ss << "\n\n*STDOUT*\n" << out.str();
-                ss << "\n**** Bad Exit";
-                throw std::runtime_error(ss.str());
-            }
-            return std::make_tuple(out.str(), err.str());
-        }
-        catch (const std::exception& e) {
-            std::string emsg(e.what());
-            auto nf = std::string::npos;
-            //We only retry if "No child processes" is the error.  This
-            //is an OS thing that is transient.
-            if (trial == trialm - 1) {
-                JobLog() << "RAISING TRANSIENT AFTER FAILURE NUMBER " << trial+1;
-                throw;
-            }
-
-            bool isTransient = false;
-            if (emsg.find("No child processes") != nf) {
-                isTransient = true;
-            }
-            else {
-                for (int tranI = 0, tranIm = transientErrors.size();
-                        tranI < tranIm; tranI++) {
-                    if (err.str().find(transientErrors[tranI]) != nf) {
-                        isTransient = true;
-                        break;
-                    }
-                }
-            }
-
-            if (!isTransient) {
-                throw;
-            }
-        }
-    }
+    io_service.run();
+    es.wait();
+    int status = es.exit_code();
+    return std::make_tuple(status, out.get(), err.get());
 }
 
 } //invoke

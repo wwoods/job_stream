@@ -73,7 +73,9 @@ class TestBin(JobStreamTest):
                 stderr=subprocess.PIPE)
         stdout, stderr = p.communicate()
         r = p.wait()
-        return r, stdout.decode('utf-8'), stderr.decode('utf-8')
+        stdout = stdout.decode('utf-8')
+        stdout = self._filterMpiStdout(stdout)
+        return r, stdout, stderr.decode('utf-8')
 
 
     def _runOk(self, args):

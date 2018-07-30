@@ -1,5 +1,6 @@
 
 import os
+import re
 import six
 import subprocess
 import sys
@@ -67,14 +68,9 @@ class JobStreamTest(unittest.TestCase):
         [ t.join() for t in tees ]
 
         # Filter out error output in stdout
-        for i in range(len(out) - 4, -1, -1):
-            if (out[i].startswith(u"--------")
-                    and out[i+1].startswith(u"Primary job")
-                    and out[i+2].startswith(u"a non-zero exit code")
-                    and out[i+3].startswith(u"--------")):
-                out = out[:i] + out[i+4:]
-
         out = ''.join(out)
+        out = self._filterMpiStdout(out)
+
         err = ''.join(err)
         if r != 0:
             raise ExecuteError(args, r, out, err)
@@ -102,3 +98,14 @@ class JobStreamTest(unittest.TestCase):
             # Doesn't exit
             if e.errno != 2:
                 raise
+
+
+    def _filterMpiStdout(self, out):
+        for r in [
+                # These should mirror the list in test/test_example.cpp
+                '-+\nPrimary job.*normally.*\na non-zero exit code.*\n-+\n',
+                '-+\nmpirun detected that one or more.*non-zero status.*\n(.*\n)+?----+\n',
+                '-+\n.*A high-performance Open MPI(.*\n)+lower performance[.]\n-+\n',
+                ]:
+            out = re.compile(r).sub('', out)
+        return out

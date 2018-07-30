@@ -1,0 +1,1 @@
+mpicxx   -std=c++0x -ftemplate-backtrace-limit=0  -rdynamic CMakeFiles/example/job_stream_example.dir/example/main.cpp.o  -o example/job_stream_example libjob_stream.a BOOST_SYSTEM_LIBRARY-NOTFOUND BOOST_THREAD_LIBRARY-NOTFOUND -ldl 

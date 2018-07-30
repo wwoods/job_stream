@@ -18,6 +18,17 @@ TEST_CASE("invoke") {
         std::tie(output, error) = inv::run(args);
         REQUIRE(output == "Hello, world!\n");
     }
+    SECTION("stdin") {
+        std::vector<string> args;
+        args.push_back("/bin/cat");
+        int status;
+        std::string output, error;
+        std::tie(status, output, error) = inv::runWithStdin(args, "monkeys");
+        INFO(output);
+        INFO(error);
+        REQUIRE(status == 0);
+        REQUIRE(output == "monkeys");
+    }
     SECTION("bad cat") {
         std::string output, error;
         std::vector<string> args;

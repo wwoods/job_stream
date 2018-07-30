@@ -8,7 +8,8 @@ std::tuple<std::string, std::string> run(std::string prog, std::string args,
 std::tuple<int, std::string, std::string> runRetval(std::string prog,
         std::string args, std::string input);
 void runWithExpectedOut(std::string prog, std::string args, std::string input,
-        std::string output, bool lastOnly, bool ordered);
+        std::string output, bool lastOnly, bool ordered,
+        std::function<std::string(std::string)> transform);
 std::vector<std::string> sortedLines(std::string input);
 std::vector<std::string> sortedLinesLimited(std::string input,
         const std::vector<std::string>& onlyIncludeIfMatching);

@@ -27,6 +27,16 @@ std::tuple<std::string, std::string> run(
         const std::vector<std::string>& transientErrors,
         int maxRetries = 20);
 
+
+/** Primarily for testing; run a program with given stdin, also return the exit
+ * status.
+ *
+ * Does not throw exception if return value not equal to zero.
+ * */
+std::tuple<int, std::string, std::string> runWithStdin(
+        const std::vector<std::string>& progAndArgs,
+        const std::string& stdin);
+
 /** Called by main job_stream right before processor (and thus MPI routines and
     job_stream threads) starts. */
 void _init();

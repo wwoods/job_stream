@@ -16,14 +16,18 @@ using string = std::string;
 
 /** Since some MPI versions have non-blank stdout when a process returns
     non-zero error, the tests must be a bit more sophisticated.
+
+    2018-08-30 - Now they do it on a zero error too.  Super annoying.
+    You suck, Open MPI.
     */
-string processStdoutMpiNonzero(string output) {
+string __processStdoutMpi(string output) {
     string exp(output);
     string rep("");
 
     const string mpiMatches[] = {
             "-+\nPrimary job.*normally.*\na non-zero exit code.*\n-+\n",
-            "-+\nmpirun detected that one or more.*non-zero status.*\n(.*\n)+?----+\n"
+            "-+\nmpirun detected that one or more.*non-zero status.*\n(.*\n)+?----+\n",
+            "-+\n.*A high-performance Open MPI(.*\n)+lower performance[.]\n-+\n",
     };
 
     for (auto& mRegex : mpiMatches) {
@@ -42,6 +46,10 @@ string processStdoutMpiNonzero(string output) {
 }
 
 
+string processStdoutMpiNonzero(string a) { return __processStdoutMpi(a); }
+string processStdoutMpiZero(string a) { return __processStdoutMpi(a); }
+
+
 void testExample(string pipe, string input, string output,
         bool lastOnly = false, bool ordered = true) {
     SECTION(pipe) {
@@ -49,11 +57,11 @@ void testExample(string pipe, string input, string output,
         string args = "example/job_stream_example ../example/" + pipe;
         WHEN("one process") {
             runWithExpectedOut(prog, "-np 1 " + args, input, output, lastOnly,
-                    ordered);
+                    ordered, processStdoutMpiZero);
         }
         WHEN("four processes") {
             runWithExpectedOut(prog, "-np 4 " + args, input, output, lastOnly,
-                    ordered);
+                    ordered, processStdoutMpiZero);
         }
     }
 }
@@ -84,6 +92,8 @@ TEST_CASE("example/job_stream_example/depthFirst.yaml") {
         INFO("Full stderr: \n" << err);
         INFO("Full stdout: \n" << out);
 
+        out = processStdoutMpiZero(out);
+
         double pos1 = 0., pos2 = 0.;
         int seen1 = 0, seen2 = 0, lineno = 0;
         std::regex outLine("(^|\n)([^\n]+)(?=$|\n)");
@@ -99,7 +109,7 @@ TEST_CASE("example/job_stream_example/depthFirst.yaml") {
                 pos2 += lineno;
             }
             else {
-                FAIL(m[2].str());
+                FAIL("SAW '" << m[2].str() << "'");
             }
             lineno++;
         }

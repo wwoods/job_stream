@@ -5,26 +5,13 @@
 #include <boost/asio.hpp>
 #include <boost/algorithm/string.hpp>
 #include <boost/bind.hpp>
-#define BOOST_PROCESS_WINDOWS_USE_NAMED_PIPE
-#include <boost/process.hpp>
+#include <job_stream/invoke.h>
 #include <job_stream/message.h>
 
 #include <functional>
 
-namespace ba = boost::asio;
-namespace bp = boost::process;
-
 using string = std::string;
 using Location = job_stream::message::Location;
-
-#if defined(BOOST_POSIX_API)
-typedef ba::posix::stream_descriptor bpAsio;
-#elif defined(BOOST_WINDOWS_API)
-typedef ba::windows::stream_handle bpAsio;
-#else
-#  error "Unsupported platform."
-#endif
-
 
 std::tuple<string, string> run(string prog, string args, string input) {
     auto r = runRetval(prog, args, input);
@@ -37,66 +24,10 @@ std::tuple<string, string> run(string prog, string args, string input) {
 
 std::tuple<int, string, string> runRetval(string prog, string args,
         string input) {
-    bp::context ctx;
-    ctx.stdin_behavior = bp::capture_stream();
-    ctx.stdout_behavior = bp::capture_stream();
-    ctx.stderr_behavior = bp::capture_stream();
-    ctx.environment = bp::self::get_environment();
     std::vector<std::string> splitArgs;
     boost::algorithm::split(splitArgs, args, boost::is_any_of(" "));
     splitArgs.emplace(splitArgs.begin(), prog);
-    bp::child es = bp::launch(prog, splitArgs, ctx);
-    es.get_stdin() << input;
-    es.get_stdin().close();
-
-    std::ostringstream obuf, ebuf;
-    boost::array<char, 4096> outBuffer, errBuffer;
-
-    ba::io_service io_service;
-    bpAsio outReader(io_service);
-    bpAsio errReader(io_service);
-
-    outReader.assign(es.get_stdout().handle().release());
-    errReader.assign(es.get_stderr().handle().release());
-
-    std::function<void(const boost::system::error_code&, std::size_t)> outEnd,
-            errEnd;
-    auto outBegin = [&]() {
-        outReader.async_read_some(boost::asio::buffer(outBuffer),
-                boost::bind(outEnd, ba::placeholders::error,
-                    ba::placeholders::bytes_transferred));
-    };
-    outEnd = [&](const boost::system::error_code& ec,
-            std::size_t bytesTransferred) {
-        if (!ec) {
-            obuf << std::string(outBuffer.data(), bytesTransferred);
-            outBegin();
-        }
-    };
-    auto errBegin = [&]() {
-        errReader.async_read_some(boost::asio::buffer(errBuffer),
-                boost::bind(errEnd, ba::placeholders::error,
-                    ba::placeholders::bytes_transferred));
-    };
-    errEnd = [&](const boost::system::error_code& ec,
-            std::size_t bytesTransferred) {
-        if (!ec) {
-            ebuf << std::string(errBuffer.data(), bytesTransferred);
-            errBegin();
-        }
-    };
-
-    outBegin();
-    errBegin();
-
-    io_service.run();
-    auto stat = es.wait();
-
-    INFO("Stdout: " << obuf.str());
-    INFO("Stderr: " << ebuf.str());
-
-    return std::tuple<int, string, string>(stat.exit_status(), obuf.str(),
-            ebuf.str());
+    return job_stream::invoke::runWithStdin(splitArgs, input);
 }
 
 
@@ -143,7 +74,7 @@ std::vector<std::string> sortedLinesLimited(std::string input,
 
 
 void runWithExpectedOut(string prog, string args, string input, string output,
-        bool lastOnly, bool ordered) {
+        bool lastOnly, bool ordered, std::function<string(string)> transform) {
     if (lastOnly && !ordered) {
         throw std::runtime_error("lastOnly && !ordered - bad param combination."
                 "  lastOnly is incompatible with unordered");
@@ -155,6 +86,8 @@ void runWithExpectedOut(string prog, string args, string input, string output,
 
     INFO("Full stdout: " << out);
     INFO("Full stderr: " << err);
+    out = transform(out);
+    INFO("Transformed stdout: " << out);
     if (ordered) {
         if (lastOnly) {
             out = getLastLine(std::move(out));

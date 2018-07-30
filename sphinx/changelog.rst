@@ -1,6 +1,9 @@
 Changelog
 =========
 
+* 2018-7-30 - Fixed compilation with Boost 1.67.0.  Now using Boost's official boost::process implementation rather than the unofficial one that was bundled with job\_stream previously.
+
+  Python version bumped to 0.1.32.
 * 2017-3-4 - Allowed :meth:`job_stream.inline.Work.job` to be passed keyword argument ``useMultiprocessing`` to disable multiprocessing on a single-job basis.
 * 2017-2-9 - Added stability for checkpoints and errors.  There was an issue with the Jan. 31st commit.  Version bump to 0.1.30.
 * 2017-1-31 - Fixed checkpointInfo from python.  Slightly more rigorous preservation of data with checkpoints in the face of exceptions.

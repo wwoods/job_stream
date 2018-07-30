@@ -3,5 +3,5 @@
 # 1) we don't load dependencies by storing it in __init__.py
 # 2) we can import it into setup.py for the same reason
 # 3) we can import it into our module
-__version__ = '0.1.31'
+__version__ = '0.1.32'
 

@@ -56,11 +56,11 @@ print("Hello, world")
         with self.assertRaisesRegex(RuntimeError,
                 r"^job_stream/invoke\.cpp.*Program specified not executable.*"
                 ):
-            invoke(['test_no_exe'])
+            invoke(['./test_no_exe'])
 
 
     def test_invoke_relative(self):
-        o, e = invoke(['test_exe'])
+        o, e = invoke(['./test_exe'])
         self.assertEqual("Hello, world\n", o)
         self.assertEqual("", e)
 

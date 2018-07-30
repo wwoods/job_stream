@@ -26,7 +26,7 @@ SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x -ftemplate-backtrace-limit=0"
 #add_definitions(-pg)
 #SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -pg")
 
-include_directories(job_stream/boost_process/ yaml-cpp-0.5.1/include/
+include_directories(yaml-cpp-0.5.1/include/
         boost-mpi-1.61/include/ boost-serialization-1.61/include/
         boost-serialization-1.61/src/)
 find_library(BOOST_SYSTEM_LIBRARY
@@ -201,7 +201,7 @@ add_custom_command(TARGET test-long
 
 add_custom_target(job_stream_python)
 add_custom_command(TARGET job_stream_python
-        POST_BUILD COMMAND /bin/sh -c 'cd .. && pip install --user --upgrade . || pip install --upgrade .')
+        POST_BUILD COMMAND /bin/sh -c 'cd .. && pip install --upgrade . || pip install --upgrade .')
 
 # Test the python module
 add_custom_target(test-python DEPENDS job_stream_python)

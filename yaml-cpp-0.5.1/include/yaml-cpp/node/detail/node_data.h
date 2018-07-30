@@ -10,7 +10,8 @@
 #include "yaml-cpp/node/iterator.h"
 #include "yaml-cpp/node/ptr.h"
 #include "yaml-cpp/node/type.h"
-#include <boost/utility.hpp>
+#include <boost/core/noncopyable.hpp>
+#include <boost/next_prior.hpp>
 #include <list>
 #include <utility>
 #include <vector>
