@@ -10,9 +10,11 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>job_stream.common &mdash; job_stream 0.1.31 documentation</title>
+  <title>job_stream.common &mdash; job_stream 0.1.32 documentation</title>
   
 
+  
+  
   
   
 
@@ -24,26 +26,20 @@
 
   
 
-  
-  
-    <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
-  
-
-  
-    <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
-  
-
-  
-    <link rel="top" title="job_stream 0.1.31 documentation" href="../../index.html"/>
-        <link rel="up" title="Module code" href="../index.html"/> 
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
 
   
   <script src="../../_static/js/modernizr.min.js"></script>
 
 </head>
 
-<body class="wy-body-for-nav" role="document">
+<body class="wy-body-for-nav">
 
+   
   <div class="wy-grid-for-nav">
 
     
@@ -63,7 +59,7 @@
             
             
               <div class="version">
-                0.1.31
+                0.1.32
               </div>
             
           
@@ -84,7 +80,10 @@
           
             
             
-                <ul>
+              
+            
+            
+              <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../main.html">job_stream</a></li>
 </ul>
 <ul>
@@ -102,34 +101,52 @@
     <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
 
       
-      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
-        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
-        <a href="../../index.html">job_stream</a>
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">job_stream</a>
+        
       </nav>
 
 
-      
       <div class="wy-nav-content">
+        
         <div class="rst-content">
+        
           
+
+
+
+
+
+
+
+
+
+
 
 
 
 
 
 <div role="navigation" aria-label="breadcrumbs navigation">
+
   <ul class="wy-breadcrumbs">
-    <li><a href="../../index.html">Docs</a> &raquo;</li>
-      
+    
+      <li><a href="../../index.html">Docs</a> &raquo;</li>
+        
           <li><a href="../index.html">Module code</a> &raquo;</li>
-      
-    <li>job_stream.common</li>
+        
+      <li>job_stream.common</li>
+    
+    
       <li class="wy-breadcrumbs-aside">
         
-          
-        
       </li>
+    
   </ul>
+
+  
   <hr/>
 </div>
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
@@ -216,12 +233,12 @@
 <div class="viewcode-block" id="Object"><a class="viewcode-back" href="../../_autosummary/job_stream.common.html#job_stream.common.Object">[docs]</a><span class="k">class</span> <span class="nc">Object</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;A generic object with no attributes of its own.&quot;&quot;&quot;</span>
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">__dict__</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)</span>
 
 
     <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="n">r</span> <span class="o">=</span> <span class="p">[</span> <span class="s1">&#39;job_stream.Object(&#39;</span> <span class="p">]</span>
-        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">__dict__</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
             <span class="n">r</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">=</span><span class="si">{}</span><span class="s1">, &#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="nb">repr</span><span class="p">(</span><span class="n">v</span><span class="p">)))</span>
         <span class="n">r</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;)&#39;</span><span class="p">)</span>
         <span class="k">return</span> <span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">r</span><span class="p">)</span></div>
@@ -329,7 +346,7 @@
             <span class="n">_pool</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">_localJobInit</span><span class="p">,</span> <span class="p">[</span> <span class="n">obj</span> <span class="p">]</span> <span class="o">*</span> <span class="n">_pool</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">_processes</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">break</span>
-    <span class="n">first</span><span class="o">.</span><span class="n">__dict__</span> <span class="o">=</span> <span class="n">r</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">__dict__</span>
+    <span class="n">first</span><span class="o">.</span><span class="vm">__dict__</span> <span class="o">=</span> <span class="n">r</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="vm">__dict__</span>
     <span class="k">for</span> <span class="n">eArgs</span> <span class="ow">in</span> <span class="n">r</span><span class="p">[</span><span class="mi">2</span><span class="p">]:</span>
         <span class="n">obj</span><span class="o">.</span><span class="n">emit</span><span class="p">(</span><span class="o">*</span><span class="n">eArgs</span><span class="p">)</span>
     <span class="k">for</span> <span class="n">rArgs</span> <span class="ow">in</span> <span class="n">r</span><span class="p">[</span><span class="mi">3</span><span class="p">]:</span>
@@ -341,9 +358,9 @@
     <span class="k">return</span> <span class="n">r</span><span class="p">[</span><span class="mi">5</span><span class="p">]</span>
 
 
-<span class="k">def</span> <span class="nf">_hierarchicalName</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">name</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
-    <span class="n">fullname</span> <span class="o">=</span> <span class="n">cls</span><span class="o">.</span><span class="n">__module__</span>
-    <span class="n">n</span> <span class="o">=</span> <span class="n">name</span> <span class="ow">or</span> <span class="n">cls</span><span class="o">.</span><span class="n">__name__</span>
+<span class="k">def</span> <span class="nf">_hierarchicalName</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">name</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+    <span class="n">fullname</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="vm">__module__</span>
+    <span class="n">n</span> <span class="o">=</span> <span class="n">name</span> <span class="ow">or</span> <span class="bp">cls</span><span class="o">.</span><span class="vm">__name__</span>
     <span class="k">if</span> <span class="n">fullname</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
         <span class="n">fullname</span> <span class="o">=</span> <span class="n">n</span>
     <span class="k">else</span><span class="p">:</span>
@@ -352,18 +369,18 @@
 
 
 <span class="k">class</span> <span class="nc">_Job__metaclass__</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">_j</span><span class="o">.</span><span class="n">Job</span><span class="p">)):</span>
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">bases</span><span class="p">,</span> <span class="n">attrs</span><span class="p">):</span>
-        <span class="nb">type</span><span class="p">(</span><span class="n">_j</span><span class="o">.</span><span class="n">Job</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">bases</span><span class="p">,</span> <span class="n">attrs</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">bases</span><span class="p">,</span> <span class="n">attrs</span><span class="p">):</span>
+        <span class="nb">type</span><span class="p">(</span><span class="n">_j</span><span class="o">.</span><span class="n">Job</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">bases</span><span class="p">,</span> <span class="n">attrs</span><span class="p">)</span>
 
         <span class="c1"># Derived hierarchical name, use that in config</span>
-        <span class="n">fullname</span> <span class="o">=</span> <span class="n">_hierarchicalName</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
+        <span class="n">fullname</span> <span class="o">=</span> <span class="n">_hierarchicalName</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
 
         <span class="c1"># Metaclasses are called for their first rendition as well, so...</span>
         <span class="k">if</span> <span class="n">fullname</span> <span class="o">==</span> <span class="s1">&#39;job_stream.common.Job&#39;</span><span class="p">:</span>
             <span class="k">return</span>
 
-        <span class="n">_classesToPatch</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">cls</span><span class="p">)</span>
-        <span class="n">_j</span><span class="o">.</span><span class="n">registerJob</span><span class="p">(</span><span class="n">fullname</span><span class="p">,</span> <span class="n">cls</span><span class="p">)</span>
+        <span class="n">_classesToPatch</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">cls</span><span class="p">)</span>
+        <span class="n">_j</span><span class="o">.</span><span class="n">registerJob</span><span class="p">(</span><span class="n">fullname</span><span class="p">,</span> <span class="bp">cls</span><span class="p">)</span>
 
 
 
@@ -392,26 +409,26 @@
 
 
     <span class="nd">@classmethod</span>
-    <span class="k">def</span> <span class="nf">_patchForMultiprocessing</span><span class="p">(</span><span class="n">cls</span><span class="p">):</span>
-        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="s1">&#39;_MULTIPROCESSING_PATCHED&#39;</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">_patchForMultiprocessing</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="s1">&#39;_MULTIPROCESSING_PATCHED&#39;</span><span class="p">):</span>
             <span class="k">return</span>
 
-        <span class="n">cls</span><span class="o">.</span><span class="n">_MULTIPROCESSING_PATCHED</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">_MULTIPROCESSING_PATCHED</span> <span class="o">=</span> <span class="kc">True</span>
         <span class="k">def</span> <span class="nf">newInit</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-            <span class="nb">super</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">()</span>
+            <span class="nb">super</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">id</span> <span class="o">=</span> <span class="n">_localJobId</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
             <span class="n">_localJobId</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
-        <span class="n">cls</span><span class="o">.</span><span class="n">__init__</span> <span class="o">=</span> <span class="n">newInit</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="fm">__init__</span> <span class="o">=</span> <span class="n">newInit</span>
 
-        <span class="n">cls</span><span class="o">.</span><span class="n">mHandleWork</span> <span class="o">=</span> <span class="n">cls</span><span class="o">.</span><span class="n">handleWork</span>
-        <span class="n">cls</span><span class="o">.</span><span class="n">handleWork</span> <span class="o">=</span> <span class="k">lambda</span> <span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="n">_callNoStore</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;mHandleWork&quot;</span><span class="p">,</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">mHandleWork</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">handleWork</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">handleWork</span> <span class="o">=</span> <span class="k">lambda</span> <span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="n">_callNoStore</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;mHandleWork&quot;</span><span class="p">,</span>
                 <span class="o">*</span><span class="n">args</span><span class="p">)</span>
 
         <span class="c1"># We do not call postSetup when job_stream requests it.  This is because</span>
         <span class="c1"># our jobs must be set up in each thread, so we defer until it is called</span>
         <span class="c1"># in a thread.</span>
-        <span class="n">cls</span><span class="o">.</span><span class="n">mPostSetup</span> <span class="o">=</span> <span class="n">cls</span><span class="o">.</span><span class="n">postSetup</span>
-        <span class="n">cls</span><span class="o">.</span><span class="n">postSetup</span> <span class="o">=</span> <span class="k">lambda</span> <span class="bp">self</span><span class="p">:</span> <span class="kc">True</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">mPostSetup</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">postSetup</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">postSetup</span> <span class="o">=</span> <span class="k">lambda</span> <span class="bp">self</span><span class="p">:</span> <span class="kc">True</span>
 
 
 <div class="viewcode-block" id="Job.postSetup"><a class="viewcode-back" href="../../_autosummary/job_stream.common.html#job_stream.common.Job.postSetup">[docs]</a>    <span class="k">def</span> <span class="nf">postSetup</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -428,18 +445,18 @@
 
 
 <span class="k">class</span> <span class="nc">_Reducer__metaclass__</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">_j</span><span class="o">.</span><span class="n">Reducer</span><span class="p">)):</span>
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">bases</span><span class="p">,</span> <span class="n">attrs</span><span class="p">):</span>
-        <span class="nb">type</span><span class="p">(</span><span class="n">_j</span><span class="o">.</span><span class="n">Reducer</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">bases</span><span class="p">,</span> <span class="n">attrs</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">bases</span><span class="p">,</span> <span class="n">attrs</span><span class="p">):</span>
+        <span class="nb">type</span><span class="p">(</span><span class="n">_j</span><span class="o">.</span><span class="n">Reducer</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">bases</span><span class="p">,</span> <span class="n">attrs</span><span class="p">)</span>
 
         <span class="c1"># Derived hierarchical name, use that in config</span>
-        <span class="n">fullname</span> <span class="o">=</span> <span class="n">_hierarchicalName</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
+        <span class="n">fullname</span> <span class="o">=</span> <span class="n">_hierarchicalName</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
 
         <span class="c1"># Metaclasses are called for their first rendition as well, so...</span>
         <span class="k">if</span> <span class="n">fullname</span> <span class="o">==</span> <span class="s1">&#39;job_stream.common.Reducer&#39;</span><span class="p">:</span>
             <span class="k">return</span>
 
-        <span class="n">_classesToPatch</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">cls</span><span class="p">)</span>
-        <span class="n">_j</span><span class="o">.</span><span class="n">registerReducer</span><span class="p">(</span><span class="n">fullname</span><span class="p">,</span> <span class="n">cls</span><span class="p">)</span>
+        <span class="n">_classesToPatch</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">cls</span><span class="p">)</span>
+        <span class="n">_j</span><span class="o">.</span><span class="n">registerReducer</span><span class="p">(</span><span class="n">fullname</span><span class="p">,</span> <span class="bp">cls</span><span class="p">)</span>
 
 
 
@@ -491,29 +508,29 @@
 
 
     <span class="nd">@classmethod</span>
-    <span class="k">def</span> <span class="nf">_patchForMultiprocessing</span><span class="p">(</span><span class="n">cls</span><span class="p">):</span>
-        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="s1">&#39;_MULTIPROCESSING_PATCHED&#39;</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">_patchForMultiprocessing</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="s1">&#39;_MULTIPROCESSING_PATCHED&#39;</span><span class="p">):</span>
             <span class="k">return</span>
 
-        <span class="n">cls</span><span class="o">.</span><span class="n">_MULTIPROCESSING_PATCHED</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">_MULTIPROCESSING_PATCHED</span> <span class="o">=</span> <span class="kc">True</span>
         <span class="k">def</span> <span class="nf">newInit</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-            <span class="nb">super</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">()</span>
+            <span class="nb">super</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">id</span> <span class="o">=</span> <span class="n">_localJobId</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
             <span class="n">_localJobId</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
-        <span class="n">cls</span><span class="o">.</span><span class="n">__init__</span> <span class="o">=</span> <span class="n">newInit</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="fm">__init__</span> <span class="o">=</span> <span class="n">newInit</span>
 
         <span class="k">for</span> <span class="n">oldName</span> <span class="ow">in</span> <span class="p">[</span> <span class="s1">&#39;handleInit&#39;</span><span class="p">,</span> <span class="s1">&#39;handleAdd&#39;</span><span class="p">,</span> <span class="s1">&#39;handleJoin&#39;</span><span class="p">,</span> <span class="s1">&#39;handleDone&#39;</span> <span class="p">]:</span>
             <span class="n">newName</span> <span class="o">=</span> <span class="s1">&#39;m&#39;</span> <span class="o">+</span> <span class="n">oldName</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span> <span class="o">+</span> <span class="n">oldName</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>
-            <span class="nb">setattr</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">newName</span><span class="p">,</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">oldName</span><span class="p">))</span>
+            <span class="nb">setattr</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">newName</span><span class="p">,</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">oldName</span><span class="p">))</span>
             <span class="n">closure</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">newName</span><span class="p">:</span> <span class="k">lambda</span> <span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="n">_callStoreFirst</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
                     <span class="n">newName</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">)</span>
-            <span class="nb">setattr</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">oldName</span><span class="p">,</span> <span class="n">closure</span><span class="p">(</span><span class="n">newName</span><span class="p">))</span>
+            <span class="nb">setattr</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">oldName</span><span class="p">,</span> <span class="n">closure</span><span class="p">(</span><span class="n">newName</span><span class="p">))</span>
 
         <span class="c1"># We do not call postSetup when job_stream requests it.  This is because</span>
         <span class="c1"># our jobs must be set up in each thread, so we defer until it is called</span>
         <span class="c1"># in a thread.</span>
-        <span class="n">cls</span><span class="o">.</span><span class="n">mPostSetup</span> <span class="o">=</span> <span class="n">cls</span><span class="o">.</span><span class="n">postSetup</span>
-        <span class="n">cls</span><span class="o">.</span><span class="n">postSetup</span> <span class="o">=</span> <span class="k">lambda</span> <span class="bp">self</span><span class="p">:</span> <span class="kc">True</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">mPostSetup</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">postSetup</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">postSetup</span> <span class="o">=</span> <span class="k">lambda</span> <span class="bp">self</span><span class="p">:</span> <span class="kc">True</span>
 
 
 <div class="viewcode-block" id="Reducer.postSetup"><a class="viewcode-back" href="../../_autosummary/job_stream.common.html#job_stream.common.Reducer.postSetup">[docs]</a>    <span class="k">def</span> <span class="nf">postSetup</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -545,16 +562,16 @@
 
 
 <span class="k">class</span> <span class="nc">_Frame__metaclass__</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">_j</span><span class="o">.</span><span class="n">Frame</span><span class="p">)):</span>
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">bases</span><span class="p">,</span> <span class="n">attrs</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">bases</span><span class="p">,</span> <span class="n">attrs</span><span class="p">):</span>
         <span class="c1"># Derived hierarchical name, use that in config</span>
-        <span class="n">fullname</span> <span class="o">=</span> <span class="n">_hierarchicalName</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
+        <span class="n">fullname</span> <span class="o">=</span> <span class="n">_hierarchicalName</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
 
         <span class="c1"># Metaclasses are called for their first rendition as well, so...</span>
         <span class="k">if</span> <span class="n">fullname</span> <span class="o">==</span> <span class="s1">&#39;job_stream.common.Frame&#39;</span><span class="p">:</span>
             <span class="k">return</span>
 
-        <span class="n">_classesToPatch</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">cls</span><span class="p">)</span>
-        <span class="n">_j</span><span class="o">.</span><span class="n">registerFrame</span><span class="p">(</span><span class="n">fullname</span><span class="p">,</span> <span class="n">cls</span><span class="p">)</span>
+        <span class="n">_classesToPatch</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">cls</span><span class="p">)</span>
+        <span class="n">_j</span><span class="o">.</span><span class="n">registerFrame</span><span class="p">(</span><span class="n">fullname</span><span class="p">,</span> <span class="bp">cls</span><span class="p">)</span>
 
 
 
@@ -595,29 +612,29 @@
 
 
     <span class="nd">@classmethod</span>
-    <span class="k">def</span> <span class="nf">_patchForMultiprocessing</span><span class="p">(</span><span class="n">cls</span><span class="p">):</span>
-        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="s1">&#39;_MULTIPROCESSING_PATCHED&#39;</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">_patchForMultiprocessing</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="s1">&#39;_MULTIPROCESSING_PATCHED&#39;</span><span class="p">):</span>
             <span class="k">return</span>
 
-        <span class="n">cls</span><span class="o">.</span><span class="n">_MULTIPROCESSING_PATCHED</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">_MULTIPROCESSING_PATCHED</span> <span class="o">=</span> <span class="kc">True</span>
         <span class="k">def</span> <span class="nf">newInit</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-            <span class="nb">super</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">()</span>
+            <span class="nb">super</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">id</span> <span class="o">=</span> <span class="n">_localJobId</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
             <span class="n">_localJobId</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
-        <span class="n">cls</span><span class="o">.</span><span class="n">__init__</span> <span class="o">=</span> <span class="n">newInit</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="fm">__init__</span> <span class="o">=</span> <span class="n">newInit</span>
 
         <span class="k">for</span> <span class="n">oldName</span> <span class="ow">in</span> <span class="p">[</span> <span class="s1">&#39;handleFirst&#39;</span><span class="p">,</span> <span class="s1">&#39;handleNext&#39;</span><span class="p">,</span> <span class="s1">&#39;handleDone&#39;</span> <span class="p">]:</span>
             <span class="n">newName</span> <span class="o">=</span> <span class="s1">&#39;m&#39;</span> <span class="o">+</span> <span class="n">oldName</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span> <span class="o">+</span> <span class="n">oldName</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>
-            <span class="nb">setattr</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">newName</span><span class="p">,</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">oldName</span><span class="p">))</span>
+            <span class="nb">setattr</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">newName</span><span class="p">,</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">oldName</span><span class="p">))</span>
             <span class="n">closure</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">newName</span><span class="p">:</span> <span class="k">lambda</span> <span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="n">_callStoreFirst</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
                     <span class="n">newName</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">)</span>
-            <span class="nb">setattr</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">oldName</span><span class="p">,</span> <span class="n">closure</span><span class="p">(</span><span class="n">newName</span><span class="p">))</span>
+            <span class="nb">setattr</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">oldName</span><span class="p">,</span> <span class="n">closure</span><span class="p">(</span><span class="n">newName</span><span class="p">))</span>
 
         <span class="c1"># We do not call postSetup when job_stream requests it.  This is because</span>
         <span class="c1"># our jobs must be set up in each thread, so we defer until it is called</span>
         <span class="c1"># in a thread.</span>
-        <span class="n">cls</span><span class="o">.</span><span class="n">mPostSetup</span> <span class="o">=</span> <span class="n">cls</span><span class="o">.</span><span class="n">postSetup</span>
-        <span class="n">cls</span><span class="o">.</span><span class="n">postSetup</span> <span class="o">=</span> <span class="k">lambda</span> <span class="bp">self</span><span class="p">:</span> <span class="kc">True</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">mPostSetup</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">postSetup</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">postSetup</span> <span class="o">=</span> <span class="k">lambda</span> <span class="bp">self</span><span class="p">:</span> <span class="kc">True</span>
 
 
 <div class="viewcode-block" id="Frame.handleFirst"><a class="viewcode-back" href="../../_autosummary/job_stream.common.html#job_stream.common.Frame.handleFirst">[docs]</a>    <span class="k">def</span> <span class="nf">handleFirst</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">store</span><span class="p">,</span> <span class="n">work</span><span class="p">):</span>
@@ -755,7 +772,7 @@
     <span class="k">def</span> <span class="nf">handleWork</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">work</span><span class="p">):</span>
         <span class="n">s</span><span class="o">.</span><span class="n">emit</span><span class="p">((</span><span class="n">work</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">func</span><span class="p">(</span><span class="o">*</span><span class="n">work</span><span class="p">[</span><span class="mi">1</span><span class="p">])))</span>
     <span class="n">mapCls</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="s2">&quot;_map__MapJob__&quot;</span><span class="p">,</span> <span class="p">(</span><span class="n">Job</span><span class="p">,),</span> <span class="nb">dict</span><span class="p">(</span><span class="n">handleWork</span><span class="o">=</span><span class="n">handleWork</span><span class="p">))</span>
-    <span class="n">moduleSelf</span><span class="p">[</span><span class="n">mapCls</span><span class="o">.</span><span class="n">__name__</span><span class="p">]</span> <span class="o">=</span> <span class="n">mapCls</span>
+    <span class="n">moduleSelf</span><span class="p">[</span><span class="n">mapCls</span><span class="o">.</span><span class="vm">__name__</span><span class="p">]</span> <span class="o">=</span> <span class="n">mapCls</span>
     <span class="k">def</span> <span class="nf">_mapResult</span><span class="p">(</span><span class="n">w</span><span class="p">):</span>
         <span class="n">result</span><span class="p">[</span><span class="n">w</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span> <span class="o">=</span> <span class="n">w</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
     <span class="n">run</span><span class="p">(</span>
@@ -792,9 +809,9 @@
     <span class="k">else</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;configDictOrPath was not dict or filename!&quot;</span><span class="p">)</span>
 
-    <span class="k">for</span> <span class="n">cls</span> <span class="ow">in</span> <span class="nb">reversed</span><span class="p">(</span><span class="n">_classesToPatch</span><span class="p">):</span>
-        <span class="k">if</span> <span class="n">cls</span><span class="o">.</span><span class="n">USE_MULTIPROCESSING</span><span class="p">:</span>
-            <span class="n">cls</span><span class="o">.</span><span class="n">_patchForMultiprocessing</span><span class="p">()</span>
+    <span class="k">for</span> <span class="bp">cls</span> <span class="ow">in</span> <span class="nb">reversed</span><span class="p">(</span><span class="n">_classesToPatch</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">cls</span><span class="o">.</span><span class="n">USE_MULTIPROCESSING</span><span class="p">:</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">_patchForMultiprocessing</span><span class="p">()</span>
 
     <span class="k">if</span> <span class="s1">&#39;handleResult&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
         <span class="k">def</span> <span class="nf">handleResult</span><span class="p">(</span><span class="n">r</span><span class="p">):</span>
@@ -840,6 +857,7 @@
 </pre></div>
 
            </div>
+           
           </div>
           <footer>
   
@@ -852,7 +870,7 @@
 
     </p>
   </div>
-  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
 
 </footer>
 
@@ -870,10 +888,12 @@
     <script type="text/javascript">
         var DOCUMENTATION_OPTIONS = {
             URL_ROOT:'../../',
-            VERSION:'0.1.31',
+            VERSION:'0.1.32',
+            LANGUAGE:'None',
             COLLAPSE_INDEX:false,
             FILE_SUFFIX:'.html',
-            HAS_SOURCE:  true
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
         };
     </script>
       <script type="text/javascript" src="../../_static/jquery.js"></script>
@@ -882,19 +902,13 @@
 
   
 
-  
-  
-    <script type="text/javascript" src="../../_static/js/theme.js"></script>
-  
+  <script type="text/javascript" src="../../_static/js/theme.js"></script>
 
-  
-  
   <script type="text/javascript">
       jQuery(function () {
-          SphinxRtdTheme.StickyNav.enable();
+          SphinxRtdTheme.Navigation.enable(true);
       });
-  </script>
-   
+  </script> 
 
 </body>
 </html>

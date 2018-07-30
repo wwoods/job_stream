@@ -1,5 +1,5 @@
-job_stream.invoke
-=================
+job\_stream.invoke
+==================
 
 .. currentmodule:: job_stream
 

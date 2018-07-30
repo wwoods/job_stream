@@ -10,9 +10,11 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>job_stream.common &mdash; job_stream 0.1.31 documentation</title>
+  <title>job_stream.common &mdash; job_stream 0.1.32 documentation</title>
   
 
+  
+  
   
   
 
@@ -24,27 +26,21 @@
 
   
 
-  
-  
-    <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
-  
-
-  
-    <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
-  
-
-  
-    <link rel="top" title="job_stream 0.1.31 documentation" href="../index.html"/>
-        <link rel="up" title="job_stream" href="../python.html"/>
-        <link rel="prev" title="job_stream.invoke" href="job_stream.invoke.html"/> 
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="prev" title="job_stream.invoke" href="job_stream.invoke.html" /> 
 
   
   <script src="../_static/js/modernizr.min.js"></script>
 
 </head>
 
-<body class="wy-body-for-nav" role="document">
+<body class="wy-body-for-nav">
 
+   
   <div class="wy-grid-for-nav">
 
     
@@ -64,7 +60,7 @@
             
             
               <div class="version">
-                0.1.31
+                0.1.32
               </div>
             
           
@@ -85,7 +81,10 @@
           
             
             
-                <ul>
+              
+            
+            
+              <ul>
 <li class="toctree-l1"><a class="reference internal" href="../main.html">job_stream</a></li>
 </ul>
 <ul class="current">
@@ -116,36 +115,56 @@
     <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
 
       
-      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
-        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
-        <a href="../index.html">job_stream</a>
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">job_stream</a>
+        
       </nav>
 
 
-      
       <div class="wy-nav-content">
+        
         <div class="rst-content">
+        
           
 
- 
+
+
+
+
+
+
+
+
+
+
+
 
 
 
 <div role="navigation" aria-label="breadcrumbs navigation">
+
   <ul class="wy-breadcrumbs">
-    <li><a href="../index.html">Docs</a> &raquo;</li>
-      
+    
+      <li><a href="../index.html">Docs</a> &raquo;</li>
+        
           <li><a href="../python.html">job_stream</a> &raquo;</li>
-      
-    <li>job_stream.common</li>
+        
+      <li>job_stream.common</li>
+    
+    
       <li class="wy-breadcrumbs-aside">
         
-          
-            <a href="../_sources/_autosummary/job_stream.common.txt" rel="nofollow"> View page source</a>
+            
+            <a href="../_sources/_autosummary/job_stream.common.rst.txt" rel="nofollow"> View page source</a>
           
         
       </li>
+    
   </ul>
+
+  
   <hr/>
 </div>
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
@@ -157,11 +176,11 @@
 providing adaptations for all of the needed C++ code.</p>
 <div class="admonition warning">
 <p class="first admonition-title">Warning</p>
-<p class="last">New users should look at using the <a class="reference internal" href="job_stream.inline.html#module-job_stream.inline" title="job_stream.inline"><code class="xref py py-mod docutils literal"><span class="pre">job_stream.inline</span></code></a> module instead
+<p class="last">New users should look at using the <a class="reference internal" href="job_stream.inline.html#module-job_stream.inline" title="job_stream.inline"><code class="xref py py-mod docutils literal notranslate"><span class="pre">job_stream.inline</span></code></a> module instead
 of the classes in this file.</p>
 </div>
 <p>Example usage:</p>
-<div class="highlight-python"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">job_stream</span> <span class="kn">import</span> <span class="n">common</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">job_stream</span> <span class="kn">import</span> <span class="n">common</span>
 <span class="k">class</span> <span class="nc">AddOne</span><span class="p">(</span><span class="n">common</span><span class="o">.</span><span class="n">Job</span><span class="p">):</span>
     <span class="k">def</span> <span class="nf">handleWork</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">work</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">emit</span><span class="p">(</span><span class="n">work</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
@@ -184,8 +203,8 @@ print(r)
 <h2>Members<a class="headerlink" href="#members" title="Permalink to this headline">¶</a></h2>
 <dl class="class">
 <dt id="job_stream.common.Frame">
-<em class="property">class </em><code class="descclassname">job_stream.common.</code><code class="descname">Frame</code><span class="sig-paren">(</span><em>(object)arg1</em><span class="sig-paren">)</span> &rarr; None :<a class="reference internal" href="../_modules/job_stream/common.html#Frame"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#job_stream.common.Frame" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">_job_stream.Frame</span></code></p>
+<em class="property">class </em><code class="descclassname">job_stream.common.</code><code class="descname">Frame</code><span class="sig-paren">(</span><em>(object)arg1</em><span class="sig-paren">)</span> &#x2192; None :<a class="reference internal" href="../_modules/job_stream/common.html#Frame"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#job_stream.common.Frame" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">_job_stream.Frame</span></code></p>
 <p>Base class for a Frame.  A Frame is a special type of reducer that
 performs some special behavior based on the work that begins the reduction.
 Typically this is used for checking termination conditions in a recurring
@@ -195,7 +214,7 @@ class AddAb(job_stream.Job):</p>
 <blockquote>
 <div><dl class="docutils">
 <dt>def handleWork(self, w):</dt>
-<dd>self.emit(w + &#8216;Ab&#8217;)</dd>
+<dd>self.emit(w + ‘Ab’)</dd>
 </dl>
 </div></blockquote>
 <dl class="docutils">
@@ -216,15 +235,15 @@ class AddAb(job_stream.Job):</p>
 </dl>
 </dd>
 </dl>
-<p>job_stream.common.work = [ &#8216;abracadabra&#8217;, &#8216;Hey&#8217;, &#8216;Apples&#8217; ]
-# This&#8217;ll print out the unmodified abracadabra, add two Ab&#8217;s to Apples, and
-# four Ab&#8217;s to Hey
+<p>job_stream.common.work = [ ‘abracadabra’, ‘Hey’, ‘Apples’ ]
+# This’ll print out the unmodified abracadabra, add two Ab’s to Apples, and
+# four Ab’s to Hey
 job_stream.common.run({</p>
 <blockquote>
 <div><dl class="docutils">
-<dt>&#8216;jobs&#8217;: [ {</dt>
-<dd>&#8216;frame&#8217;: MakeAtLeastTenLetters,
-&#8216;jobs&#8217;: [ AddAb ]</dd>
+<dt>‘jobs’: [ {</dt>
+<dd>‘frame’: MakeAtLeastTenLetters,
+‘jobs’: [ AddAb ]</dd>
 </dl>
 <p>} ]</p>
 </div></blockquote>
@@ -244,7 +263,7 @@ job_stream.common.run({</p>
 </div></blockquote>
 <dl class="method">
 <dt id="job_stream.common.Frame._forceCheckpoint">
-<code class="descname">_forceCheckpoint</code><span class="sig-paren">(</span><em>(Frame)arg1</em>, <em>(bool)arg2</em><span class="sig-paren">)</span> &rarr; None :<a class="headerlink" href="#job_stream.common.Frame._forceCheckpoint" title="Permalink to this definition">¶</a></dt>
+<code class="descname">_forceCheckpoint</code><span class="sig-paren">(</span><em>(Frame)arg1</em>, <em>(bool)arg2</em><span class="sig-paren">)</span> &#x2192; None :<a class="headerlink" href="#job_stream.common.Frame._forceCheckpoint" title="Permalink to this definition">¶</a></dt>
 <dd><p>Force a checkpoint after this work.  If True is passed, cause the program to crash afterwards.</p>
 <dl class="docutils">
 <dt>C++ signature :</dt>
@@ -254,7 +273,7 @@ job_stream.common.run({</p>
 
 <dl class="method">
 <dt id="job_stream.common.Frame.emit">
-<code class="descname">emit</code><span class="sig-paren">(</span><em>(Frame)arg1</em>, <em>(object)arg2</em><span class="sig-paren">)</span> &rarr; None :<a class="headerlink" href="#job_stream.common.Frame.emit" title="Permalink to this definition">¶</a></dt>
+<code class="descname">emit</code><span class="sig-paren">(</span><em>(Frame)arg1</em>, <em>(object)arg2</em><span class="sig-paren">)</span> &#x2192; None :<a class="headerlink" href="#job_stream.common.Frame.emit" title="Permalink to this definition">¶</a></dt>
 <dd><p>Emit to only target (outside of frame)</p>
 <dl class="docutils">
 <dt>C++ signature :</dt>
@@ -291,7 +310,7 @@ but before any work is accepted.</p>
 
 <dl class="method">
 <dt id="job_stream.common.Frame.recur">
-<code class="descname">recur</code><span class="sig-paren">(</span><em>(Frame)arg1</em>, <em>(object)arg2</em><span class="sig-paren">)</span> &rarr; None :<a class="headerlink" href="#job_stream.common.Frame.recur" title="Permalink to this definition">¶</a></dt>
+<code class="descname">recur</code><span class="sig-paren">(</span><em>(Frame)arg1</em>, <em>(object)arg2</em><span class="sig-paren">)</span> &#x2192; None :<a class="headerlink" href="#job_stream.common.Frame.recur" title="Permalink to this definition">¶</a></dt>
 <dd><p>Recur to only target</p>
 <blockquote>
 <div><dl class="docutils">
@@ -300,7 +319,7 @@ but before any work is accepted.</p>
 </dl>
 </div></blockquote>
 <dl class="docutils">
-<dt>recur( (Frame)arg1, (object)arg2, (object)arg3) -&gt; None :</dt>
+<dt>recur( (Frame)arg1, (object)arg2, (str)arg3) -&gt; None :</dt>
 <dd><p class="first">Recur to specific target</p>
 <dl class="last docutils">
 <dt>C++ signature :</dt>
@@ -314,8 +333,8 @@ but before any work is accepted.</p>
 
 <dl class="class">
 <dt id="job_stream.common.Job">
-<em class="property">class </em><code class="descclassname">job_stream.common.</code><code class="descname">Job</code><span class="sig-paren">(</span><em>(object)arg1</em><span class="sig-paren">)</span> &rarr; None :<a class="reference internal" href="../_modules/job_stream/common.html#Job"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#job_stream.common.Job" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">_job_stream.Job</span></code></p>
+<em class="property">class </em><code class="descclassname">job_stream.common.</code><code class="descname">Job</code><span class="sig-paren">(</span><em>(object)arg1</em><span class="sig-paren">)</span> &#x2192; None :<a class="reference internal" href="../_modules/job_stream/common.html#Job"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#job_stream.common.Job" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">_job_stream.Job</span></code></p>
 <p>Base class for a standard job (starts with some work, and emits zero or
 more times).  Handles registration of job class with the job_stream
 system.</p>
@@ -323,14 +342,14 @@ system.</p>
 import job_stream
 class MyJob(job_stream.Job):</p>
 <blockquote>
-<div><p>&#8216;&#8217;&#8216;Adds 8 to an integer or floating point number&#8217;&#8216;&#8217;
+<div><p>‘’‘Adds 8 to an integer or floating point number’‘’
 def handleWork(self, work):</p>
 <blockquote>
 <div>self.emit(work + 8)</div></blockquote>
 </div></blockquote>
 <p>job_stream.common.work = [ 1, 2, 3.0 ]
 # This will print 9, 10, and 11.0
-job_stream.run({ &#8216;jobs&#8217;: [ MyJob ] })</p>
+job_stream.run({ ‘jobs’: [ MyJob ] })</p>
 <blockquote>
 <div><dl class="docutils">
 <dt>C++ signature :</dt>
@@ -346,7 +365,7 @@ job_stream.run({ &#8216;jobs&#8217;: [ MyJob ] })</p>
 </div></blockquote>
 <dl class="method">
 <dt id="job_stream.common.Job._forceCheckpoint">
-<code class="descname">_forceCheckpoint</code><span class="sig-paren">(</span><em>(Job)arg1</em>, <em>(bool)arg2</em><span class="sig-paren">)</span> &rarr; None :<a class="headerlink" href="#job_stream.common.Job._forceCheckpoint" title="Permalink to this definition">¶</a></dt>
+<code class="descname">_forceCheckpoint</code><span class="sig-paren">(</span><em>(Job)arg1</em>, <em>(bool)arg2</em><span class="sig-paren">)</span> &#x2192; None :<a class="headerlink" href="#job_stream.common.Job._forceCheckpoint" title="Permalink to this definition">¶</a></dt>
 <dd><p>Force a checkpoint after this work.  If True is passed, cause the program to crash afterwards.</p>
 <dl class="docutils">
 <dt>C++ signature :</dt>
@@ -356,7 +375,7 @@ job_stream.run({ &#8216;jobs&#8217;: [ MyJob ] })</p>
 
 <dl class="method">
 <dt id="job_stream.common.Job.emit">
-<code class="descname">emit</code><span class="sig-paren">(</span><em>(Job)arg1</em>, <em>(object)arg2</em><span class="sig-paren">)</span> &rarr; None :<a class="headerlink" href="#job_stream.common.Job.emit" title="Permalink to this definition">¶</a></dt>
+<code class="descname">emit</code><span class="sig-paren">(</span><em>(Job)arg1</em>, <em>(object)arg2</em><span class="sig-paren">)</span> &#x2192; None :<a class="headerlink" href="#job_stream.common.Job.emit" title="Permalink to this definition">¶</a></dt>
 <dd><p>Emit to only target</p>
 <blockquote>
 <div><dl class="docutils">
@@ -365,7 +384,7 @@ job_stream.run({ &#8216;jobs&#8217;: [ MyJob ] })</p>
 </dl>
 </div></blockquote>
 <dl class="docutils">
-<dt>emit( (Job)arg1, (object)arg2, (object)arg3) -&gt; None :</dt>
+<dt>emit( (Job)arg1, (object)arg2, (str)arg3) -&gt; None :</dt>
 <dd><p class="first">Emit to specific target out of list</p>
 <dl class="last docutils">
 <dt>C++ signature :</dt>
@@ -394,14 +413,14 @@ but before any work is accepted.</p>
 <dl class="class">
 <dt id="job_stream.common.Object">
 <em class="property">class </em><code class="descclassname">job_stream.common.</code><code class="descname">Object</code><span class="sig-paren">(</span><em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/job_stream/common.html#Object"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#job_stream.common.Object" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <a class="reference external" href="https://docs.python.org/2/library/functions.html#object" title="(in Python v2.7)"><code class="xref py py-class docutils literal"><span class="pre">object</span></code></a></p>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.7)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
 <p>A generic object with no attributes of its own.</p>
 </dd></dl>
 
 <dl class="class">
 <dt id="job_stream.common.Reducer">
-<em class="property">class </em><code class="descclassname">job_stream.common.</code><code class="descname">Reducer</code><span class="sig-paren">(</span><em>(object)arg1</em><span class="sig-paren">)</span> &rarr; None :<a class="reference internal" href="../_modules/job_stream/common.html#Reducer"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#job_stream.common.Reducer" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">_job_stream.Reducer</span></code></p>
+<em class="property">class </em><code class="descclassname">job_stream.common.</code><code class="descname">Reducer</code><span class="sig-paren">(</span><em>(object)arg1</em><span class="sig-paren">)</span> &#x2192; None :<a class="reference internal" href="../_modules/job_stream/common.html#Reducer"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#job_stream.common.Reducer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">_job_stream.Reducer</span></code></p>
 <p>Base class for a Reducer.  A Reducer combines work emitted from the last
 stage of a reduction, eventually emitting its own result to the next link
 in the processing chain.  A reduction starts when a piece of work enters
@@ -412,12 +431,12 @@ class AddLetterA(job_stream.Job):</p>
 <blockquote>
 <div><dl class="docutils">
 <dt>def handleWork(self, w):</dt>
-<dd>self.emit(w + &#8216;A&#8217;)</dd>
+<dd>self.emit(w + ‘A’)</dd>
 </dl>
 </div></blockquote>
 <dl class="docutils">
 <dt>class CountLetters(job_stream.Reducer):</dt>
-<dd><p class="first">&#8216;&#8217;&#8216;Counts the number of letters passed to it&#8217;&#8216;&#8217;
+<dd><p class="first">‘’‘Counts the number of letters passed to it’‘’
 def handleInit(self, store):</p>
 <blockquote>
 <div>store.count = 0</div></blockquote>
@@ -431,27 +450,27 @@ def handleInit(self, store):</p>
 </dl>
 </dd>
 </dl>
-<p>job_stream.common.work = [ &#8216;Hello&#8217;, &#8216;World&#8217; ]
+<p>job_stream.common.work = [ ‘Hello’, ‘World’ ]
 # Here the reduction starts at the global scope, so it will print out 12,
-# which is the original 10 letters plus the two new letter A&#8217;s.
-print(&#8220;First:&#8221;)
+# which is the original 10 letters plus the two new letter A’s.
+print(“First:”)
 job_stream.run({</p>
 <blockquote>
-<div>&#8216;reducer&#8217;: CountLetters,
-&#8216;jobs&#8217;: [ AddLetterA ]</div></blockquote>
+<div>‘reducer’: CountLetters,
+‘jobs’: [ AddLetterA ]</div></blockquote>
 <p>})
 # This config has the reduction starting as part of the first job rather
 # than the global scope, so this will print 6 twice (once for each work that
 # we initially passed in).
-print(&#8220;Second:&#8221;)
+print(“Second:”)
 job_stream.run({</p>
 <blockquote>
 <div><dl class="docutils">
-<dt>&#8216;jobs&#8217;: [</dt>
+<dt>‘jobs’: [</dt>
 <dd><dl class="first docutils">
 <dt>{</dt>
-<dd>&#8216;reducer&#8217;: CountLetters,
-&#8216;jobs&#8217;: [ AddLetterA ]</dd>
+<dd>‘reducer’: CountLetters,
+‘jobs’: [ AddLetterA ]</dd>
 </dl>
 <p class="last">}</p>
 </dd>
@@ -474,7 +493,7 @@ job_stream.run({</p>
 </div></blockquote>
 <dl class="method">
 <dt id="job_stream.common.Reducer._forceCheckpoint">
-<code class="descname">_forceCheckpoint</code><span class="sig-paren">(</span><em>(Reducer)arg1</em>, <em>(bool)arg2</em><span class="sig-paren">)</span> &rarr; None :<a class="headerlink" href="#job_stream.common.Reducer._forceCheckpoint" title="Permalink to this definition">¶</a></dt>
+<code class="descname">_forceCheckpoint</code><span class="sig-paren">(</span><em>(Reducer)arg1</em>, <em>(bool)arg2</em><span class="sig-paren">)</span> &#x2192; None :<a class="headerlink" href="#job_stream.common.Reducer._forceCheckpoint" title="Permalink to this definition">¶</a></dt>
 <dd><p>Force a checkpoint after this work.  If True is passed, cause the program to crash afterwards.</p>
 <dl class="docutils">
 <dt>C++ signature :</dt>
@@ -484,7 +503,7 @@ job_stream.run({</p>
 
 <dl class="method">
 <dt id="job_stream.common.Reducer.emit">
-<code class="descname">emit</code><span class="sig-paren">(</span><em>(Reducer)arg1</em>, <em>(object)arg2</em><span class="sig-paren">)</span> &rarr; None :<a class="headerlink" href="#job_stream.common.Reducer.emit" title="Permalink to this definition">¶</a></dt>
+<code class="descname">emit</code><span class="sig-paren">(</span><em>(Reducer)arg1</em>, <em>(object)arg2</em><span class="sig-paren">)</span> &#x2192; None :<a class="headerlink" href="#job_stream.common.Reducer.emit" title="Permalink to this definition">¶</a></dt>
 <dd><p>Emit to only target (outside of reducer)</p>
 <dl class="docutils">
 <dt>C++ signature :</dt>
@@ -527,7 +546,7 @@ but before any work is accepted.</p>
 
 <dl class="method">
 <dt id="job_stream.common.Reducer.recur">
-<code class="descname">recur</code><span class="sig-paren">(</span><em>(Reducer)arg1</em>, <em>(object)arg2</em><span class="sig-paren">)</span> &rarr; None :<a class="headerlink" href="#job_stream.common.Reducer.recur" title="Permalink to this definition">¶</a></dt>
+<code class="descname">recur</code><span class="sig-paren">(</span><em>(Reducer)arg1</em>, <em>(object)arg2</em><span class="sig-paren">)</span> &#x2192; None :<a class="headerlink" href="#job_stream.common.Reducer.recur" title="Permalink to this definition">¶</a></dt>
 <dd><p>Recur to only target</p>
 <blockquote>
 <div><dl class="docutils">
@@ -536,7 +555,7 @@ but before any work is accepted.</p>
 </dl>
 </div></blockquote>
 <dl class="docutils">
-<dt>recur( (Reducer)arg1, (object)arg2, (object)arg3) -&gt; None :</dt>
+<dt>recur( (Reducer)arg1, (object)arg2, (str)arg3) -&gt; None :</dt>
 <dd><p class="first">Recur to specific target</p>
 <dl class="last docutils">
 <dt>C++ signature :</dt>
@@ -551,14 +570,14 @@ but before any work is accepted.</p>
 <dl class="exception">
 <dt id="job_stream.common._StackAlreadyPrintedError">
 <em class="property">exception </em><code class="descclassname">job_stream.common.</code><code class="descname">_StackAlreadyPrintedError</code><a class="reference internal" href="../_modules/job_stream/common.html#_StackAlreadyPrintedError"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#job_stream.common._StackAlreadyPrintedError" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">Exception</span></code></p>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/exceptions.html#Exception" title="(in Python v3.7)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Exception</span></code></a></p>
 <p>An exception to be used if the stack trace has already been printed,
 and an exception needs to be raised just to communicate to job_stream to
 abort.</p>
 <dl class="method">
 <dt id="job_stream.common._StackAlreadyPrintedError.with_traceback">
 <code class="descname">with_traceback</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#job_stream.common._StackAlreadyPrintedError.with_traceback" title="Permalink to this definition">¶</a></dt>
-<dd><p>Exception.with_traceback(tb) &#8211;
+<dd><p>Exception.with_traceback(tb) –
 set self.__traceback__ to tb and return self.</p>
 </dd></dl>
 
@@ -567,67 +586,67 @@ set self.__traceback__ to tb and return self.</p>
 <dl class="class">
 <dt id="job_stream.common._Work">
 <em class="property">class </em><code class="descclassname">job_stream.common.</code><code class="descname">_Work</code><a class="reference internal" href="../_modules/job_stream/common.html#_Work"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#job_stream.common._Work" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <a class="reference external" href="https://docs.python.org/2/library/functions.html#list" title="(in Python v2.7)"><code class="xref py py-class docutils literal"><span class="pre">list</span></code></a></p>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.7)"><code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code></a></p>
 <p>List of initial work sent into job_stream.
 If left empty, work comes from stdin.</p>
 <dl class="method">
 <dt id="job_stream.common._Work.append">
-<code class="descname">append</code><span class="sig-paren">(</span><em>object</em><span class="sig-paren">)</span> &rarr; None -- append object to end<a class="headerlink" href="#job_stream.common._Work.append" title="Permalink to this definition">¶</a></dt>
+<code class="descname">append</code><span class="sig-paren">(</span><em>object</em><span class="sig-paren">)</span> &#x2192; None -- append object to end<a class="headerlink" href="#job_stream.common._Work.append" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="method">
 <dt id="job_stream.common._Work.clear">
-<code class="descname">clear</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &rarr; None -- remove all items from L<a class="headerlink" href="#job_stream.common._Work.clear" title="Permalink to this definition">¶</a></dt>
+<code class="descname">clear</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; None -- remove all items from L<a class="headerlink" href="#job_stream.common._Work.clear" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="method">
 <dt id="job_stream.common._Work.copy">
-<code class="descname">copy</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &rarr; list -- a shallow copy of L<a class="headerlink" href="#job_stream.common._Work.copy" title="Permalink to this definition">¶</a></dt>
+<code class="descname">copy</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; list -- a shallow copy of L<a class="headerlink" href="#job_stream.common._Work.copy" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="method">
 <dt id="job_stream.common._Work.count">
-<code class="descname">count</code><span class="sig-paren">(</span><em>value</em><span class="sig-paren">)</span> &rarr; integer -- return number of occurrences of value<a class="headerlink" href="#job_stream.common._Work.count" title="Permalink to this definition">¶</a></dt>
+<code class="descname">count</code><span class="sig-paren">(</span><em>value</em><span class="sig-paren">)</span> &#x2192; integer -- return number of occurrences of value<a class="headerlink" href="#job_stream.common._Work.count" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="method">
 <dt id="job_stream.common._Work.extend">
-<code class="descname">extend</code><span class="sig-paren">(</span><em>iterable</em><span class="sig-paren">)</span> &rarr; None -- extend list by appending elements from the iterable<a class="headerlink" href="#job_stream.common._Work.extend" title="Permalink to this definition">¶</a></dt>
+<code class="descname">extend</code><span class="sig-paren">(</span><em>iterable</em><span class="sig-paren">)</span> &#x2192; None -- extend list by appending elements from the iterable<a class="headerlink" href="#job_stream.common._Work.extend" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="method">
 <dt id="job_stream.common._Work.index">
-<code class="descname">index</code><span class="sig-paren">(</span><em>value</em><span class="optional">[</span>, <em>start</em><span class="optional">[</span>, <em>stop</em><span class="optional">]</span><span class="optional">]</span><span class="sig-paren">)</span> &rarr; integer -- return first index of value.<a class="headerlink" href="#job_stream.common._Work.index" title="Permalink to this definition">¶</a></dt>
+<code class="descname">index</code><span class="sig-paren">(</span><em>value</em><span class="optional">[</span>, <em>start</em><span class="optional">[</span>, <em>stop</em><span class="optional">]</span><span class="optional">]</span><span class="sig-paren">)</span> &#x2192; integer -- return first index of value.<a class="headerlink" href="#job_stream.common._Work.index" title="Permalink to this definition">¶</a></dt>
 <dd><p>Raises ValueError if the value is not present.</p>
 </dd></dl>
 
 <dl class="method">
 <dt id="job_stream.common._Work.insert">
 <code class="descname">insert</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#job_stream.common._Work.insert" title="Permalink to this definition">¶</a></dt>
-<dd><p>L.insert(index, object) &#8211; insert object before index</p>
+<dd><p>L.insert(index, object) – insert object before index</p>
 </dd></dl>
 
 <dl class="method">
 <dt id="job_stream.common._Work.pop">
-<code class="descname">pop</code><span class="sig-paren">(</span><span class="optional">[</span><em>index</em><span class="optional">]</span><span class="sig-paren">)</span> &rarr; item -- remove and return item at index (default last).<a class="headerlink" href="#job_stream.common._Work.pop" title="Permalink to this definition">¶</a></dt>
+<code class="descname">pop</code><span class="sig-paren">(</span><span class="optional">[</span><em>index</em><span class="optional">]</span><span class="sig-paren">)</span> &#x2192; item -- remove and return item at index (default last).<a class="headerlink" href="#job_stream.common._Work.pop" title="Permalink to this definition">¶</a></dt>
 <dd><p>Raises IndexError if list is empty or index is out of range.</p>
 </dd></dl>
 
 <dl class="method">
 <dt id="job_stream.common._Work.remove">
-<code class="descname">remove</code><span class="sig-paren">(</span><em>value</em><span class="sig-paren">)</span> &rarr; None -- remove first occurrence of value.<a class="headerlink" href="#job_stream.common._Work.remove" title="Permalink to this definition">¶</a></dt>
+<code class="descname">remove</code><span class="sig-paren">(</span><em>value</em><span class="sig-paren">)</span> &#x2192; None -- remove first occurrence of value.<a class="headerlink" href="#job_stream.common._Work.remove" title="Permalink to this definition">¶</a></dt>
 <dd><p>Raises ValueError if the value is not present.</p>
 </dd></dl>
 
 <dl class="method">
 <dt id="job_stream.common._Work.reverse">
 <code class="descname">reverse</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#job_stream.common._Work.reverse" title="Permalink to this definition">¶</a></dt>
-<dd><p>L.reverse() &#8211; reverse <em>IN PLACE</em></p>
+<dd><p>L.reverse() – reverse <em>IN PLACE</em></p>
 </dd></dl>
 
 <dl class="method">
 <dt id="job_stream.common._Work.sort">
-<code class="descname">sort</code><span class="sig-paren">(</span><em>key=None</em>, <em>reverse=False</em><span class="sig-paren">)</span> &rarr; None -- stable sort *IN PLACE*<a class="headerlink" href="#job_stream.common._Work.sort" title="Permalink to this definition">¶</a></dt>
+<code class="descname">sort</code><span class="sig-paren">(</span><em>key=None</em>, <em>reverse=False</em><span class="sig-paren">)</span> &#x2192; None -- stable sort *IN PLACE*<a class="headerlink" href="#job_stream.common._Work.sort" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 </dd></dl>
@@ -635,7 +654,7 @@ If left empty, work comes from stdin.</p>
 <dl class="function">
 <dt id="job_stream.common._cpuThreadTime">
 <code class="descclassname">job_stream.common.</code><code class="descname">_cpuThreadTime</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/job_stream/common.html#_cpuThreadTime"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#job_stream.common._cpuThreadTime" title="Permalink to this definition">¶</a></dt>
-<dd><p>Returns the current thread&#8217;s CPU time in seconds.  Used for tests of
+<dd><p>Returns the current thread’s CPU time in seconds.  Used for tests of
 profiling, mostly.</p>
 </dd></dl>
 
@@ -687,13 +706,13 @@ init code.</p>
 application, job_stream provides invoke functionality to safely launch an
 external program (launching an application such as Xyce, for instance, can
 cause problems if the environment variables are not doctored appropriately).</p>
-<p>progAndArgs: list, [ &#8216;path/to/file&#8217;, <a href="#id1"><span class="problematic" id="id2">*</span></a>args ]</p>
+<p>progAndArgs: list, [ ‘path/to/file’, <a href="#id1"><span class="problematic" id="id2">*</span></a>args ]</p>
 <dl class="docutils">
 <dt>transientErrors: list of strings, if any of these strings are found in the</dt>
 <dd><p class="first">stderr of the program, then any non-zero return code is considered
 a transient error and the application will be re-launched up to
 maxRetries times.</p>
-<p class="last">Note that &#8220;No child processes&#8221; is automatically handled as
+<p class="last">Note that “No child processes” is automatically handled as
 transient.</p>
 </dd>
 <dt>maxRetries: The maximum number of times to run the application if there are</dt>
@@ -722,7 +741,7 @@ checkpointInterval - (float) The time between the completion of one</p>
 <div>checkpoint and the starting of the next, in seconds.</div></blockquote>
 <dl class="last docutils">
 <dt>checkpointSyncInterval - (float) The time between all processors</dt>
-<dd>thinking they&#8217;re ready to checkpoint and the actual checkpoint.</dd>
+<dd>thinking they’re ready to checkpoint and the actual checkpoint.</dd>
 <dt>handleResult - (callable) The default is to print out repr(result).  If</dt>
 <dd>specified, this function will be called instead with the output
 work as an argument.  Note that this goes outside of checkpointing!
@@ -738,13 +757,14 @@ checkpoint-safe, this method MUST save what it needs to file.</dd>
 
 
            </div>
+           
           </div>
           <footer>
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
       
       
-        <a href="job_stream.invoke.html" class="btn btn-neutral" title="job_stream.invoke" accesskey="p"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+        <a href="job_stream.invoke.html" class="btn btn-neutral" title="job_stream.invoke" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
       
     </div>
   
@@ -757,7 +777,7 @@ checkpoint-safe, this method MUST save what it needs to file.</dd>
 
     </p>
   </div>
-  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
 
 </footer>
 
@@ -775,10 +795,12 @@ checkpoint-safe, this method MUST save what it needs to file.</dd>
     <script type="text/javascript">
         var DOCUMENTATION_OPTIONS = {
             URL_ROOT:'../',
-            VERSION:'0.1.31',
+            VERSION:'0.1.32',
+            LANGUAGE:'None',
             COLLAPSE_INDEX:false,
             FILE_SUFFIX:'.html',
-            HAS_SOURCE:  true
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
         };
     </script>
       <script type="text/javascript" src="../_static/jquery.js"></script>
@@ -787,19 +809,13 @@ checkpoint-safe, this method MUST save what it needs to file.</dd>
 
   
 
-  
-  
-    <script type="text/javascript" src="../_static/js/theme.js"></script>
-  
+  <script type="text/javascript" src="../_static/js/theme.js"></script>
 
-  
-  
   <script type="text/javascript">
       jQuery(function () {
-          SphinxRtdTheme.StickyNav.enable();
+          SphinxRtdTheme.Navigation.enable(true);
       });
-  </script>
-   
+  </script> 
 
 </body>
 </html>
