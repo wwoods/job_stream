@@ -10,9 +10,11 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>job_stream.baked &mdash; job_stream 0.1.31 documentation</title>
+  <title>job_stream.baked &mdash; job_stream 0.1.32 documentation</title>
   
 
+  
+  
   
   
 
@@ -24,28 +26,22 @@
 
   
 
-  
-  
-    <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
-  
-
-  
-    <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
-  
-
-  
-    <link rel="top" title="job_stream 0.1.31 documentation" href="../index.html"/>
-        <link rel="up" title="job_stream" href="../python.html"/>
-        <link rel="next" title="job_stream.inline" href="job_stream.inline.html"/>
-        <link rel="prev" title="job_stream" href="../python.html"/> 
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="job_stream.inline" href="job_stream.inline.html" />
+    <link rel="prev" title="job_stream" href="../python.html" /> 
 
   
   <script src="../_static/js/modernizr.min.js"></script>
 
 </head>
 
-<body class="wy-body-for-nav" role="document">
+<body class="wy-body-for-nav">
 
+   
   <div class="wy-grid-for-nav">
 
     
@@ -65,7 +61,7 @@
             
             
               <div class="version">
-                0.1.31
+                0.1.32
               </div>
             
           
@@ -86,7 +82,10 @@
           
             
             
-                <ul>
+              
+            
+            
+              <ul>
 <li class="toctree-l1"><a class="reference internal" href="../main.html">job_stream</a></li>
 </ul>
 <ul class="current">
@@ -117,36 +116,56 @@
     <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
 
       
-      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
-        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
-        <a href="../index.html">job_stream</a>
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">job_stream</a>
+        
       </nav>
 
 
-      
       <div class="wy-nav-content">
+        
         <div class="rst-content">
+        
           
 
- 
+
+
+
+
+
+
+
+
+
+
+
 
 
 
 <div role="navigation" aria-label="breadcrumbs navigation">
+
   <ul class="wy-breadcrumbs">
-    <li><a href="../index.html">Docs</a> &raquo;</li>
-      
+    
+      <li><a href="../index.html">Docs</a> &raquo;</li>
+        
           <li><a href="../python.html">job_stream</a> &raquo;</li>
-      
-    <li>job_stream.baked</li>
+        
+      <li>job_stream.baked</li>
+    
+    
       <li class="wy-breadcrumbs-aside">
         
-          
-            <a href="../_sources/_autosummary/job_stream.baked.txt" rel="nofollow"> View page source</a>
+            
+            <a href="../_sources/_autosummary/job_stream.baked.rst.txt" rel="nofollow"> View page source</a>
           
         
       </li>
+    
   </ul>
+
+  
   <hr/>
 </div>
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
@@ -160,12 +179,12 @@
 <dl class="function">
 <dt id="job_stream.baked.sweep">
 <code class="descclassname">job_stream.baked.</code><code class="descname">sweep</code><span class="sig-paren">(</span><em>variables={}</em>, <em>trials=0</em>, <em>output=None</em>, <em>trialsParms={}</em>, <em>showProgress=True</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/job_stream/baked.html#sweep"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#job_stream.baked.sweep" title="Permalink to this definition">¶</a></dt>
-<dd><p>Generic experiment framework; wraps a user&#8217;s job_stream (realized via
-<a class="reference internal" href="job_stream.inline.html#job_stream.inline.Work" title="job_stream.inline.Work"><code class="xref py py-mod docutils literal"><span class="pre">job_stream.inline.Work</span></code></a>.  The wrapped job_stream should take a
+<dd><p>Generic experiment framework; wraps a user’s job_stream (realized via
+<a class="reference internal" href="job_stream.inline.html#job_stream.inline.Work" title="job_stream.inline.Work"><code class="xref py py-mod docutils literal notranslate"><span class="pre">job_stream.inline.Work</span></code></a>.  The wrapped job_stream should take a
 parameter dictionary and return a dictionary of results to track.  The
-numerical statistics of several invocations of the user&#8217;s code will be
+numerical statistics of several invocations of the user’s code will be
 reported.  For example:</p>
-<div class="highlight-python"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">job_stream.baked</span> <span class="kn">import</span> <span class="n">sweep</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">job_stream.baked</span> <span class="kn">import</span> <span class="n">sweep</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
 
 <span class="k">with</span> <span class="n">sweep</span><span class="p">({</span> <span class="s1">&#39;a&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span> <span class="p">})</span> <span class="k">as</span> <span class="n">w</span><span class="p">:</span>
@@ -175,28 +194,28 @@ reported.  For example:</p>
 </pre></div>
 </div>
 <p>The above will print out a CSV file (in a legible, table format) that
-details the mean of <code class="docutils literal"><span class="pre">value</span></code> for <code class="docutils literal"><span class="pre">a</span> <span class="pre">=</span> <span class="pre">0,</span> <span class="pre">a</span> <span class="pre">=</span> <span class="pre">1,</span> <span class="pre">...,</span> <span class="pre">a</span> <span class="pre">=</span> <span class="pre">9</span></code>.
+details the mean of <code class="docutils literal notranslate"><span class="pre">value</span></code> for <code class="docutils literal notranslate"><span class="pre">a</span> <span class="pre">=</span> <span class="pre">0,</span> <span class="pre">a</span> <span class="pre">=</span> <span class="pre">1,</span> <span class="pre">...,</span> <span class="pre">a</span> <span class="pre">=</span> <span class="pre">9</span></code>.
 Additionally, the standard deviation and expected (95% confidence) error
 of the reported mean will be printed.</p>
 <div class="admonition note">
 <p class="first admonition-title">Note</p>
 <p class="last">While training e.g. a machine learning model, it may be
-desirable to print the model&#8217;s accuracy at different points
+desirable to print the model’s accuracy at different points
 throughout the training.  To accomplish this, it is recommended
 that the user code remember the accuracy throughout training and
-multiplex the column in the final answer (e.g., <code class="docutils literal"><span class="pre">value_at_0</span></code>,
-<code class="docutils literal"><span class="pre">value_at_1000</span></code>, etc).</p>
+multiplex the column in the final answer (e.g., <code class="docutils literal notranslate"><span class="pre">value_at_0</span></code>,
+<code class="docutils literal notranslate"><span class="pre">value_at_1000</span></code>, etc).</p>
 </div>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
 <tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
-<li><strong>variables</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#any" title="(in Python v2.7)"><em>any</em></a>) &#8211; <p>Any of:</p>
+<li><strong>variables</strong> (<em>any</em>) – <p>Any of:</p>
 <ul>
-<li><a class="reference external" href="https://docs.python.org/2/library/stdtypes.html#dict" title="(in Python v2.7)"><code class="xref py py-class docutils literal"><span class="pre">dict</span></code></a>: <code class="docutils literal"><span class="pre">{</span> <span class="pre">'parameter</span> <span class="pre">name':</span> <span class="pre">[</span> <span class="pre">'values</span> <span class="pre">to</span> <span class="pre">try'</span> <span class="pre">]</span> <span class="pre">}</span></code>.<p>Tries every combination of values for the specified parameters.</p>
-<p>Often, <code class="docutils literal"><span class="pre">values</span> <span class="pre">to</span> <span class="pre">try</span></code> will come from a function such as
-<code class="docutils literal"><span class="pre">numpy.linspace</span></code>, which generates a number of intermediate
+<li><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.7)"><code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code></a>: <code class="docutils literal notranslate"><span class="pre">{</span> <span class="pre">'parameter</span> <span class="pre">name':</span> <span class="pre">[</span> <span class="pre">'values</span> <span class="pre">to</span> <span class="pre">try'</span> <span class="pre">]</span> <span class="pre">}</span></code>.<p>Tries every combination of values for the specified parameters.</p>
+<p>Often, <code class="docutils literal notranslate"><span class="pre">values</span> <span class="pre">to</span> <span class="pre">try</span></code> will come from a function such as
+<code class="docutils literal notranslate"><span class="pre">numpy.linspace</span></code>, which generates a number of intermediate
 values on a range.</p>
 <div class="admonition warning">
 <p class="first admonition-title">Warning</p>
@@ -208,30 +227,30 @@ This will quickly take a long time to run, so be
 careful.</p>
 </div>
 </li>
-<li><a class="reference external" href="https://docs.python.org/2/library/functions.html#list" title="(in Python v2.7)"><code class="xref py py-class docutils literal"><span class="pre">list</span></code></a>: <code class="docutils literal"><span class="pre">[</span> <span class="pre">{</span> <span class="pre">'parameter</span> <span class="pre">name':</span> <span class="pre">'value'</span> <span class="pre">}</span> <span class="pre">]</span></code>.<p>Tries only the specified combinations.  The dictionaries are
+<li><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.7)"><code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code></a>: <code class="docutils literal notranslate"><span class="pre">[</span> <span class="pre">{</span> <span class="pre">'parameter</span> <span class="pre">name':</span> <span class="pre">'value'</span> <span class="pre">}</span> <span class="pre">]</span></code>.<p>Tries only the specified combinations.  The dictionaries are
 passed as-is.</p>
 </li>
 </ul>
-<p>Regardless of the type passed, the arguments seen by the user&#8217;s
-jobs will also include <code class="docutils literal"><span class="pre">id</span></code>, a unique identifier for the
-combination of parameters, and <code class="docutils literal"><span class="pre">trial</span></code>, the current iteration of
+<p>Regardless of the type passed, the arguments seen by the user’s
+jobs will also include <code class="docutils literal notranslate"><span class="pre">id</span></code>, a unique identifier for the
+combination of parameters, and <code class="docutils literal notranslate"><span class="pre">trial</span></code>, the current iteration of
 that combination.</p>
 </li>
-<li><strong>trials</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#int" title="(in Python v2.7)"><em>int</em></a>) &#8211; <p>The number of times to try each parameter combination.</p>
+<li><strong>trials</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.7)"><em>int</em></a>) – <p>The number of times to try each parameter combination.</p>
 <p>If greater than zero, this number is exact.</p>
 <p>If zero, the number will be automatically discerned based on the
 standard deviations of each returned property.  More specifically,
-the algorithm proposed by Driels et al. in 2004, &#8220;Determining the
+the algorithm proposed by Driels et al. in 2004, “Determining the
 Number of Iterations for Monte Carlo Simulations of Weapon
-Effectiveness,&#8221; will be used to guarantee that every mean returned
+Effectiveness,” will be used to guarantee that every mean returned
 will be within 10% of the true value with 95% confidence.</p>
 <p>If less than zero, the same algorithm is used as for a zero value,
-but the number of trials ran will not exceed <code class="docutils literal"><span class="pre">abs(trials)</span></code>.</p>
+but the number of trials ran will not exceed <code class="docutils literal notranslate"><span class="pre">abs(trials)</span></code>.</p>
 </li>
-<li><strong>output</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a>) &#8211; If <code class="docutils literal"><span class="pre">None</span></code>, results are printed to stdout and the
+<li><strong>output</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.7)"><em>str</em></a>) – If <code class="docutils literal notranslate"><span class="pre">None</span></code>, results are printed to stdout and the
 program exits.  If anything else, presumed to be the path to a
 CSV file where the results will be dumped.</li>
-<li><strong>trialsParms</strong> (<a class="reference external" href="https://docs.python.org/2/library/stdtypes.html#dict" title="(in Python v2.7)"><em>dict</em></a>) &#8211; <p>A dictionary of keys used to configure the auto-detect used to
+<li><strong>trialsParms</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.7)"><em>dict</em></a>) – <p>A dictionary of keys used to configure the auto-detect used to
 determine the number of trials needed.</p>
 <dl class="docutils">
 <dt>E</dt>
@@ -245,21 +264,21 @@ criteria.  Defaults to 0.1.</dd>
 disable this stopping criteria.  Defaults to 1e-2.</dd>
 <dt>min</dt>
 <dd>The minimum number of trials to run.  Defaults to 3, as this is
-usually enough to get a stable idea of the variable&#8217;s standard
+usually enough to get a stable idea of the variable’s standard
 deviation.</dd>
 <dt>max</dt>
 <dd>The maximum number of trials to run.  Defaults to 10000.  May
-also be specified by setting the argument <code class="docutils literal"><span class="pre">trials</span></code> to a
+also be specified by setting the argument <code class="docutils literal notranslate"><span class="pre">trials</span></code> to a
 negative number.</dd>
 </dl>
 </li>
-<li><strong>showProgress</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#bool" title="(in Python v2.7)"><em>bool</em></a>) &#8211; If True (default), then print out progress
+<li><strong>showProgress</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.7)"><em>bool</em></a>) – If True (default), then print out progress
 indicators to stderr as work is completed.</li>
 </ul>
 </td>
 </tr>
 <tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">Nothing is returned.  However, both stdout and, if specified, the csv
-indicated by <code class="docutils literal"><span class="pre">output</span></code> will have a grid with all trial ids,
+indicated by <code class="docutils literal notranslate"><span class="pre">output</span></code> will have a grid with all trial ids,
 parameters, and results printed.  Each result column will represent
 the mean value; additionally, the estimated standard deviation and the
 95% confidence error of the reported mean will be printed.</p>
@@ -274,15 +293,16 @@ the mean value; additionally, the estimated standard deviation and the
 
 
            </div>
+           
           </div>
           <footer>
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
       
-        <a href="job_stream.inline.html" class="btn btn-neutral float-right" title="job_stream.inline" accesskey="n">Next <span class="fa fa-arrow-circle-right"></span></a>
+        <a href="job_stream.inline.html" class="btn btn-neutral float-right" title="job_stream.inline" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
       
       
-        <a href="../python.html" class="btn btn-neutral" title="job_stream" accesskey="p"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+        <a href="../python.html" class="btn btn-neutral" title="job_stream" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
       
     </div>
   
@@ -295,7 +315,7 @@ the mean value; additionally, the estimated standard deviation and the
 
     </p>
   </div>
-  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
 
 </footer>
 
@@ -313,10 +333,12 @@ the mean value; additionally, the estimated standard deviation and the
     <script type="text/javascript">
         var DOCUMENTATION_OPTIONS = {
             URL_ROOT:'../',
-            VERSION:'0.1.31',
+            VERSION:'0.1.32',
+            LANGUAGE:'None',
             COLLAPSE_INDEX:false,
             FILE_SUFFIX:'.html',
-            HAS_SOURCE:  true
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
         };
     </script>
       <script type="text/javascript" src="../_static/jquery.js"></script>
@@ -325,19 +347,13 @@ the mean value; additionally, the estimated standard deviation and the
 
   
 
-  
-  
-    <script type="text/javascript" src="../_static/js/theme.js"></script>
-  
+  <script type="text/javascript" src="../_static/js/theme.js"></script>
 
-  
-  
   <script type="text/javascript">
       jQuery(function () {
-          SphinxRtdTheme.StickyNav.enable();
+          SphinxRtdTheme.Navigation.enable(true);
       });
-  </script>
-   
+  </script> 
 
 </body>
 </html>

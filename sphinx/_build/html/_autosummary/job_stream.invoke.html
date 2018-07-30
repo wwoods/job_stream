@@ -10,9 +10,11 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>job_stream.invoke &mdash; job_stream 0.1.31 documentation</title>
+  <title>job_stream.invoke &mdash; job_stream 0.1.32 documentation</title>
   
 
+  
+  
   
   
 
@@ -24,28 +26,22 @@
 
   
 
-  
-  
-    <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
-  
-
-  
-    <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
-  
-
-  
-    <link rel="top" title="job_stream 0.1.31 documentation" href="../index.html"/>
-        <link rel="up" title="job_stream" href="../python.html"/>
-        <link rel="next" title="job_stream.common" href="job_stream.common.html"/>
-        <link rel="prev" title="job_stream.inline" href="job_stream.inline.html"/> 
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="job_stream.common" href="job_stream.common.html" />
+    <link rel="prev" title="job_stream.inline" href="job_stream.inline.html" /> 
 
   
   <script src="../_static/js/modernizr.min.js"></script>
 
 </head>
 
-<body class="wy-body-for-nav" role="document">
+<body class="wy-body-for-nav">
 
+   
   <div class="wy-grid-for-nav">
 
     
@@ -65,7 +61,7 @@
             
             
               <div class="version">
-                0.1.31
+                0.1.32
               </div>
             
           
@@ -86,7 +82,10 @@
           
             
             
-                <ul>
+              
+            
+            
+              <ul>
 <li class="toctree-l1"><a class="reference internal" href="../main.html">job_stream</a></li>
 </ul>
 <ul class="current">
@@ -114,36 +113,56 @@
     <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
 
       
-      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
-        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
-        <a href="../index.html">job_stream</a>
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">job_stream</a>
+        
       </nav>
 
 
-      
       <div class="wy-nav-content">
+        
         <div class="rst-content">
+        
           
 
- 
+
+
+
+
+
+
+
+
+
+
+
 
 
 
 <div role="navigation" aria-label="breadcrumbs navigation">
+
   <ul class="wy-breadcrumbs">
-    <li><a href="../index.html">Docs</a> &raquo;</li>
-      
+    
+      <li><a href="../index.html">Docs</a> &raquo;</li>
+        
           <li><a href="../python.html">job_stream</a> &raquo;</li>
-      
-    <li>job_stream.invoke</li>
+        
+      <li>job_stream.invoke</li>
+    
+    
       <li class="wy-breadcrumbs-aside">
         
-          
-            <a href="../_sources/_autosummary/job_stream.invoke.txt" rel="nofollow"> View page source</a>
+            
+            <a href="../_sources/_autosummary/job_stream.invoke.rst.txt" rel="nofollow"> View page source</a>
           
         
       </li>
+    
   </ul>
+
+  
   <hr/>
 </div>
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
@@ -158,13 +177,13 @@
 application, job_stream provides invoke functionality to safely launch an
 external program (launching an application such as Xyce, for instance, can
 cause problems if the environment variables are not doctored appropriately).</p>
-<p>progAndArgs: list, [ &#8216;path/to/file&#8217;, <a href="#id1"><span class="problematic" id="id2">*</span></a>args ]</p>
+<p>progAndArgs: list, [ ‘path/to/file’, <a href="#id1"><span class="problematic" id="id2">*</span></a>args ]</p>
 <dl class="docutils">
 <dt>transientErrors: list of strings, if any of these strings are found in the</dt>
 <dd><p class="first">stderr of the program, then any non-zero return code is considered
 a transient error and the application will be re-launched up to
 maxRetries times.</p>
-<p class="last">Note that &#8220;No child processes&#8221; is automatically handled as
+<p class="last">Note that “No child processes” is automatically handled as
 transient.</p>
 </dd>
 <dt>maxRetries: The maximum number of times to run the application if there are</dt>
@@ -177,15 +196,16 @@ transient.</p>
 
 
            </div>
+           
           </div>
           <footer>
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
       
-        <a href="job_stream.common.html" class="btn btn-neutral float-right" title="job_stream.common" accesskey="n">Next <span class="fa fa-arrow-circle-right"></span></a>
+        <a href="job_stream.common.html" class="btn btn-neutral float-right" title="job_stream.common" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
       
       
-        <a href="job_stream.inline.html" class="btn btn-neutral" title="job_stream.inline" accesskey="p"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+        <a href="job_stream.inline.html" class="btn btn-neutral" title="job_stream.inline" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
       
     </div>
   
@@ -198,7 +218,7 @@ transient.</p>
 
     </p>
   </div>
-  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
 
 </footer>
 
@@ -216,10 +236,12 @@ transient.</p>
     <script type="text/javascript">
         var DOCUMENTATION_OPTIONS = {
             URL_ROOT:'../',
-            VERSION:'0.1.31',
+            VERSION:'0.1.32',
+            LANGUAGE:'None',
             COLLAPSE_INDEX:false,
             FILE_SUFFIX:'.html',
-            HAS_SOURCE:  true
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
         };
     </script>
       <script type="text/javascript" src="../_static/jquery.js"></script>
@@ -228,19 +250,13 @@ transient.</p>
 
   
 
-  
-  
-    <script type="text/javascript" src="../_static/js/theme.js"></script>
-  
+  <script type="text/javascript" src="../_static/js/theme.js"></script>
 
-  
-  
   <script type="text/javascript">
       jQuery(function () {
-          SphinxRtdTheme.StickyNav.enable();
+          SphinxRtdTheme.Navigation.enable(true);
       });
-  </script>
-   
+  </script> 
 
 </body>
 </html>

@@ -10,9 +10,11 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>job_stream.inline &mdash; job_stream 0.1.31 documentation</title>
+  <title>job_stream.inline &mdash; job_stream 0.1.32 documentation</title>
   
 
+  
+  
   
   
 
@@ -24,28 +26,22 @@
 
   
 
-  
-  
-    <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
-  
-
-  
-    <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
-  
-
-  
-    <link rel="top" title="job_stream 0.1.31 documentation" href="../index.html"/>
-        <link rel="up" title="job_stream" href="../python.html"/>
-        <link rel="next" title="job_stream.invoke" href="job_stream.invoke.html"/>
-        <link rel="prev" title="job_stream.baked" href="job_stream.baked.html"/> 
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="job_stream.invoke" href="job_stream.invoke.html" />
+    <link rel="prev" title="job_stream.baked" href="job_stream.baked.html" /> 
 
   
   <script src="../_static/js/modernizr.min.js"></script>
 
 </head>
 
-<body class="wy-body-for-nav" role="document">
+<body class="wy-body-for-nav">
 
+   
   <div class="wy-grid-for-nav">
 
     
@@ -65,7 +61,7 @@
             
             
               <div class="version">
-                0.1.31
+                0.1.32
               </div>
             
           
@@ -86,7 +82,10 @@
           
             
             
-                <ul>
+              
+            
+            
+              <ul>
 <li class="toctree-l1"><a class="reference internal" href="../main.html">job_stream</a></li>
 </ul>
 <ul class="current">
@@ -96,7 +95,7 @@
 <li class="toctree-l2 current"><a class="reference internal" href="../python.html#submodules">Submodules</a><ul class="current">
 <li class="toctree-l3"><a class="reference internal" href="job_stream.baked.html">job_stream.baked</a></li>
 <li class="toctree-l3 current"><a class="current reference internal" href="#">job_stream.inline</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="#hierarchy-of-job-stream-inline-pipes">Hierarchy of <code class="docutils literal"><span class="pre">job_stream.inline</span></code> Pipes</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#hierarchy-of-job-stream-inline-pipes">Hierarchy of <code class="docutils literal notranslate"><span class="pre">job_stream.inline</span></code> Pipes</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#members">Members</a></li>
 </ul>
 </li>
@@ -118,36 +117,56 @@
     <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
 
       
-      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
-        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
-        <a href="../index.html">job_stream</a>
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">job_stream</a>
+        
       </nav>
 
 
-      
       <div class="wy-nav-content">
+        
         <div class="rst-content">
+        
           
 
- 
+
+
+
+
+
+
+
+
+
+
+
 
 
 
 <div role="navigation" aria-label="breadcrumbs navigation">
+
   <ul class="wy-breadcrumbs">
-    <li><a href="../index.html">Docs</a> &raquo;</li>
-      
+    
+      <li><a href="../index.html">Docs</a> &raquo;</li>
+        
           <li><a href="../python.html">job_stream</a> &raquo;</li>
-      
-    <li>job_stream.inline</li>
+        
+      <li>job_stream.inline</li>
+    
+    
       <li class="wy-breadcrumbs-aside">
         
-          
-            <a href="../_sources/_autosummary/job_stream.inline.txt" rel="nofollow"> View page source</a>
+            
+            <a href="../_sources/_autosummary/job_stream.inline.rst.txt" rel="nofollow"> View page source</a>
           
         
       </li>
+    
   </ul>
+
+  
   <hr/>
 </div>
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
@@ -158,7 +177,7 @@
 <p>An intuitive way of specifying data flow using imperative programming
 techniques.</p>
 <p>For example, to count the average word length in a string:</p>
-<div class="highlight-python"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">job_stream</span> <span class="kn">import</span> <span class="n">inline</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">job_stream</span> <span class="kn">import</span> <span class="n">inline</span>
 
 <span class="c1"># Begin a new job_stream, treating each word in the string as a piece</span>
 <span class="c1"># of work.</span>
@@ -195,19 +214,19 @@ techniques.</p>
         <span class="k">print</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>The main class interacted with in <code class="docutils literal"><span class="pre">inline</span></code> code is
-<a class="reference internal" href="#job_stream.inline.Work" title="job_stream.inline.Work"><code class="xref py py-class docutils literal"><span class="pre">job_stream.inline.Work</span></code></a>, which provides methods for decorating Python
+<p>The main class interacted with in <code class="docutils literal notranslate"><span class="pre">inline</span></code> code is
+<a class="reference internal" href="#job_stream.inline.Work" title="job_stream.inline.Work"><code class="xref py py-class docutils literal notranslate"><span class="pre">job_stream.inline.Work</span></code></a>, which provides methods for decorating Python
 functions and remembers how the code was organized so that things are executed
-in the right order.  See <a class="reference internal" href="#job_stream.inline.Work" title="job_stream.inline.Work"><code class="xref py py-class docutils literal"><span class="pre">job_stream.inline.Work</span></code></a>&#8216;s documentation for
+in the right order.  See <a class="reference internal" href="#job_stream.inline.Work" title="job_stream.inline.Work"><code class="xref py py-class docutils literal notranslate"><span class="pre">job_stream.inline.Work</span></code></a>’s documentation for
 more information.</p>
 <div class="section" id="hierarchy-of-job-stream-inline-pipes">
-<h2>Hierarchy of <code class="docutils literal"><span class="pre">job_stream.inline</span></code> Pipes<a class="headerlink" href="#hierarchy-of-job-stream-inline-pipes" title="Permalink to this headline">¶</a></h2>
+<h2>Hierarchy of <code class="docutils literal notranslate"><span class="pre">job_stream.inline</span></code> Pipes<a class="headerlink" href="#hierarchy-of-job-stream-inline-pipes" title="Permalink to this headline">¶</a></h2>
 <p>Sometimes, code follows a common skeleton with some parallel code in the
-middle.  The <a class="reference internal" href="job_stream.baked.html#module-job_stream.baked" title="job_stream.baked"><code class="xref py py-mod docutils literal"><span class="pre">job_stream.baked</span></code></a> library is an example of this;
-<a class="reference internal" href="job_stream.baked.html#job_stream.baked.sweep" title="job_stream.baked.sweep"><code class="xref py py-meth docutils literal"><span class="pre">job_stream.baked.sweep()</span></code></a> returns a context manager that yields a
-<a class="reference internal" href="#job_stream.inline.Work" title="job_stream.inline.Work"><code class="xref py py-class docutils literal"><span class="pre">job_stream.inline.Work</span></code></a> object used to tell <code class="docutils literal"><span class="pre">sweep</span></code> what operations
+middle.  The <a class="reference internal" href="job_stream.baked.html#module-job_stream.baked" title="job_stream.baked"><code class="xref py py-mod docutils literal notranslate"><span class="pre">job_stream.baked</span></code></a> library is an example of this;
+<a class="reference internal" href="job_stream.baked.html#job_stream.baked.sweep" title="job_stream.baked.sweep"><code class="xref py py-meth docutils literal notranslate"><span class="pre">job_stream.baked.sweep()</span></code></a> returns a context manager that yields a
+<a class="reference internal" href="#job_stream.inline.Work" title="job_stream.inline.Work"><code class="xref py py-class docutils literal notranslate"><span class="pre">job_stream.inline.Work</span></code></a> object used to tell <code class="docutils literal notranslate"><span class="pre">sweep</span></code> what operations
 the user wishes to perform:</p>
-<div class="highlight-python"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">job_stream.baked</span> <span class="kn">import</span> <span class="n">sweep</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">job_stream.baked</span> <span class="kn">import</span> <span class="n">sweep</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
 
 <span class="k">with</span> <span class="n">sweep</span><span class="p">({</span> <span class="s1">&#39;a&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span> <span class="p">})</span> <span class="k">as</span> <span class="n">w</span><span class="p">:</span>
@@ -217,9 +236,9 @@ the user wishes to perform:</p>
 </pre></div>
 </div>
 <p>It is recommended that if a user class has functionality that can be added
-within a <code class="docutils literal"><span class="pre">job_stream</span></code> pipe, it should expose that functionality in an
-<code class="docutils literal"><span class="pre">&#64;classmethod</span></code> as <code class="docutils literal"><span class="pre">jobs_{name}</span></code>:</p>
-<div class="highlight-python"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">job_stream.inline</span> <span class="kn">import</span> <span class="n">Args</span><span class="p">,</span> <span class="n">Work</span>
+within a <code class="docutils literal notranslate"><span class="pre">job_stream</span></code> pipe, it should expose that functionality in an
+<code class="docutils literal notranslate"><span class="pre">&#64;classmethod</span></code> as <code class="docutils literal notranslate"><span class="pre">jobs_{name}</span></code>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">job_stream.inline</span> <span class="kn">import</span> <span class="n">Args</span><span class="p">,</span> <span class="n">Work</span>
 
 <span class="k">class</span> <span class="nc">MyClass</span><span class="p">:</span>
     <span class="k">def</span> <span class="nf">classify</span><span class="p">(</span><span class="n">inputs</span><span class="p">):</span>
@@ -242,10 +261,10 @@ within a <code class="docutils literal"><span class="pre">job_stream</span></cod
 <dl class="class">
 <dt id="job_stream.inline.Args">
 <em class="property">class </em><code class="descclassname">job_stream.inline.</code><code class="descname">Args</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/job_stream/inline.html#Args"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#job_stream.inline.Args" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <a class="reference external" href="https://docs.python.org/2/library/functions.html#object" title="(in Python v2.7)"><code class="xref py py-class docutils literal"><span class="pre">object</span></code></a></p>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.7)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
 <p>Automatically fans-out args and kwargs to the caller.  For example, the
-below will print out &#8220;Got 1, 2, 3, 4&#8221;:</p>
-<div class="highlight-python"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">job_stream.inline</span> <span class="kn">import</span> <span class="n">Args</span><span class="p">,</span> <span class="n">Work</span>
+below will print out “Got 1, 2, 3, 4”:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">job_stream.inline</span> <span class="kn">import</span> <span class="n">Args</span><span class="p">,</span> <span class="n">Work</span>
 
 <span class="k">with</span> <span class="n">Work</span><span class="p">([</span> <span class="n">Args</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="n">d</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">c</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span> <span class="p">])</span> <span class="k">as</span> <span class="n">w</span><span class="p">:</span>
     <span class="nd">@w.job</span>
@@ -258,7 +277,7 @@ below will print out &#8220;Got 1, 2, 3, 4&#8221;:</p>
 <dl class="class">
 <dt id="job_stream.inline.Multiple">
 <em class="property">class </em><code class="descclassname">job_stream.inline.</code><code class="descname">Multiple</code><span class="sig-paren">(</span><em>workList</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/job_stream/inline.html#Multiple"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#job_stream.inline.Multiple" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <a class="reference external" href="https://docs.python.org/2/library/functions.html#object" title="(in Python v2.7)"><code class="xref py py-class docutils literal"><span class="pre">object</span></code></a></p>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.7)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
 <p>If some inline code wants to emit or recur multiple pieces of work, an instance of
 this class is the way to do it.  For instance:</p>
 <p>return Multiple([ 1, 2, 3 ])</p>
@@ -267,11 +286,11 @@ this class is the way to do it.  For instance:</p>
 <dl class="class">
 <dt id="job_stream.inline.Work">
 <em class="property">class </em><code class="descclassname">job_stream.inline.</code><code class="descname">Work</code><span class="sig-paren">(</span><em>initialWork=[]</em>, <em>useMultiprocessing=True</em>, <em>**runKwargs</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/job_stream/inline.html#Work"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#job_stream.inline.Work" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <a class="reference external" href="https://docs.python.org/2/library/functions.html#object" title="(in Python v2.7)"><code class="xref py py-class docutils literal"><span class="pre">object</span></code></a></p>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.7)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
 <p>Represents a job_stream pipeline.  Similar to traditional imperative
-coding practices, <a class="reference internal" href="#job_stream.inline.Work" title="job_stream.inline.Work"><code class="xref py py-class docutils literal"><span class="pre">Work</span></code></a> passes work in the same direction as the
+coding practices, <a class="reference internal" href="#job_stream.inline.Work" title="job_stream.inline.Work"><code class="xref py py-class docutils literal notranslate"><span class="pre">Work</span></code></a> passes work in the same direction as the
 source file.  In other words, the system starts with something like:</p>
-<div class="highlight-python"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">job_stream.inline</span> <span class="kn">as</span> <span class="nn">inline</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">job_stream.inline</span> <span class="kn">as</span> <span class="nn">inline</span>
 <span class="k">with</span> <span class="n">inline</span><span class="o">.</span><span class="n">Work</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">])</span> <span class="k">as</span> <span class="n">w</span><span class="p">:</span>
     <span class="c1"># ...</span>
 </pre></div>
@@ -279,7 +298,7 @@ source file.  In other words, the system starts with something like:</p>
 <p>This code will distribute the numbers 1, 2, and 3 into the system.  Once
 in the system, any decorated methods will process the data in some way.
 <em>The ordering of the decorated methods matters!</em>  For instance, running:</p>
-<div class="highlight-python"><div class="highlight"><pre><span></span><span class="k">with</span> <span class="n">inline</span><span class="o">.</span><span class="n">Work</span><span class="p">([</span><span class="mi">1</span><span class="p">])</span> <span class="k">as</span> <span class="n">w</span><span class="p">:</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">with</span> <span class="n">inline</span><span class="o">.</span><span class="n">Work</span><span class="p">([</span><span class="mi">1</span><span class="p">])</span> <span class="k">as</span> <span class="n">w</span><span class="p">:</span>
     <span class="nd">@w.job</span>
     <span class="k">def</span> <span class="nf">first</span><span class="p">(</span><span class="n">w</span><span class="p">):</span>
         <span class="k">print</span><span class="p">(</span><span class="s2">&quot;a: {}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">w</span><span class="p">))</span>
@@ -289,27 +308,27 @@ in the system, any decorated methods will process the data in some way.
         <span class="k">print</span><span class="p">(</span><span class="s2">&quot;b: {}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">w</span><span class="p">))</span>
 </pre></div>
 </div>
-<p>Will print <code class="docutils literal"><span class="pre">a:</span> <span class="pre">1</span></code> and <code class="docutils literal"><span class="pre">b:</span> <span class="pre">2</span></code>.  If the list to <a class="reference internal" href="#job_stream.inline.Work" title="job_stream.inline.Work"><code class="xref py py-class docutils literal"><span class="pre">Work</span></code></a> were
-longer, then more <code class="docutils literal"><span class="pre">a:</span></code> and <code class="docutils literal"><span class="pre">b:</span></code> lines would be printed, one pair for
+<p>Will print <code class="docutils literal notranslate"><span class="pre">a:</span> <span class="pre">1</span></code> and <code class="docutils literal notranslate"><span class="pre">b:</span> <span class="pre">2</span></code>.  If the list to <a class="reference internal" href="#job_stream.inline.Work" title="job_stream.inline.Work"><code class="xref py py-class docutils literal notranslate"><span class="pre">Work</span></code></a> were
+longer, then more <code class="docutils literal notranslate"><span class="pre">a:</span></code> and <code class="docutils literal notranslate"><span class="pre">b:</span></code> lines would be printed, one pair for
 each input to the system.</p>
 <div class="admonition note">
 <p class="first admonition-title">Note</p>
 <p>Multiprocessing</p>
 <p>Python has the <a class="reference external" href="https://wiki.python.org/moin/GlobalInterpreterLock">GIL</a>
 in the default implementation, which typically limits pure-python code
-to a single thread.  To get around this, the <a class="reference internal" href="../python.html#module-job_stream" title="job_stream"><code class="xref py py-mod docutils literal"><span class="pre">job_stream</span></code></a> module
+to a single thread.  To get around this, the <a class="reference internal" href="../python.html#module-job_stream" title="job_stream"><code class="xref py py-mod docutils literal notranslate"><span class="pre">job_stream</span></code></a> module
 by default uses multiprocessing for all jobs - that is, your python
 code will run in parallel on all cores, in different processes.</p>
 <p>If this behavior is not desired, particularly if your application loads
 a lot of data in memory that you would rather not duplicate, passing
-<code class="docutils literal"><span class="pre">useMultiprocessing=False</span></code> to the <a class="reference internal" href="#job_stream.inline.Work" title="job_stream.inline.Work"><code class="xref py py-class docutils literal"><span class="pre">Work</span></code></a> object&#8217;s initializer
+<code class="docutils literal notranslate"><span class="pre">useMultiprocessing=False</span></code> to the <a class="reference internal" href="#job_stream.inline.Work" title="job_stream.inline.Work"><code class="xref py py-class docutils literal notranslate"><span class="pre">Work</span></code></a> object’s initializer
 will force all job_stream activity to happen within the original
 process:</p>
-<div class="highlight-python"><div class="highlight"><pre><span></span><span class="n">Work</span><span class="p">([</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span> <span class="p">],</span> <span class="n">useMultiprocessing</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">Work</span><span class="p">([</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span> <span class="p">],</span> <span class="n">useMultiprocessing</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>This may also be done to individual jobs / frames / reducers:</p>
-<div class="last highlight-python"><div class="highlight"><pre><span></span><span class="nd">@w.job</span><span class="p">(</span><span class="n">useMultiprocessing</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+<div class="last highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nd">@w.job</span><span class="p">(</span><span class="n">useMultiprocessing</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">doSomething</span><span class="p">(</span><span class="n">work</span><span class="p">):</span>
     <span class="k">pass</span>
 </pre></div>
@@ -322,26 +341,26 @@ any of the following flags:</p>
 <col class="field-body" />
 <tbody valign="top">
 <tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
-<li><strong>initialWork</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#list" title="(in Python v2.7)"><em>list</em></a>) &#8211; The token(s) or bits of work that will be
+<li><strong>initialWork</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.7)"><em>list</em></a>) – The token(s) or bits of work that will be
 processed.  Each will be processed independently of the others;
 results might be joined late in the pipeline depending on its
 configuration.</li>
-<li><strong>useMultiprocessing</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#bool" title="(in Python v2.7)"><em>bool</em></a>) &#8211; If True (the default), then all
+<li><strong>useMultiprocessing</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.7)"><em>bool</em></a>) – If True (the default), then all
 job_stream work will be handled in child processes spawned via
-Python&#8217;s multiprocessing module.  This is used to get around
-the limitations of the GIL, but if your application&#8217;s setup
+Python’s multiprocessing module.  This is used to get around
+the limitations of the GIL, but if your application’s setup
 (not the jobs themselves) uses a lot of memory and your
 computation is handled by either non-GIL protected code or in
 another process anyway, it is appropriate to turn this off.</li>
-<li><strong>checkpointFile</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a>) &#8211; <strong>Obsolete; use the ``job_stream`` binary.</strong>
+<li><strong>checkpointFile</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.7)"><em>str</em></a>) – <strong>Obsolete; use the ``job_stream`` binary.</strong>
 If specified, job_stream will run in checkpoint
 mode, periodically dumping progress to this file.  If this file
 exists when run() is called, then simulation will be resumed
 from the state stored in this file.</li>
-<li><strong>checkpointInterval</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#float" title="(in Python v2.7)"><em>float</em></a>) &#8211; <strong>Obsolete; use the ``job_stream``
+<li><strong>checkpointInterval</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.7)"><em>float</em></a>) – <strong>Obsolete; use the ``job_stream``
 binary.</strong> Time, in seconds, between the completion of one
 checkpoint and the beginning of the next.</li>
-<li><strong>checkpointSyncInterval</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#float" title="(in Python v2.7)"><em>float</em></a>) &#8211; <strong>Debug / test usage only.</strong>
+<li><strong>checkpointSyncInterval</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.7)"><em>float</em></a>) – <strong>Debug / test usage only.</strong>
 Time, in seconds, to wait for sync when taking a checkpoint.</li>
 </ul>
 </td>
@@ -358,7 +377,7 @@ messages more friendly.</p>
 <dl class="method">
 <dt id="job_stream.inline.Work._assertNoResult">
 <code class="descname">_assertNoResult</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/job_stream/inline.html#Work._assertNoResult"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#job_stream.inline.Work._assertNoResult" title="Permalink to this definition">¶</a></dt>
-<dd><p>Ensures that &#64;w.result hasn&#8217;t been used yet, otherwise raises an
+<dd><p>Ensures that &#64;w.result hasn’t been used yet, otherwise raises an
 error.</p>
 </dd></dl>
 
@@ -382,7 +401,7 @@ results returned from the jobs within the stream.</p>
 job_stream, meaning it will be returned by run().  User code should not
 typically rely on this; it is used mainly for e.g. IPython notebooks.</p>
 <p>Cannot be used if Work.result is used.  Work.result is preferred, if
-your job stream&#8217;s output can be processed one piece at a time (more
+your job stream’s output can be processed one piece at a time (more
 efficient in that results can be discarded after they are processed).</p>
 </dd></dl>
 
@@ -398,18 +417,18 @@ itself until some stopping condition.</p>
 <li>A while loop would be used in non-parallelizable code</li>
 <li>Individual pieces of work need fan-out and fan-in</li>
 </ul>
-<p>Frames have three parts - an &#8220;all outstanding work is finished&#8221;
+<p>Frames have three parts - an “all outstanding work is finished”
 handler, an aggregator, and everything in between, which is used to
 process recurred work.</p>
 <p>For example, suppose we want to sum all digits between 1 and our work,
 and report the result.  The best way to design this type of system is
-with a Frame, implemented in <cite>inline</cite> through <a class="reference internal" href="#job_stream.inline.Work.frame" title="job_stream.inline.Work.frame"><code class="xref py py-meth docutils literal"><span class="pre">frame()</span></code></a> and
-<a class="reference internal" href="#job_stream.inline.Work.frameEnd" title="job_stream.inline.Work.frameEnd"><code class="xref py py-meth docutils literal"><span class="pre">frameEnd()</span></code></a>.  The easiest way to think of these is as the two ends
-of a <code class="docutils literal"><span class="pre">while</span></code> loop - <a class="reference internal" href="#job_stream.inline.Work.frame" title="job_stream.inline.Work.frame"><code class="xref py py-meth docutils literal"><span class="pre">frame()</span></code></a> is evaluated as a termination
+with a Frame, implemented in <cite>inline</cite> through <a class="reference internal" href="#job_stream.inline.Work.frame" title="job_stream.inline.Work.frame"><code class="xref py py-meth docutils literal notranslate"><span class="pre">frame()</span></code></a> and
+<a class="reference internal" href="#job_stream.inline.Work.frameEnd" title="job_stream.inline.Work.frameEnd"><code class="xref py py-meth docutils literal notranslate"><span class="pre">frameEnd()</span></code></a>.  The easiest way to think of these is as the two ends
+of a <code class="docutils literal notranslate"><span class="pre">while</span></code> loop - <a class="reference internal" href="#job_stream.inline.Work.frame" title="job_stream.inline.Work.frame"><code class="xref py py-meth docutils literal notranslate"><span class="pre">frame()</span></code></a> is evaluated as a termination
 condition, and is also evaluated before anything happens.
-<a class="reference internal" href="#job_stream.inline.Work.frameEnd" title="job_stream.inline.Work.frameEnd"><code class="xref py py-meth docutils literal"><span class="pre">frameEnd()</span></code></a> exists to aggregate logic from within the <code class="docutils literal"><span class="pre">while</span></code>
-loop into something that <code class="docutils literal"><span class="pre">frame</span></code> can look at.</p>
-<div class="highlight-python"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">job_stream.inline</span> <span class="kn">import</span> <span class="n">Work</span><span class="p">,</span> <span class="n">Multiple</span>
+<a class="reference internal" href="#job_stream.inline.Work.frameEnd" title="job_stream.inline.Work.frameEnd"><code class="xref py py-meth docutils literal notranslate"><span class="pre">frameEnd()</span></code></a> exists to aggregate logic from within the <code class="docutils literal notranslate"><span class="pre">while</span></code>
+loop into something that <code class="docutils literal notranslate"><span class="pre">frame</span></code> can look at.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">job_stream.inline</span> <span class="kn">import</span> <span class="n">Work</span><span class="p">,</span> <span class="n">Multiple</span>
 <span class="n">w</span> <span class="o">=</span> <span class="n">Work</span><span class="p">([</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">8</span> <span class="p">])</span>
 
 <span class="nd">@w.frame</span>
@@ -452,10 +471,10 @@ loop into something that <code class="docutils literal"><span class="pre">frame<
 </pre></div>
 </div>
 <p>Running the above code will print:</p>
-<div class="highlight-sh"><div class="highlight"><pre><span></span>$ python script.py
-4: 10
-8: 36
-5: 15
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>$ python script.py
+<span class="m">4</span>: <span class="m">10</span>
+<span class="m">8</span>: <span class="m">36</span>
+<span class="m">5</span>: <span class="m">15</span>
 </pre></div>
 </div>
 <p>Note that the original work is out of order, but the sums line up.  This is
@@ -466,8 +485,8 @@ entering the <cite>&#64;frame</cite> decorated function.</p>
 <col class="field-body" />
 <tbody valign="top">
 <tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
-<li><strong>store</strong> &#8211; The storage object used to remember results from the frame.</li>
-<li><strong>first</strong> &#8211; The first work that began this frame.</li>
+<li><strong>store</strong> – The storage object used to remember results from the frame.</li>
+<li><strong>first</strong> – The first work that began this frame.</li>
 </ul>
 </td>
 </tr>
@@ -494,9 +513,9 @@ to emitting the store itself.</div></blockquote>
 <col class="field-body" />
 <tbody valign="top">
 <tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
-<li><strong>store</strong> &#8211; The storage object used to remember results from the frame
-(same as in the <a class="reference internal" href="#job_stream.inline.Work.frame" title="job_stream.inline.Work.frame"><code class="xref py py-meth docutils literal"><span class="pre">frame()</span></code></a> decorated method).</li>
-<li><strong>next</strong> &#8211; The next result object that ran through the frame.</li>
+<li><strong>store</strong> – The storage object used to remember results from the frame
+(same as in the <a class="reference internal" href="#job_stream.inline.Work.frame" title="job_stream.inline.Work.frame"><code class="xref py py-meth docutils literal notranslate"><span class="pre">frame()</span></code></a> decorated method).</li>
+<li><strong>next</strong> – The next result object that ran through the frame.</li>
 </ul>
 </td>
 </tr>
@@ -521,7 +540,7 @@ runs, etc.</p>
 <dd><p>Decorates a job.  The decorated function must take one argument,
 which is the work coming into the job.  Anything returned is passed
 along to the next member of the stream.</p>
-<p>You may also call <a class="reference internal" href="#job_stream.inline.Work.job" title="job_stream.inline.Work.job"><code class="xref py py-meth docutils literal"><span class="pre">job()</span></code></a> as <code class="docutils literal"><span class="pre">w.job(useMultiprocessing=False)</span></code> to
+<p>You may also call <a class="reference internal" href="#job_stream.inline.Work.job" title="job_stream.inline.Work.job"><code class="xref py py-meth docutils literal notranslate"><span class="pre">job()</span></code></a> as <code class="docutils literal notranslate"><span class="pre">w.job(useMultiprocessing=False)</span></code> to
 disable multiprocessing for this job.</p>
 <div class="admonition warning">
 <p class="first admonition-title">Warning</p>
@@ -531,7 +550,7 @@ within a job.  This is because jobs have no parallelism guards -
 that is, two jobs executing concurrently might open and append to a
 file at the same time.  On some filesystems, this results in e.g.
 two lines of a csv being combined into a single, invalid line.  To
-work around this, see <a class="reference internal" href="#job_stream.inline.Work.result" title="job_stream.inline.Work.result"><code class="xref py py-meth docutils literal"><span class="pre">result()</span></code></a>.</p>
+work around this, see <a class="reference internal" href="#job_stream.inline.Work.result" title="job_stream.inline.Work.result"><code class="xref py py-meth docutils literal notranslate"><span class="pre">result()</span></code></a>.</p>
 </div>
 </dd></dl>
 
@@ -582,8 +601,8 @@ job_stream.common.run().</p>
 
 <dl class="class">
 <dt id="job_stream.inline._ForceCheckpointAndGoJob">
-<em class="property">class </em><code class="descclassname">job_stream.inline.</code><code class="descname">_ForceCheckpointAndGoJob</code><span class="sig-paren">(</span><em>(object)arg1</em><span class="sig-paren">)</span> &rarr; None :<a class="reference internal" href="../_modules/job_stream/inline.html#_ForceCheckpointAndGoJob"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#job_stream.inline._ForceCheckpointAndGoJob" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <a class="reference internal" href="job_stream.common.html#job_stream.common.Job" title="job_stream.common.Job"><code class="xref py py-class docutils literal"><span class="pre">job_stream.common.Job</span></code></a></p>
+<em class="property">class </em><code class="descclassname">job_stream.inline.</code><code class="descname">_ForceCheckpointAndGoJob</code><span class="sig-paren">(</span><em>(object)arg1</em><span class="sig-paren">)</span> &#x2192; None :<a class="reference internal" href="../_modules/job_stream/inline.html#_ForceCheckpointAndGoJob"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#job_stream.inline._ForceCheckpointAndGoJob" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="job_stream.common.html#job_stream.common.Job" title="job_stream.common.Job"><code class="xref py py-class docutils literal notranslate"><span class="pre">job_stream.common.Job</span></code></a></p>
 <p>Used for tests; execution continues after checkpoint.</p>
 <blockquote>
 <div><dl class="docutils">
@@ -600,7 +619,7 @@ job_stream.common.run().</p>
 </div></blockquote>
 <dl class="method">
 <dt id="job_stream.inline._ForceCheckpointAndGoJob._forceCheckpoint">
-<code class="descname">_forceCheckpoint</code><span class="sig-paren">(</span><em>(Job)arg1</em>, <em>(bool)arg2</em><span class="sig-paren">)</span> &rarr; None :<a class="headerlink" href="#job_stream.inline._ForceCheckpointAndGoJob._forceCheckpoint" title="Permalink to this definition">¶</a></dt>
+<code class="descname">_forceCheckpoint</code><span class="sig-paren">(</span><em>(Job)arg1</em>, <em>(bool)arg2</em><span class="sig-paren">)</span> &#x2192; None :<a class="headerlink" href="#job_stream.inline._ForceCheckpointAndGoJob._forceCheckpoint" title="Permalink to this definition">¶</a></dt>
 <dd><p>Force a checkpoint after this work.  If True is passed, cause the program to crash afterwards.</p>
 <dl class="docutils">
 <dt>C++ signature :</dt>
@@ -610,7 +629,7 @@ job_stream.common.run().</p>
 
 <dl class="method">
 <dt id="job_stream.inline._ForceCheckpointAndGoJob.emit">
-<code class="descname">emit</code><span class="sig-paren">(</span><em>(Job)arg1</em>, <em>(object)arg2</em><span class="sig-paren">)</span> &rarr; None :<a class="headerlink" href="#job_stream.inline._ForceCheckpointAndGoJob.emit" title="Permalink to this definition">¶</a></dt>
+<code class="descname">emit</code><span class="sig-paren">(</span><em>(Job)arg1</em>, <em>(object)arg2</em><span class="sig-paren">)</span> &#x2192; None :<a class="headerlink" href="#job_stream.inline._ForceCheckpointAndGoJob.emit" title="Permalink to this definition">¶</a></dt>
 <dd><p>Emit to only target</p>
 <blockquote>
 <div><dl class="docutils">
@@ -619,7 +638,7 @@ job_stream.common.run().</p>
 </dl>
 </div></blockquote>
 <dl class="docutils">
-<dt>emit( (Job)arg1, (object)arg2, (object)arg3) -&gt; None :</dt>
+<dt>emit( (Job)arg1, (object)arg2, (str)arg3) -&gt; None :</dt>
 <dd><p class="first">Emit to specific target out of list</p>
 <dl class="last docutils">
 <dt>C++ signature :</dt>
@@ -627,6 +646,13 @@ job_stream.common.run().</p>
 </dl>
 </dd>
 </dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="job_stream.inline._ForceCheckpointAndGoJob.handleWork">
+<code class="descname">handleWork</code><span class="sig-paren">(</span><em>work</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/job_stream/inline.html#_ForceCheckpointAndGoJob.handleWork"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#job_stream.inline._ForceCheckpointAndGoJob.handleWork" title="Permalink to this definition">¶</a></dt>
+<dd><p>Handle incoming work, maybe call self.emit() to generate more work
+for jobs further down the pipe.</p>
 </dd></dl>
 
 <dl class="method">
@@ -640,8 +666,8 @@ but before any work is accepted.</p>
 
 <dl class="class">
 <dt id="job_stream.inline._ForceCheckpointJob">
-<em class="property">class </em><code class="descclassname">job_stream.inline.</code><code class="descname">_ForceCheckpointJob</code><span class="sig-paren">(</span><em>(object)arg1</em><span class="sig-paren">)</span> &rarr; None :<a class="reference internal" href="../_modules/job_stream/inline.html#_ForceCheckpointJob"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#job_stream.inline._ForceCheckpointJob" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <a class="reference internal" href="job_stream.common.html#job_stream.common.Job" title="job_stream.common.Job"><code class="xref py py-class docutils literal"><span class="pre">job_stream.common.Job</span></code></a></p>
+<em class="property">class </em><code class="descclassname">job_stream.inline.</code><code class="descname">_ForceCheckpointJob</code><span class="sig-paren">(</span><em>(object)arg1</em><span class="sig-paren">)</span> &#x2192; None :<a class="reference internal" href="../_modules/job_stream/inline.html#_ForceCheckpointJob"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#job_stream.inline._ForceCheckpointJob" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="job_stream.common.html#job_stream.common.Job" title="job_stream.common.Job"><code class="xref py py-class docutils literal notranslate"><span class="pre">job_stream.common.Job</span></code></a></p>
 <p>Used for tests; raises exception after checkpoint.</p>
 <blockquote>
 <div><dl class="docutils">
@@ -658,7 +684,7 @@ but before any work is accepted.</p>
 </div></blockquote>
 <dl class="method">
 <dt id="job_stream.inline._ForceCheckpointJob._forceCheckpoint">
-<code class="descname">_forceCheckpoint</code><span class="sig-paren">(</span><em>(Job)arg1</em>, <em>(bool)arg2</em><span class="sig-paren">)</span> &rarr; None :<a class="headerlink" href="#job_stream.inline._ForceCheckpointJob._forceCheckpoint" title="Permalink to this definition">¶</a></dt>
+<code class="descname">_forceCheckpoint</code><span class="sig-paren">(</span><em>(Job)arg1</em>, <em>(bool)arg2</em><span class="sig-paren">)</span> &#x2192; None :<a class="headerlink" href="#job_stream.inline._ForceCheckpointJob._forceCheckpoint" title="Permalink to this definition">¶</a></dt>
 <dd><p>Force a checkpoint after this work.  If True is passed, cause the program to crash afterwards.</p>
 <dl class="docutils">
 <dt>C++ signature :</dt>
@@ -668,7 +694,7 @@ but before any work is accepted.</p>
 
 <dl class="method">
 <dt id="job_stream.inline._ForceCheckpointJob.emit">
-<code class="descname">emit</code><span class="sig-paren">(</span><em>(Job)arg1</em>, <em>(object)arg2</em><span class="sig-paren">)</span> &rarr; None :<a class="headerlink" href="#job_stream.inline._ForceCheckpointJob.emit" title="Permalink to this definition">¶</a></dt>
+<code class="descname">emit</code><span class="sig-paren">(</span><em>(Job)arg1</em>, <em>(object)arg2</em><span class="sig-paren">)</span> &#x2192; None :<a class="headerlink" href="#job_stream.inline._ForceCheckpointJob.emit" title="Permalink to this definition">¶</a></dt>
 <dd><p>Emit to only target</p>
 <blockquote>
 <div><dl class="docutils">
@@ -677,7 +703,7 @@ but before any work is accepted.</p>
 </dl>
 </div></blockquote>
 <dl class="docutils">
-<dt>emit( (Job)arg1, (object)arg2, (object)arg3) -&gt; None :</dt>
+<dt>emit( (Job)arg1, (object)arg2, (str)arg3) -&gt; None :</dt>
 <dd><p class="first">Emit to specific target out of list</p>
 <dl class="last docutils">
 <dt>C++ signature :</dt>
@@ -685,6 +711,13 @@ but before any work is accepted.</p>
 </dl>
 </dd>
 </dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="job_stream.inline._ForceCheckpointJob.handleWork">
+<code class="descname">handleWork</code><span class="sig-paren">(</span><em>work</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/job_stream/inline.html#_ForceCheckpointJob.handleWork"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#job_stream.inline._ForceCheckpointJob.handleWork" title="Permalink to this definition">¶</a></dt>
+<dd><p>Handle incoming work, maybe call self.emit() to generate more work
+for jobs further down the pipe.</p>
 </dd></dl>
 
 <dl class="method">
@@ -698,8 +731,8 @@ but before any work is accepted.</p>
 
 <dl class="class">
 <dt id="job_stream.inline._UnwrapperJob">
-<em class="property">class </em><code class="descclassname">job_stream.inline.</code><code class="descname">_UnwrapperJob</code><span class="sig-paren">(</span><em>(object)arg1</em><span class="sig-paren">)</span> &rarr; None :<a class="reference internal" href="../_modules/job_stream/inline.html#_UnwrapperJob"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#job_stream.inline._UnwrapperJob" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <a class="reference internal" href="job_stream.common.html#job_stream.common.Job" title="job_stream.common.Job"><code class="xref py py-class docutils literal"><span class="pre">job_stream.common.Job</span></code></a></p>
+<em class="property">class </em><code class="descclassname">job_stream.inline.</code><code class="descname">_UnwrapperJob</code><span class="sig-paren">(</span><em>(object)arg1</em><span class="sig-paren">)</span> &#x2192; None :<a class="reference internal" href="../_modules/job_stream/inline.html#_UnwrapperJob"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#job_stream.inline._UnwrapperJob" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="job_stream.common.html#job_stream.common.Job" title="job_stream.common.Job"><code class="xref py py-class docutils literal notranslate"><span class="pre">job_stream.common.Job</span></code></a></p>
 <p>Job to make processing after a reducer possible and sensical for inline.</p>
 <blockquote>
 <div><dl class="docutils">
@@ -716,7 +749,7 @@ but before any work is accepted.</p>
 </div></blockquote>
 <dl class="method">
 <dt id="job_stream.inline._UnwrapperJob._forceCheckpoint">
-<code class="descname">_forceCheckpoint</code><span class="sig-paren">(</span><em>(Job)arg1</em>, <em>(bool)arg2</em><span class="sig-paren">)</span> &rarr; None :<a class="headerlink" href="#job_stream.inline._UnwrapperJob._forceCheckpoint" title="Permalink to this definition">¶</a></dt>
+<code class="descname">_forceCheckpoint</code><span class="sig-paren">(</span><em>(Job)arg1</em>, <em>(bool)arg2</em><span class="sig-paren">)</span> &#x2192; None :<a class="headerlink" href="#job_stream.inline._UnwrapperJob._forceCheckpoint" title="Permalink to this definition">¶</a></dt>
 <dd><p>Force a checkpoint after this work.  If True is passed, cause the program to crash afterwards.</p>
 <dl class="docutils">
 <dt>C++ signature :</dt>
@@ -726,7 +759,7 @@ but before any work is accepted.</p>
 
 <dl class="method">
 <dt id="job_stream.inline._UnwrapperJob.emit">
-<code class="descname">emit</code><span class="sig-paren">(</span><em>(Job)arg1</em>, <em>(object)arg2</em><span class="sig-paren">)</span> &rarr; None :<a class="headerlink" href="#job_stream.inline._UnwrapperJob.emit" title="Permalink to this definition">¶</a></dt>
+<code class="descname">emit</code><span class="sig-paren">(</span><em>(Job)arg1</em>, <em>(object)arg2</em><span class="sig-paren">)</span> &#x2192; None :<a class="headerlink" href="#job_stream.inline._UnwrapperJob.emit" title="Permalink to this definition">¶</a></dt>
 <dd><p>Emit to only target</p>
 <blockquote>
 <div><dl class="docutils">
@@ -735,7 +768,7 @@ but before any work is accepted.</p>
 </dl>
 </div></blockquote>
 <dl class="docutils">
-<dt>emit( (Job)arg1, (object)arg2, (object)arg3) -&gt; None :</dt>
+<dt>emit( (Job)arg1, (object)arg2, (str)arg3) -&gt; None :</dt>
 <dd><p class="first">Emit to specific target out of list</p>
 <dl class="last docutils">
 <dt>C++ signature :</dt>
@@ -743,6 +776,13 @@ but before any work is accepted.</p>
 </dl>
 </dd>
 </dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="job_stream.inline._UnwrapperJob.handleWork">
+<code class="descname">handleWork</code><span class="sig-paren">(</span><em>work</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/job_stream/inline.html#_UnwrapperJob.handleWork"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#job_stream.inline._UnwrapperJob.handleWork" title="Permalink to this definition">¶</a></dt>
+<dd><p>Handle incoming work, maybe call self.emit() to generate more work
+for jobs further down the pipe.</p>
 </dd></dl>
 
 <dl class="method">
@@ -770,15 +810,16 @@ identical.</p>
 
 
            </div>
+           
           </div>
           <footer>
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
       
-        <a href="job_stream.invoke.html" class="btn btn-neutral float-right" title="job_stream.invoke" accesskey="n">Next <span class="fa fa-arrow-circle-right"></span></a>
+        <a href="job_stream.invoke.html" class="btn btn-neutral float-right" title="job_stream.invoke" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
       
       
-        <a href="job_stream.baked.html" class="btn btn-neutral" title="job_stream.baked" accesskey="p"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+        <a href="job_stream.baked.html" class="btn btn-neutral" title="job_stream.baked" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
       
     </div>
   
@@ -791,7 +832,7 @@ identical.</p>
 
     </p>
   </div>
-  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
 
 </footer>
 
@@ -809,10 +850,12 @@ identical.</p>
     <script type="text/javascript">
         var DOCUMENTATION_OPTIONS = {
             URL_ROOT:'../',
-            VERSION:'0.1.31',
+            VERSION:'0.1.32',
+            LANGUAGE:'None',
             COLLAPSE_INDEX:false,
             FILE_SUFFIX:'.html',
-            HAS_SOURCE:  true
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
         };
     </script>
       <script type="text/javascript" src="../_static/jquery.js"></script>
@@ -821,19 +864,13 @@ identical.</p>
 
   
 
-  
-  
-    <script type="text/javascript" src="../_static/js/theme.js"></script>
-  
+  <script type="text/javascript" src="../_static/js/theme.js"></script>
 
-  
-  
   <script type="text/javascript">
       jQuery(function () {
-          SphinxRtdTheme.StickyNav.enable();
+          SphinxRtdTheme.Navigation.enable(true);
       });
-  </script>
-   
+  </script> 
 
 </body>
 </html>

@@ -10,9 +10,11 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Roadmap &mdash; job_stream 0.1.31 documentation</title>
+  <title>Roadmap &mdash; job_stream 0.1.32 documentation</title>
   
 
+  
+  
   
   
 
@@ -24,27 +26,22 @@
 
   
 
-  
-  
-    <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
-  
-
-  
-    <link rel="stylesheet" href="_static/custom.css" type="text/css" />
-  
-
-  
-    <link rel="top" title="job_stream 0.1.31 documentation" href="index.html"/>
-        <link rel="next" title="job_stream" href="python.html"/>
-        <link rel="prev" title="Changelog" href="changelog.html"/> 
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="job_stream" href="python.html" />
+    <link rel="prev" title="Changelog" href="changelog.html" /> 
 
   
   <script src="_static/js/modernizr.min.js"></script>
 
 </head>
 
-<body class="wy-body-for-nav" role="document">
+<body class="wy-body-for-nav">
 
+   
   <div class="wy-grid-for-nav">
 
     
@@ -64,7 +61,7 @@
             
             
               <div class="version">
-                0.1.31
+                0.1.32
               </div>
             
           
@@ -85,7 +82,10 @@
           
             
             
-                <ul>
+              
+            
+            
+              <ul>
 <li class="toctree-l1"><a class="reference internal" href="main.html">job_stream</a></li>
 </ul>
 <ul class="current">
@@ -103,34 +103,54 @@
     <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
 
       
-      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
-        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
-        <a href="index.html">job_stream</a>
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">job_stream</a>
+        
       </nav>
 
 
-      
       <div class="wy-nav-content">
+        
         <div class="rst-content">
+        
           
 
- 
+
+
+
+
+
+
+
+
+
+
+
 
 
 
 <div role="navigation" aria-label="breadcrumbs navigation">
+
   <ul class="wy-breadcrumbs">
-    <li><a href="index.html">Docs</a> &raquo;</li>
-      
-    <li>Roadmap</li>
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+      <li>Roadmap</li>
+    
+    
       <li class="wy-breadcrumbs-aside">
         
-          
-            <a href="_sources/roadmap.txt" rel="nofollow"> View page source</a>
+            
+            <a href="_sources/roadmap.rst.txt" rel="nofollow"> View page source</a>
           
         
       </li>
+    
   </ul>
+
+  
   <hr/>
 </div>
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
@@ -147,29 +167,28 @@ INCLUDING job_stream.invoke memory.  Assume one (or two) std deviations (or
 high watermark) of memory are required above average for job allocation.
 How to do this?
 Low watermark before jobs are handled.  Periodically sample memory usage,
-and ...?  Assume used memory is evenly distributed amongst jobs?  Python
-does multiprocessing... this affects these stats.  Hmm..</p>
-<p>Maybe what would be best is add a &#8220;memoryRequired&#8221; to SharedBase override.  This
+and …?  Assume used memory is evenly distributed amongst jobs?  Python
+does multiprocessing… this affects these stats.  Hmm..</p>
+<p>Maybe what would be best is add a “memoryRequired” to SharedBase override.  This
 much RAM is required FOR THE WHOLE DURATION of the job.  E.g., it will double
 count memory.  Eventually, tracking avg time to completion + std dev, can fade
 out memory bias on running jobs.  But initially, naive is OK.</p>
-<p>Also, needs to be nice to other people&#8217;s experiments.  That is, collaborate
-across job_stream instances (since I&#8217;ve got most of the lab using job_stream).
+<p>Also, needs to be nice to other people’s experiments.  That is, collaborate
+across job_stream instances (since I’ve got most of the lab using job_stream).
 Goals:
 - Maximize resources available to all job_streams (use all cores amongst</p>
 <blockquote>
 <div><p>job_streams, and all memory).</p>
 </div></blockquote>
-<ul>
+<ul class="simple">
 <li><dl class="first docutils">
 <dt>Distribute those resources evenly, but also greedily.  That is, not all</dt>
-<dd><p class="first last">job_streams will use 100% of what is available.  Ones that need more should
-expand into the gap.</p>
-</dd>
+<dd>job_streams will use 100% of what is available.  Ones that need more should
+expand into the gap.</dd>
 </dl>
 </li>
 </ul>
-<p>So...
+<p>So…
 Distributed arbitration?  Requests and
 yields?  E.g., each job_stream status file has two fields: allocated
 cores &amp; ram, and desired.  Allocated is moved towards desired based on
@@ -178,7 +197,7 @@ desired is lower.  Balanced across user, then jobs.</p>
 <p>Traverse parent pid chain to count all memory usage.  Allocated memory should
 probably be a virtual figure - that is, the allocated memory is IN ADDITION
 to actual allocations.  Although, that has a 50% error margin.  Other way
-to do it would be to have allocated memory be a minimum of sorts...
+to do it would be to have allocated memory be a minimum of sorts…
 memory = max(baseline + allocation, actual)</p>
 <p>We now have hard limits and soft limits.  Make sure we have a concept of
 running vs desired running, too.</p>
@@ -191,15 +210,15 @@ a normal config.  DO NOT overwrite to!  Allow it to be specified in pipes, e.g.<
 <li>to: <a href="#id3"><span class="problematic" id="id4">*</span></a>other
 needsMoreTo: <a href="#id5"><span class="problematic" id="id6">*</span></a>next</li>
 <li>&amp;next
-type: ...
+type: …
 to: output</li>
 <li>&amp;other
-type: ...</li>
+type: …</li>
 </ul>
 </div></blockquote>
-<p>In general, allow standard YAML rather than a specially split &#8220;to&#8221; member.</p>
+<p>In general, allow standard YAML rather than a specially split “to” member.</p>
 </li>
-<li><p class="first">Smarter serialization....... maybe hash serialized entities, and store a dict
+<li><p class="first">Smarter serialization……. maybe hash serialized entities, and store a dict
 of hashes, so as to only write the same data once even if it is NOT a
 duplicated pointer.</p>
 </li>
@@ -208,44 +227,44 @@ duplicated pointer.</p>
 <li><p class="first">Ability to let job_stream optimize work size.  That is, your program says
 something like this-&gt;getChunk(__FILE__, __LINE__, 500) and then job_stream
 tracks time spent on communicating vs processing and optimizes the size of
-the work a bit...</p>
+the work a bit…</p>
 </li>
-<li><p class="first">Fix timing statistics in continue&#8217;d runs from checkpoints</p>
+<li><p class="first">Fix timing statistics in continue’d runs from checkpoints</p>
 </li>
 <li><p class="first">Errors during a task should push the work back on the stack and trigger a
 checkpoint before exiting.  That would be awesome.  Should probably be an
-option though, since it would require &#8220;checkpointing&#8221; reduce accumulations
-and holding onto emitted data throughout each work&#8217;s processing</p>
+option though, since it would require “checkpointing” reduce accumulations
+and holding onto emitted data throughout each work’s processing</p>
 </li>
-<li><p class="first">Prevent running code on very slow systems... maybe make a CPU / RAM sat
+<li><p class="first">Prevent running code on very slow systems… maybe make a CPU / RAM sat
 metric by running a 1-2 second test and see how many cycles of computation
 we get, then compare across systems.  If we also share how many contexts each
 machine has, then stealing code can balance such that machines 1/2 as capable
 only keep half their cores busy maximum according to stealing.</p>
 </li>
-<li><p class="first">Progress indicator, if possible...</p>
+<li><p class="first">Progress indicator, if possible…</p>
 </li>
 <li><p class="first">Merge job_stream_inherit into job_stream_example (and test it)</p>
 </li>
-<li><p class="first">TIME_COMM should not include initial isend request, since we&#8217;re not using
+<li><p class="first">TIME_COMM should not include initial isend request, since we’re not using
 primitive objects and that groups in the serialization time</p>
 </li>
-<li><p class="first">Frame probably shouldn&#8217;t need handleJoin (behavior would be wrong, since
+<li><p class="first">Frame probably shouldn’t need handleJoin (behavior would be wrong, since
 the first tuple would be different in each incarnation)</p>
 </li>
 <li><p class="first">Replace to: output with to: parent; input: output to input: reducer</p>
 </li>
-<li><p class="first">Consider replacing &#8220;reducer&#8221; keyword with &#8220;frame&#8221; to automatically rewrite
+<li><p class="first">Consider replacing “reducer” keyword with “frame” to automatically rewrite
 recurTo as input and input as reducer</p>
 </li>
 <li><p class="first">Consider attachToNext() paired w/ emit and recur; attachments have their own
-getAttached&lt;type&gt;(&#8220;label&#8221;) retriever that returns a modifiable version of the
-attachment.  removeAttached(&#8220;label&#8221;).  Anyway, attachments go to all child
+getAttached&lt;type&gt;(“label”) retriever that returns a modifiable version of the
+attachment.  removeAttached(“label”).  Anyway, attachments go to all child
 reducers but are not transmitted via emitted() work from reducers.  Would
-greatly simplify trainer / maximize code... though, if something is required,
-passing it in a struct is probably a better idea as it&#8217;s a compile-time error.
-Then again, it wouldn&#8217;t work for return values, but it would work for
-attaching return values to a recur&#8217;d tuple and waiting for it to come back
+greatly simplify trainer / maximize code… though, if something is required,
+passing it in a struct is probably a better idea as it’s a compile-time error.
+Then again, it wouldn’t work for return values, but it would work for
+attaching return values to a recur’d tuple and waiting for it to come back
 around.</p>
 </li>
 <li><p class="first">Update README with serialization changes, clean up code.  Note that unique_ptr
@@ -261,10 +280,10 @@ information (tests to run, something not in YAML)</p>
 <li><dl class="first docutils">
 <dt>Reductions should always happen locally; a dead ring should merge them.</dt>
 <dd><ul class="first last simple">
-<li>Issue - would need a merge() function on the templated reducer base class.  Also, recurrence would have to re-initialize those rings.  Might be better to hold off on this one until it&#8217;s a proven performance issue.</li>
-<li>Unless, of course, T_accum == T_input always and I remove the second param.  Downsides include awkwardness if you want other components to feed into the reducer in a non-reduced format... but, you&#8217;d have to write a converter anyway (current handleMore).  So...</li>
-<li>Though, if T_accum == T_input, it&#8217;s much more awkward to make generic, modular components.  For instance, suppose you have a vector calculation.  Sometimes you just want to print the vectors, or route them to a splicer or whatever.  If you have to form them as reductions, that&#8217;s pretty forced...</li>
-<li>Note - decided to go with handleJoin(), which isn&#8217;t used currently, but will be soon (I think this will become a small issue)</li>
+<li>Issue - would need a merge() function on the templated reducer base class.  Also, recurrence would have to re-initialize those rings.  Might be better to hold off on this one until it’s a proven performance issue.</li>
+<li>Unless, of course, T_accum == T_input always and I remove the second param.  Downsides include awkwardness if you want other components to feed into the reducer in a non-reduced format… but, you’d have to write a converter anyway (current handleMore).  So…</li>
+<li>Though, if T_accum == T_input, it’s much more awkward to make generic, modular components.  For instance, suppose you have a vector calculation.  Sometimes you just want to print the vectors, or route them to a splicer or whatever.  If you have to form them as reductions, that’s pretty forced…</li>
+<li>Note - decided to go with handleJoin(), which isn’t used currently, but will be soon (I think this will become a small issue)</li>
 </ul>
 </dd>
 </dl>
@@ -278,15 +297,16 @@ information (tests to run, something not in YAML)</p>
 
 
            </div>
+           
           </div>
           <footer>
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
       
-        <a href="python.html" class="btn btn-neutral float-right" title="job_stream" accesskey="n">Next <span class="fa fa-arrow-circle-right"></span></a>
+        <a href="python.html" class="btn btn-neutral float-right" title="job_stream" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
       
       
-        <a href="changelog.html" class="btn btn-neutral" title="Changelog" accesskey="p"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+        <a href="changelog.html" class="btn btn-neutral" title="Changelog" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
       
     </div>
   
@@ -299,7 +319,7 @@ information (tests to run, something not in YAML)</p>
 
     </p>
   </div>
-  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
 
 </footer>
 
@@ -317,10 +337,12 @@ information (tests to run, something not in YAML)</p>
     <script type="text/javascript">
         var DOCUMENTATION_OPTIONS = {
             URL_ROOT:'./',
-            VERSION:'0.1.31',
+            VERSION:'0.1.32',
+            LANGUAGE:'None',
             COLLAPSE_INDEX:false,
             FILE_SUFFIX:'.html',
-            HAS_SOURCE:  true
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
         };
     </script>
       <script type="text/javascript" src="_static/jquery.js"></script>
@@ -329,19 +351,13 @@ information (tests to run, something not in YAML)</p>
 
   
 
-  
-  
-    <script type="text/javascript" src="_static/js/theme.js"></script>
-  
+  <script type="text/javascript" src="_static/js/theme.js"></script>
 
-  
-  
   <script type="text/javascript">
       jQuery(function () {
-          SphinxRtdTheme.StickyNav.enable();
+          SphinxRtdTheme.Navigation.enable(true);
       });
-  </script>
-   
+  </script> 
 
 </body>
 </html>
